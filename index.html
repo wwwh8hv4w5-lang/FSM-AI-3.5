@@ -1547,7 +1547,7 @@ function renderModelList(){
   }
   if (!S.models.length){ $('#mList').innerHTML = `<div class="empty">Le catalogue n'a pas pu être chargé. Saisis un identifiant ci-dessous.</div>`; return; }
   if (!items.length){ $('#mList').innerHTML = `<div class="empty">Aucun modèle${q ? ' pour « ' + esc(q) + ' »' : ''} dans cette catégorie.</div>`; return; }
-  const autoRow = ROUTER_CATS.includes(c.id) && !q ? (() => { const n = t => { const r = routeModel('', [], null, c.id, t); return r ? bare(shortName(r.model)) : '—'; }; return `<button class="mrow auto${routerOn(c.id) && S.set.category === c.id ? ' on' : ''}" data-auto="1"><span class="l1"><span class="mn">FSM AI 5.0 MULTIMODAL</span><span class="rec">Recommandé</span></span><span class="mid auto-d">Le bon modèle à chaque message : ${esc(n('eco'))} pour les questions simples, ${esc(n('standard'))} pour le reste, ${esc(n('max'))} pour les demandes exigeantes.</span></button>`; })() : '';
+  const autoRow = ROUTER_CATS.includes(c.id) && !q ? (() => { return `<button class="mrow auto${routerOn(c.id) && S.set.category === c.id ? ' on' : ''}" data-auto="1"><span class="l1"><span class="mn">FSM AI 5.0 MULTIMODAL</span><span class="rec">Recommandé</span></span><span class="mid auto-d">Notre modèle le plus abouti : il fait appel à toutes les API disponibles pour te fournir, à chaque demande, la réponse la plus adaptée.</span></button>`; })() : '';
   $('#mList').innerHTML = autoRow + items.map(({ m, rec }) => `
     <button class="mrow${m.id === S.set.model ? ' on' : ''}" data-model="${esc(m.id)}">
       <span class="l1"><span class="mn">${esc(m.name || m.id)}</span>${rec ? '<span class="rec">Recommandé</span>' : ''}</span>
