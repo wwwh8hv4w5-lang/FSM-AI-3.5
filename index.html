@@ -1857,8 +1857,15 @@ function buildSystem(conv, catId){
   const ill = illusOn(c.id) ? ILLUS_HINT : '';
   return [pj, c.sys, S.set.system.trim(), S.set.fileHints ? FILE_HINT : '', ill, EDIT_HINT, mem].filter(Boolean).join('\n\n');
 }
-const EDIT_HINT = "L'application FSM AI 5.0 sait retoucher les photos et monter les vidéos jointes (couper, recadrer, accélérer, filtres, sous-titres, titres) grâce à ses catégories « Retouche Photos » et « Retouche Vidéos ». Si l'utilisateur demande une retouche, ne dis jamais que c'est impossible : explique-lui d'utiliser ces catégories ou de reformuler en demandant explicitement la retouche.";
-const ILLUS_HINT = "IMAGES DANS TES RÉPONSES (activé par défaut) : l'application affiche de vraies images à partir d'un simple marqueur. Dès que ta réponse parle d'un sujet concret et identifiable (personne réelle, personnage de fiction, jeu vidéo, film, série, manga, œuvre d'art, livre, lieu, ville, monument, pays, animal, plante, objet, produit, véhicule, plat, marque, événement historique), illustre-la SYSTÉMATIQUEMENT avec 2 à 5 images, comme un article illustré. Pour chaque image écris, seule sur sa ligne : [[image: nom exact du sujet | légende courte]]. Place la première juste sous le titre principal (ou après la première phrase), puis une en tête de chaque grande section qui parle d'un autre sujet identifiable. La requête est le nom propre précis, avec le contexte entre parenthèses si le nom est ambigu : [[image: Llednar Twem (Final Fantasy Tactics Advance) | Llednar, le chevalier noir]], [[image: Tour Eiffel | La tour Eiffel vue du Trocadéro]], [[image: Panthera tigris | Un tigre du Bengale]]. Pour un personnage ou un univers de fiction (jeu, manga, animé, série, film), ajoute en 3e champ le wiki Fandom de la franchise, que tu connais : [[image: Llednar Twem | Llednar | finalfantasy.fandom.com]]. Si la recherche web t'a donné l'URL directe d'une vraie image (.jpg, .png, .webp), tu peux la mettre à la place du nom. N'invente jamais d'URL, n'utilise pas la syntaxe ![]() et n'écris pas « voici une image » : le marqueur suffit. N'ajoute pas d'image pour du code, des calculs, une traduction ou une simple conversation. HISTOIRES ET FICTION : pour une histoire, un conte, un poème ou un récit inventé, n'utilise jamais de photo actuelle d'un lieu ou d'une personne réelle (une photo moderne de Paris n'a rien à faire dans une histoire de chevalier en l'an 300). Choisis uniquement de vraies images d'archives fidèles à l'époque et à l'univers du récit : œuvres d'art, enluminures, mosaïques, gravures, objets ou reconstitutions historiques (ex. [[image: mosaïque cavalier romain IVe siècle | Un cavalier de l'Antiquité tardive]], [[image: Lutèce gallo-romaine maquette | Lutèce vers l'an 300]]). Si rien ne correspond vraiment, ne mets aucune image. Tu ne crées jamais d'image toi-même pour illustrer une réponse. COHÉRENCE : chaque image réelle doit correspondre exactement au contexte de la demande (sujet, époque, lieu). Pour un sujet historique, choisis une œuvre ou un document de l'époque plutôt qu'une photo actuelle (ex. [[image: Lutèce | Lutèce à l'époque gallo-romaine]] plutôt que [[image: Paris]] pour Paris au IVe siècle). Si aucune vraie image ne correspond parfaitement, n'en mets pas. SYNTHÈSE EN CHIFFRES : quand la demande porte sur un sujet chiffrable (faits, histoire, science, économie, sport, voyage, technologie, comparaison, budget, statistiques), place juste sous le titre, avant les images, une synthèse de 2 à 4 chiffres clés sur une ligne seule : [[chiffres: 330 m | Hauteur ; 1889 | Inauguration ; 7 M | Visiteurs par an]]. Valeur courte (nombre et unité), libellé de 1 à 4 mots. Uniquement des chiffres exacts et vérifiés, jamais inventés. Pas de chiffres pour une histoire inventée, du code ou une simple conversation. BANQUES D'IMAGES : les images viennent de grandes banques d'images publiques. Tu peux indiquer la banque la plus adaptée en 3e champ : « met » ou « aic » (musées : œuvres d'art, objets et scènes historiques, Antiquité, Moyen Âge), « nasa » (espace, astronomie), « commons » (Wikimedia Commons, tous sujets réels), « openverse » (photos sous licence libre), « unsplash » ou « pexels » (belles photos : paysages, nourriture, ambiances), ou le wiki Fandom d'une franchise. Pour les musées et la NASA, écris la requête en anglais. Exemples : [[image: medieval knight armor | Armure de chevalier du XVe siècle | met]], [[image: Saturn rings | Les anneaux de Saturne | nasa]], [[image: lavender field Provence | Champs de lavande en Provence | unsplash]].";
+function assistantHistText(m){
+  let t = String(m.text || '').replace(ILL_RE, '').replace(KFIG_RE, '').trim();
+  const n = m.images?.length || 0, v = m.videos?.length || 0;
+  if (n) t += `${t ? '\n\n' : ''}[FSM AI a bien créé et affiché ici ${n > 1 ? n + ' images' : 'une image'} pour l'utilisateur${m.cat === 'photoedit' ? ' (la photo retouchée demandée)' : ''}.]`;
+  if (v) t += `${t ? '\n\n' : ''}[FSM AI a bien créé et affiché ici ${v > 1 ? v + ' vidéos' : 'une vidéo'} pour l'utilisateur${m.cat === 'videoedit' ? ' (le montage demandé)' : ''}.]`;
+  return t || '(réponse)';
+}
+const EDIT_HINT = "FSM AI (l'application) retouche automatiquement les photos, crée des images et des vidéos, monte et prolonge les vidéos : il suffit que l'utilisateur le demande dans la discussion, l'application choisit seule le bon outil. Ne lui dis jamais d'utiliser une catégorie, un menu ou un autre modèle. Les images et vidéos indiquées dans l'historique comme produites par FSM AI ont réellement été créées et affichées à l'utilisateur : ne dis jamais le contraire, ne t'excuse pas pour elles et ne prétends pas ne pas les avoir produites. Quand l'utilisateur te remercie ou te complimente, réponds simplement et chaleureusement en une ou deux phrases, sans image.";
+const ILLUS_HINT = "IMAGES DANS TES RÉPONSES (activé par défaut) : l'application affiche de vraies images à partir d'un simple marqueur. Dès que ta réponse parle d'un sujet concret et identifiable (personne réelle, personnage de fiction, jeu vidéo, film, série, manga, œuvre d'art, livre, lieu, ville, monument, pays, animal, plante, objet, produit, véhicule, plat, marque, événement historique), illustre-la SYSTÉMATIQUEMENT avec 2 à 5 images, comme un article illustré. Pour chaque image écris, seule sur sa ligne : [[image: nom exact du sujet | légende courte]]. Place la première juste sous le titre principal (ou après la première phrase), puis une en tête de chaque grande section qui parle d'un autre sujet identifiable. La requête est le nom propre précis, avec le contexte entre parenthèses si le nom est ambigu : [[image: Llednar Twem (Final Fantasy Tactics Advance) | Llednar, le chevalier noir]], [[image: Tour Eiffel | La tour Eiffel vue du Trocadéro]], [[image: Panthera tigris | Un tigre du Bengale]]. Pour un personnage ou un univers de fiction (jeu, manga, animé, série, film), ajoute en 3e champ le wiki Fandom de la franchise, que tu connais : [[image: Llednar Twem | Llednar | finalfantasy.fandom.com]]. Si la recherche web t'a donné l'URL directe d'une vraie image (.jpg, .png, .webp), tu peux la mettre à la place du nom. N'invente jamais d'URL, n'utilise pas la syntaxe ![]() et n'écris pas « voici une image » : le marqueur suffit. N'ajoute pas d'image pour du code, des calculs, une traduction ou une simple conversation. HISTOIRES ET FICTION : pour une histoire, un conte, un poème ou un récit inventé, n'utilise jamais de photo actuelle d'un lieu ou d'une personne réelle (une photo moderne de Paris n'a rien à faire dans une histoire de chevalier en l'an 300). Choisis uniquement de vraies images d'archives fidèles à l'époque et à l'univers du récit : œuvres d'art, enluminures, mosaïques, gravures, objets ou reconstitutions historiques (ex. [[image: mosaïque cavalier romain IVe siècle | Un cavalier de l'Antiquité tardive]], [[image: Lutèce gallo-romaine maquette | Lutèce vers l'an 300]]). Si rien ne correspond vraiment, ne mets aucune image. Tu ne crées jamais d'image toi-même pour illustrer une réponse. COHÉRENCE : chaque image réelle doit correspondre exactement au contexte de la demande (sujet, époque, lieu). Pour un sujet historique, choisis une œuvre ou un document de l'époque plutôt qu'une photo actuelle (ex. [[image: Lutèce | Lutèce à l'époque gallo-romaine]] plutôt que [[image: Paris]] pour Paris au IVe siècle). Si aucune vraie image ne correspond parfaitement, n'en mets pas. SYNTHÈSE EN CHIFFRES : quand la demande porte sur un sujet chiffrable (faits, histoire, science, économie, sport, voyage, technologie, comparaison, budget, statistiques), place juste sous le titre, avant les images, une synthèse de 2 à 4 chiffres clés sur une ligne seule : [[chiffres: 330 m | Hauteur ; 1889 | Inauguration ; 7 M | Visiteurs par an]]. Valeur courte (nombre et unité), libellé de 1 à 4 mots. Uniquement des chiffres exacts et vérifiés, jamais inventés. Pas de chiffres pour une histoire inventée, du code ou une simple conversation. BANQUES D'IMAGES : les images viennent de grandes banques d'images publiques. Tu peux indiquer la banque la plus adaptée en 3e champ : « met » ou « aic » (musées : œuvres d'art, objets et scènes historiques, Antiquité, Moyen Âge), « nasa » (espace, astronomie), « commons » (Wikimedia Commons, tous sujets réels), « openverse » (photos sous licence libre), « unsplash » ou « pexels » (belles photos : paysages, nourriture, ambiances), ou le wiki Fandom d'une franchise. Pour les musées et la NASA, écris la requête en anglais. Exemples : [[image: medieval knight armor | Armure de chevalier du XVe siècle | met]], [[image: Saturn rings | Les anneaux de Saturne | nasa]], [[image: lavender field Provence | Champs de lavande en Provence | unsplash]]. N'ajoute jamais d'image ni de chiffres à un remerciement, un compliment, une remarque sur l'application ou une réponse sur tes propres résultats.";
 const hdr = () => ({ 'Authorization': 'Bearer ' + S.key, 'Content-Type': 'application/json' });
 async function apiError(res){
   let msg = '';
@@ -1896,7 +1903,7 @@ async function runChat(asst, signal, conv){
   for (const m of conv.messages){
     if (m === asst) break;
     if (m.role === 'user') msgs.push({ role:'user', content: userParts(m) });
-    else if (m.text && !m.error) msgs.push({ role:'assistant', content: m.text });
+    else if (!m.error && (m.text || m.images?.length || m.videos?.length)) msgs.push({ role:'assistant', content: assistantHistText(m) });
   }
   { const pp = projPdfParts(conv); if (pp.length){ const fu = msgs.find(x => x.role === 'user'); if (fu) fu.content = pp.concat(fu.content); } }
   asst.steps = asst.steps || [];
@@ -2534,8 +2541,15 @@ async function commonsImgs(q, n){
     .map(p => ({ src: p.imageinfo[0].thumburl || p.imageinfo[0].url, page: p.imageinfo[0].descriptionurl, title: p.title.replace(/^File:|\.\w+$/g, ''), site: 'Wikimedia Commons' }));
 }
 const ILL_MIN = 2, ILL_MAX = 5;
+const SMALLTALK_RE = /^\s*(merci|super|génial|genial|top|parfait|bravo|excellent|cool|ok|okay|d'accord|trop bien|incroyable|wow|waouh|nickel|impeccable|magnifique|j'adore|fsm\b|tu es|t'es|c'est (super|génial|top|parfait|incroyable|bien|beau|magnifique|nickel))/i;
+const APPTALK_RE = /(fsm|retouche photos?|retouche vidéos?|catégorie|application|appli\b|ce modèle|l'outil)/i;
 async function autoIllustrate(asst, user){
   try{
+    /* remerciement, compliment ou remarque sur l'app : aucune image, et on retire celles que le modèle aurait ajoutées */
+    if ((SMALLTALK_RE.test(user?.text || '') || APPTALK_RE.test(user?.text || '')) && ILL_RE.test(asst.text || '')){
+      ILL_RE.lastIndex = 0; asst.text = asst.text.replace(ILL_RE, '').replace(/\n{3,}/g, '\n\n'); paint(asst); const cv = asst._conv || S.conv; if (cv) saveConv(cv); return;
+    }
+    ILL_RE.lastIndex = 0;
     if (!illusOn(asst.cat || 'chat') || S.voiceActive || asst.error || asst.stopped || asst.mode !== 'chat') return;
     GILL_RE.lastIndex = 0;
     if (GILL_RE.test(asst.text || '')){ GILL_RE.lastIndex = 0; asst.text = asst.text.replace(GILL_RE, '').replace(/\n{3,}/g, '\n\n'); paint(asst); const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
@@ -2552,6 +2566,7 @@ async function autoIllustrate(asst, user){
     const text = asst.text || '';
     const have = [...text.matchAll(ILL_RE)].map(m => fold(m[1]));
     if (have.length >= ILL_MIN) return;
+    if (SMALLTALK_RE.test(user?.text || '') || (String(user?.text || '').trim().split(/\s+/).length < 6 && !/\?/.test(user?.text || ''))) return;
     if (text.length < 280 || /!\[[^\]]*\]\(https?:/.test(text) || (text.match(/```/g) || []).length >= 2) return;
     const ctx = (user?.text || '') + ' ' + text.replace(ILL_RE, '').slice(0, 600);
     const cands = illCandidates(text.replace(ILL_RE, ''), user?.text).filter(c => !have.includes(fold(c.q)));
@@ -3808,7 +3823,7 @@ function xaiHistory(asst){
   for (const m of (asst._conv || S.conv).messages){
     if (m === asst) break;
     if (m.role === 'user') msgs.push({ role:'user', content: xaiParts(userParts(m)) });
-    else if (m.text && !m.error) msgs.push({ role:'assistant', content: m.text });
+    else if (!m.error && (m.text || m.images?.length || m.videos?.length)) msgs.push({ role:'assistant', content: assistantHistText(m) });
   }
   return msgs;
 }
@@ -5360,11 +5375,12 @@ function resetShort(){
 }
 function balanceHtml(compact){
   const ki = S.keyInfo, p = PLANS[S.set.plan];
-  if (S.set.plan === 'free') return `<div class="bal-top"><span>Abonnement Free</span><b>Gratuit</b></div><div class="bal-sub">Modèles gratuits uniquement</div>`;
-  if (ki){
-    const spent = ki.limit > 0 ? (ki.used || 0) : (ki.monthly || 0);
-    return `<div class="bal-top"><span>Dépensé ce mois-ci</span><b>${fmtUsd(spent)}</b></div><div class="bal-sub">${p ? 'Abonnement ' + esc(p.key) : ''}${ki.limit > 0 && resetShort() ? ' · ' + resetShort() : ''}</div>`;
+  if (S.set.plan === 'free') return `<div class="bal-sub">Abonnement Free · Modèles gratuits uniquement</div>`;
+  if (ki && ki.limit > 0){
+    const used = ki.used || 0;
+    return `${budgetBar(used, ki.limit)}<div class="bal-sub">${fmtUsd(used)} utilisés sur ${ki.limit} $${p ? ' · ' + esc(p.key) : ''}${resetShort() ? ' · ' + resetShort() : ''}</div>`;
   }
+  if (ki) return `<div class="bal-sub">${fmtUsd(ki.monthly || 0)} utilisés ce mois-ci${p ? ' · ' + esc(p.key) : ''}</div>`;
   return '';
 }
 function renderBalance(){
@@ -5662,7 +5678,7 @@ function enforceClientMode(){
     let ch = false;
     if (S.set.router === false || S.set.routerOff){ S.set.router = true; S.set.routerOff = false; ch = true; }
     if (!S.conv?.bot && S.set.category !== 'chat'){ applyPreset(catById('chat')); ch = true; }
-    if (isXai(S.set.model)){ S.set.model = DEFAULTS.model; ch = true; }
+    if (isXai(S.set.model) || modeFor(S.set.model) !== 'chat'){ S.set.model = DEFAULTS.model; ch = true; }
     if (ch){ saveSettings(); try{ refreshModelUI(); }catch(e){} }
   }
 }
