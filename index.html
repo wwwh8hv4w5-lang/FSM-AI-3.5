@@ -854,8 +854,10 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <input id="temp" type="range" min="0" max="2" step="0.1">
         <small>Bas = réponses stables et précises. Haut = plus de variété.</small>
       </div>
-      <label class="check"><input type="checkbox" id="illusGen"><span><b>Illustrer les histoires</b><br><span class="note">Pour un conte, une histoire ou un récit inventé, une illustration originale fidèle au récit est créée avec le modèle d'images le moins cher (quelques centimes), à la place de photos réelles hors contexte.</span></span></label>
-      <label class="check"><input type="checkbox" id="illus"><span><b>Illustrer les réponses</b><br><span class="note">Les modèles ajoutent de vraies images (Wikipédia, Wikimedia Commons) quand le sujet s'y prête : personnages, lieux, œuvres, animaux…</span></span></label>
+      <div class="field"><label>Banques d'images (facultatif)</label>
+        <div class="row"><input id="ikPexels" type="password" placeholder="Clé Pexels" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><input id="ikUnsplash" type="password" placeholder="Clé Unsplash" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"></div>
+        <small>Sans clé, les images viennent déjà de Wikipédia, Wikimedia Commons, Openverse, des musées (The Met, Art Institute of Chicago, Cleveland) et de la NASA. Avec une clé gratuite Pexels ou Unsplash, les réponses ont aussi accès à leurs millions de photos.</small></div>
+      <label class="check"><input type="checkbox" id="illus"><span><b>Illustrer les réponses</b><br><span class="note">Les réponses s'enrichissent de 2 à 5 vraies images issues de grandes banques d'images publiques (Wikipédia, Wikimedia Commons, Openverse, musées, NASA, Fandom), et d'une synthèse en gros chiffres quand le sujet s'y prête.</span></span></label>
       <label class="check"><input type="checkbox" id="fileHints"><span><b>Fichiers téléchargeables</b><br><span class="note">Demande au modèle de nommer chaque fichier produit pour l'afficher avec un bouton de téléchargement.</span></span></label>
       <button class="btn ghost" id="btnVoiceSettings" type="button">Réglages du mode vocal</button>
       <div class="st-sec"><h3>Intelligence</h3>
@@ -1571,7 +1573,8 @@ function openSettings(focusKey, which){
   $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; $('#sysPrompt').value = S.set.system;
   $('#temp').value = S.set.temperature; $('#tempVal').textContent = (+S.set.temperature).toFixed(1);
   $('#fileHints').checked = !!S.set.fileHints;
-  $('#illus').checked = S.set.illus !== false; $('#illusGen').checked = S.set.illusGen !== false;
+  $('#illus').checked = S.set.illus !== false;
+  { const k = LS.get('fsm.imgkeys', {}) || {}; $('#ikPexels').value = k.pexels || ''; $('#ikUnsplash').value = k.unsplash || ''; }
   $('#btnWipeOk').hidden = true;
   $('#settingsSheet').hidden = false;
   if (focusKey) setTimeout(() => $(which === 'xai' ? '#xaiKey' : '#apiKey').focus(), 50);
@@ -1615,7 +1618,7 @@ $('#sysPrompt').addEventListener('input', e => { S.set.system = e.target.value; 
 $('#temp').addEventListener('input', e => { S.set.temperature = +e.target.value; $('#tempVal').textContent = (+e.target.value).toFixed(1); saveSettings(); });
 $('#fileHints').addEventListener('change', e => { S.set.fileHints = e.target.checked; saveSettings(); });
 $('#illus').addEventListener('change', e => { S.set.illus = e.target.checked; saveSettings(); });
-$('#illusGen').addEventListener('change', e => { S.set.illusGen = e.target.checked; saveSettings(); });
+['ikPexels', 'ikUnsplash'].forEach(id => $('#' + id).addEventListener('input', () => { LS.set('fsm.imgkeys', { pexels: $('#ikPexels').value.trim(), unsplash: $('#ikUnsplash').value.trim() }); for (const [k, v] of ILL) if (v === null) ILL.delete(k); }));
 $('#btnReload').addEventListener('click', () => loadModels(true));
 $('#btnWipe').addEventListener('click', () => { $('#btnWipeOk').hidden = false; });
 $('#btnWipeOk').addEventListener('click', async () => {
@@ -1841,7 +1844,7 @@ function buildSystem(conv, catId){
   return [pj, c.sys, S.set.system.trim(), S.set.fileHints ? FILE_HINT : '', ill, EDIT_HINT, mem].filter(Boolean).join('\n\n');
 }
 const EDIT_HINT = "L'application FSM AI 5.0 sait retoucher les photos et monter les vidéos jointes (couper, recadrer, accélérer, filtres, sous-titres, titres) grâce à ses catégories « Retouche Photos » et « Retouche Vidéos ». Si l'utilisateur demande une retouche, ne dis jamais que c'est impossible : explique-lui d'utiliser ces catégories ou de reformuler en demandant explicitement la retouche.";
-const ILLUS_HINT = "IMAGES DANS TES RÉPONSES (activé par défaut) : l'application affiche de vraies images à partir d'un simple marqueur. Dès que ta réponse parle d'un sujet concret et identifiable (personne réelle, personnage de fiction, jeu vidéo, film, série, manga, œuvre d'art, livre, lieu, ville, monument, pays, animal, plante, objet, produit, véhicule, plat, marque, événement historique), illustre-la SYSTÉMATIQUEMENT avec 2 à 5 images, comme un article illustré. Pour chaque image écris, seule sur sa ligne : [[image: nom exact du sujet | légende courte]]. Place la première juste sous le titre principal (ou après la première phrase), puis une en tête de chaque grande section qui parle d'un autre sujet identifiable. La requête est le nom propre précis, avec le contexte entre parenthèses si le nom est ambigu : [[image: Llednar Twem (Final Fantasy Tactics Advance) | Llednar, le chevalier noir]], [[image: Tour Eiffel | La tour Eiffel vue du Trocadéro]], [[image: Panthera tigris | Un tigre du Bengale]]. Pour un personnage ou un univers de fiction (jeu, manga, animé, série, film), ajoute en 3e champ le wiki Fandom de la franchise, que tu connais : [[image: Llednar Twem | Llednar | finalfantasy.fandom.com]]. Si la recherche web t'a donné l'URL directe d'une vraie image (.jpg, .png, .webp), tu peux la mettre à la place du nom. N'invente jamais d'URL, n'utilise pas la syntaxe ![]() et n'écris pas « voici une image » : le marqueur suffit. N'ajoute pas d'image pour du code, des calculs, une traduction ou une simple conversation. HISTOIRES ET FICTION : pour une histoire, un conte, une nouvelle, un poème, un scénario ou tout récit inventé, n'utilise JAMAIS [[image: …]] (ce sont de vraies photos actuelles : une photo moderne de Paris n'a rien à faire dans une histoire de chevalier en l'an 300). Écris à la place, une seule fois juste sous le titre : [[illustration: description visuelle précise de la scène clé, fidèle à l'époque, au lieu, aux personnages, aux vêtements, à l'architecture et à l'ambiance du récit]]. L'application crée alors une illustration originale. COHÉRENCE : chaque image réelle doit correspondre exactement au contexte de la demande (sujet, époque, lieu). Pour un sujet historique, choisis une œuvre ou un document de l'époque plutôt qu'une photo actuelle (ex. [[image: Lutèce | Lutèce à l'époque gallo-romaine]] plutôt que [[image: Paris]] pour Paris au IVe siècle). Si aucune vraie image ne correspond parfaitement, n'en mets pas. SYNTHÈSE EN CHIFFRES : quand la demande porte sur un sujet chiffrable (faits, histoire, science, économie, sport, voyage, technologie, comparaison, budget, statistiques), place juste sous le titre, avant les images, une synthèse de 2 à 4 chiffres clés sur une ligne seule : [[chiffres: 330 m | Hauteur ; 1889 | Inauguration ; 7 M | Visiteurs par an]]. Valeur courte (nombre et unité), libellé de 1 à 4 mots. Uniquement des chiffres exacts et vérifiés, jamais inventés. Pas de chiffres pour une histoire inventée, du code ou une simple conversation.";
+const ILLUS_HINT = "IMAGES DANS TES RÉPONSES (activé par défaut) : l'application affiche de vraies images à partir d'un simple marqueur. Dès que ta réponse parle d'un sujet concret et identifiable (personne réelle, personnage de fiction, jeu vidéo, film, série, manga, œuvre d'art, livre, lieu, ville, monument, pays, animal, plante, objet, produit, véhicule, plat, marque, événement historique), illustre-la SYSTÉMATIQUEMENT avec 2 à 5 images, comme un article illustré. Pour chaque image écris, seule sur sa ligne : [[image: nom exact du sujet | légende courte]]. Place la première juste sous le titre principal (ou après la première phrase), puis une en tête de chaque grande section qui parle d'un autre sujet identifiable. La requête est le nom propre précis, avec le contexte entre parenthèses si le nom est ambigu : [[image: Llednar Twem (Final Fantasy Tactics Advance) | Llednar, le chevalier noir]], [[image: Tour Eiffel | La tour Eiffel vue du Trocadéro]], [[image: Panthera tigris | Un tigre du Bengale]]. Pour un personnage ou un univers de fiction (jeu, manga, animé, série, film), ajoute en 3e champ le wiki Fandom de la franchise, que tu connais : [[image: Llednar Twem | Llednar | finalfantasy.fandom.com]]. Si la recherche web t'a donné l'URL directe d'une vraie image (.jpg, .png, .webp), tu peux la mettre à la place du nom. N'invente jamais d'URL, n'utilise pas la syntaxe ![]() et n'écris pas « voici une image » : le marqueur suffit. N'ajoute pas d'image pour du code, des calculs, une traduction ou une simple conversation. HISTOIRES ET FICTION : pour une histoire, un conte, un poème ou un récit inventé, n'utilise jamais de photo actuelle d'un lieu ou d'une personne réelle (une photo moderne de Paris n'a rien à faire dans une histoire de chevalier en l'an 300). Choisis uniquement de vraies images d'archives fidèles à l'époque et à l'univers du récit : œuvres d'art, enluminures, mosaïques, gravures, objets ou reconstitutions historiques (ex. [[image: mosaïque cavalier romain IVe siècle | Un cavalier de l'Antiquité tardive]], [[image: Lutèce gallo-romaine maquette | Lutèce vers l'an 300]]). Si rien ne correspond vraiment, ne mets aucune image. Tu ne crées jamais d'image toi-même pour illustrer une réponse. COHÉRENCE : chaque image réelle doit correspondre exactement au contexte de la demande (sujet, époque, lieu). Pour un sujet historique, choisis une œuvre ou un document de l'époque plutôt qu'une photo actuelle (ex. [[image: Lutèce | Lutèce à l'époque gallo-romaine]] plutôt que [[image: Paris]] pour Paris au IVe siècle). Si aucune vraie image ne correspond parfaitement, n'en mets pas. SYNTHÈSE EN CHIFFRES : quand la demande porte sur un sujet chiffrable (faits, histoire, science, économie, sport, voyage, technologie, comparaison, budget, statistiques), place juste sous le titre, avant les images, une synthèse de 2 à 4 chiffres clés sur une ligne seule : [[chiffres: 330 m | Hauteur ; 1889 | Inauguration ; 7 M | Visiteurs par an]]. Valeur courte (nombre et unité), libellé de 1 à 4 mots. Uniquement des chiffres exacts et vérifiés, jamais inventés. Pas de chiffres pour une histoire inventée, du code ou une simple conversation. BANQUES D'IMAGES : les images viennent de grandes banques d'images publiques. Tu peux indiquer la banque la plus adaptée en 3e champ : « met » ou « aic » (musées : œuvres d'art, objets et scènes historiques, Antiquité, Moyen Âge), « nasa » (espace, astronomie), « commons » (Wikimedia Commons, tous sujets réels), « openverse » (photos sous licence libre), « unsplash » ou « pexels » (belles photos : paysages, nourriture, ambiances), ou le wiki Fandom d'une franchise. Pour les musées et la NASA, écris la requête en anglais. Exemples : [[image: medieval knight armor | Armure de chevalier du XVe siècle | met]], [[image: Saturn rings | Les anneaux de Saturne | nasa]], [[image: lavender field Provence | Champs de lavande en Provence | unsplash]].";
 const hdr = () => ({ 'Authorization': 'Bearer ' + S.key, 'Content-Type': 'application/json' });
 async function apiError(res){
   let msg = '';
@@ -2277,7 +2280,7 @@ function illPre(text, figs){
   if (/\[\[\s*chiffres/i.test(text)) text = text.replace(KFIG_RE, (m0, body) => { figs.push(kfigHtml(body)); return '\n\nFSMFIG' + (figs.length - 1) + 'X\n\n'; }).replace(/\[\[\s*chiffres[^\]\n]*$/i, '');
   if (!/\[\[\s*(image|illustration)/i.test(text)) return text;
   text = text.replace(ILL_RE, (m0, q, cap, src) => { figs.push(figHtml(q, cap, src)); return '\n\nFSMFIG' + (figs.length - 1) + 'X\n\n'; });
-  text = text.replace(GILL_RE, (m0, pr) => { figs.push(gillFigHtml(pr, curMid)); return '\n\nFSMFIG' + (figs.length - 1) + 'X\n\n'; });
+  text = text.replace(GILL_RE, '');
   return text.replace(/\[\[\s*(image|illustration)[^\]\n]*$/i, '');
 }
 const BAD_IMG = /(logo|icon|icône|flag|drapeau|blason|coat[_ ]of[_ ]arms|signature|map[_ ]|carte[_ ]|locator|question[_ ]mark|placeholder|no[_ ]image|wiki\.png|site-logo|commons-logo|disambig|stub)/i;
@@ -2313,6 +2316,56 @@ async function openverseImg(q){
   const p = (j.results || []).find(x => (x.thumbnail || x.url) && !BAD_IMG.test(x.title || ''));
   return p ? { src: p.url || p.thumbnail, page: p.foreign_landing_url || p.url, title: p.title || q, site: 'Openverse' + (p.source ? ' · ' + p.source : '') } : null;
 }
+/* ----- Grandes banques d'images publiques ----- */
+/* Clés facultatives communes à toutes les apps (à remplir par FSM AI sur GitHub) */
+const FSM_IMAGE_KEYS = { pexels: '', unsplash: '' };
+const bankKey = k => (LS.get('fsm.imgkeys', {}) || {})[k] || FSM_IMAGE_KEYS[k] || '';
+const getJSON = async (u, h) => { const r = await fetch(u, h ? { headers: h } : undefined); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
+async function metImg(q){
+  const j = await getJSON(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=${enc(q)}`);
+  for (const id of (j.objectIDs || []).slice(0, 6)){
+    const o = await getJSON(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`).catch(() => null);
+    if (o && o.primaryImageSmall) return { src: o.primaryImageSmall, page: o.objectURL || `https://www.metmuseum.org/art/collection/search/${id}`, title: o.title || q, site: 'The Met (domaine public)' };
+  }
+  return null;
+}
+async function aicImg(q){
+  const j = await getJSON(`https://api.artic.edu/api/v1/artworks/search?q=${enc(q)}&fields=id,title,image_id,is_public_domain&limit=8`);
+  const base = j.config?.iiif_url || 'https://www.artic.edu/iiif/2';
+  const p = (j.data || []).find(x => x.image_id && x.is_public_domain !== false) || (j.data || []).find(x => x.image_id);
+  return p ? { src: `${base}/${p.image_id}/full/843,/0/default.jpg`, page: `https://www.artic.edu/artworks/${p.id}`, title: p.title || q, site: 'Art Institute of Chicago' } : null;
+}
+async function clevelandImg(q){
+  const j = await getJSON(`https://openaccess-api.clevelandart.org/api/artworks/?q=${enc(q)}&has_image=1&cc0=1&limit=6`);
+  const p = (j.data || []).find(x => x.images?.web?.url);
+  return p ? { src: p.images.web.url, page: p.url || 'https://www.clevelandart.org/art', title: p.title || q, site: 'Cleveland Museum of Art (CC0)' } : null;
+}
+async function nasaImg(q){
+  const j = await getJSON(`https://images-api.nasa.gov/search?q=${enc(q)}&media_type=image`);
+  const it = (j.collection?.items || []).find(x => x.links?.[0]?.href);
+  if (!it) return null;
+  const d = it.data?.[0] || {};
+  return { src: it.links[0].href.replace(/~thumb\.jpg$/, '~medium.jpg'), page: `https://images.nasa.gov/details/${enc(d.nasa_id || '')}`, title: d.title || q, site: 'NASA Image Library' };
+}
+async function pexelsImg(q){
+  const k = bankKey('pexels'); if (!k) return null;
+  const j = await getJSON(`https://api.pexels.com/v1/search?query=${enc(q)}&per_page=6&locale=fr-FR`, { Authorization: k });
+  const p = (j.photos || [])[0];
+  return p ? { src: p.src?.large || p.src?.medium, page: p.url, title: p.alt || q, site: 'Pexels · ' + (p.photographer || '') } : null;
+}
+async function unsplashImg(q){
+  const k = bankKey('unsplash'); if (!k) return null;
+  const j = await getJSON(`https://api.unsplash.com/search/photos?query=${enc(q)}&per_page=6&content_filter=high&client_id=${enc(k)}`);
+  const p = (j.results || [])[0];
+  return p ? { src: p.urls?.regular, page: (p.links?.html || 'https://unsplash.com') + '?utm_source=fsm_ai&utm_medium=referral', title: p.alt_description || p.description || q, site: 'Unsplash · ' + (p.user?.name || '') } : null;
+}
+/* Type de sujet → banques les plus adaptées */
+const ART_RE = /(siècle|century|antiq|ancient|médiév|medieval|moyen[ -]âge|renaissance|baroque|mosaïque|mosaic|enluminure|illuminated|manuscrit|manuscript|gravure|engraving|peinture|painting|tableau|fresque|fresco|tapisserie|tapestry|statue|sculpture|armure|armor|armour|épée|sword|casque|helmet|romain|roman|gaulois|gaul|viking|celte|celtic|grec|greek|égypt|egypt|pharaon|samoura|samurai|chevalier|knight|château|castle|byzantin|byzantine|carolingien|mérovingien|musée|museum|œuvre|artwork|portrait de|vase|amphore|céramique|ceramic|bijou|jewel|tapis|calligraph|estampe|ukiyo)/i;
+const SPACE_RE = /(planète|planet|galaxie|galaxy|nébuleuse|nebula|étoile|star cluster|astronom|nasa|espace|space|mars|jupiter|saturne|saturn|vénus|venus|mercure|neptune|uranus|lune|moon|soleil|sun|comète|comet|astéroïde|asteroid|fusée|rocket|navette|shuttle|iss|station spatiale|apollo|hubble|webb|satellite|astronaute|astronaut|trou noir|black hole|voie lactée|milky way)/i;
+const PHOTO_RE = /(paysage|landscape|plage|beach|montagne|mountain|forêt|forest|océan|ocean|mer |sea|cuisine|recette|plat|dish|food|café|coffee|bureau|office|sport|fitness|yoga|ville|city|rue|street|nature|fleur|flower|chien|dog|chat|cat|oiseau|bird|voiture|car|maison|house|intérieur|interior|mode|fashion|voyage|travel)/i;
+const BANKS = { met: metImg, aic: aicImg, cleveland: clevelandImg, nasa: nasaImg, pexels: pexelsImg, unsplash: unsplashImg, openverse: q => openverseImg(q), commons: q => commonsImg(q) };
+function bankOf(src){ if (/fandom\.com|^fandom/i.test(src || '')) return ''; const s = fold(src || '').trim(); if (BANKS[s]) return s; for (const k of Object.keys(BANKS)) if (new RegExp('(^|[^a-z])' + k + '([^a-z]|$)').test(s)) return k; if (/metmuseum|metropolitan/.test(s)) return 'met'; if (/artic|chicago/.test(s)) return 'aic'; return ''; }
+
 /* Wikis Fandom des grandes franchises : jeux, films, séries, mangas */
 const FANDOM = [
   [/final ?fantasy|ivalice|fft?a\b|chocobo|moogle|mog\b/i, 'finalfantasy'], [/pok[ée]mon|pikachu/i, 'pokemon'], [/zelda|hyrule|link\b/i, 'zelda'],
@@ -2345,19 +2398,26 @@ function findIll(q, src, ctx){
   if (ILL.has(k)) return ILL.get(k);
   const lang = (navigator.language || 'fr').slice(0, 2).toLowerCase();
   const sub = subOf(src) || fandomFor(q + ' ' + (src || '') + ' ' + (ctx || ''));
+  const bank = bankOf(src), all = q + ' ' + (ctx || '');
   const pr = (async () => {
     const vs = qVariants(q), steps = [];
+    const v0 = vs[0], vplain = v0.replace(/\s*\([^)]*\)/g, '');
+    if (bank && BANKS[bank]) steps.push(() => BANKS[bank](vplain));
     if (sub) for (const v of vs.slice(0, 2)) steps.push(() => fandomImg(sub, v.replace(/\s*\([^)]*\)/g, '')));
+    if (ART_RE.test(q)){ steps.push(() => metImg(vplain), () => aicImg(vplain), () => clevelandImg(vplain), () => commonsImg(vplain)); }
+    if (SPACE_RE.test(q)) steps.push(() => nasaImg(vplain));
+    if (PHOTO_RE.test(q) && !ART_RE.test(q)) steps.push(() => unsplashImg(vplain), () => pexelsImg(vplain));
     for (const v of vs){ steps.push(() => wikiImg(lang, v)); if (lang !== 'en') steps.push(() => wikiImg('en', v)); }
     steps.push(() => commonsImg(vs[vs.length > 1 ? 1 : 0]));
     steps.push(() => openverseImg(vs[0]));
+    if (!PHOTO_RE.test(q)) steps.push(() => unsplashImg(vplain), () => pexelsImg(vplain));
+    if (!ART_RE.test(q) && /(histoire|history|ancien|old|vintage|époque)/i.test(all)) steps.push(() => metImg(vplain), () => aicImg(vplain));
     for (const fn of steps){ try{ const r = await fn(); if (r) return r; }catch(e){} }
     return null;
   })().then(r => { ILL.set(k, r); saveIll(); return r; });
   ILL.set(k, pr); return pr;
 }
 function mountIll(el){
-  el.querySelectorAll('figure.gill.wait[data-gp]').forEach(fig => { genIllustration(fig.dataset.mid, fig.dataset.k, fig.dataset.gp); setTimeout(() => { try{ genClock(); }catch(e){} }, 0); });
   const ctx = (el.querySelector('.md h1, .md h2')?.textContent || '') + ' ' + (el.querySelector('.md')?.textContent || '').slice(0, 400);
   el.querySelectorAll('figure.ill.wait[data-q]').forEach(fig => {
     const q = fig.dataset.q, cap = fig.dataset.cap, src = fig.dataset.src;
@@ -2445,7 +2505,18 @@ const ILL_MIN = 2, ILL_MAX = 5;
 async function autoIllustrate(asst, user){
   try{
     if (!illusOn(asst.cat || 'chat') || S.voiceActive || asst.error || asst.stopped || asst.mode !== 'chat') return;
-    if (isFiction(user?.text, asst.text) || GILL_RE.test(asst.text || '')){ GILL_RE.lastIndex = 0; finalizeFiction(asst, user); return; }
+    GILL_RE.lastIndex = 0;
+    if (GILL_RE.test(asst.text || '')){ GILL_RE.lastIndex = 0; asst.text = asst.text.replace(GILL_RE, '').replace(/\n{3,}/g, '\n\n'); paint(asst); const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
+    GILL_RE.lastIndex = 0;
+    if (isFiction(user?.text, asst.text)){
+      /* récit inventé : on ne garde que les images d'époque ou d'univers (œuvres, reconstitutions), jamais une photo actuelle d'un lieu */
+      const CTX = /(siècle|antiq|médiév|medieval|moyen[ -]âge|mosaïque|enluminure|manuscrit|gravure|peinture|tableau|fresque|tapisserie|reconstitution|maquette|statue|sculpture|armure|épée|casque|romain|gaulois|gallo|viking|celte|grec|égypt|chevalier|château fort|illustration ancienne|art |musée|archéolog|ruines|vestiges|bas-empire|byzantin|carolingien|mérovingien|préhistor|fossile|légende|mythologie|conte)/i;
+      const t0 = asst.text || '';
+      const t1 = t0.replace(ILL_RE, (m0, q) => (CTX.test(q) || q.trim().split(/\s+/).length >= 4) ? m0 : '').replace(/\n{3,}/g, '\n\n');
+      ILL_RE.lastIndex = 0;
+      if (t1 !== t0){ asst.text = t1; paint(asst); const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
+      return;
+    }
     const text = asst.text || '';
     const have = [...text.matchAll(ILL_RE)].map(m => fold(m[1]));
     if (have.length >= ILL_MIN) return;
@@ -2498,92 +2569,6 @@ function findMsgConv(mid){
   for (const c of [S.conv, ...(S.live ? S.live.values() : [])]) { if (!c) continue; const m = c.messages.find(x => x.id === mid); if (m) return { m, c }; }
   return null;
 }
-function gillFigHtml(prompt, mid){
-  const key = gillKey(prompt);
-  const hit = findMsgConv(mid)?.m?.illus?.[key];
-  if (hit === 'none') return '';
-  if (hit) return `<figure class="ill gill"><img src="${esc(hit)}" alt="Illustration de l'histoire" loading="lazy" data-act="viewsrc"><figcaption>Illustration originale · FSM AI</figcaption></figure>`;
-  return `<figure class="ill gill wait" data-gp="${esc(prompt)}" data-k="${key}" data-mid="${esc(mid || '')}"><div class="gencard mini" style="--ar:16/9" data-kind="image" data-t0="${Date.now()}" role="status" aria-label="Illustration en cours">
-    <div class="gc-mesh"></div><div class="gc-grid"></div><div class="gc-scan"></div><div class="gc-noise"></div>
-    <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div></div>
-    <div class="gc-foot"><div class="gc-row"><span class="gc-title">Illustration de l'histoire</span><span class="gc-time">0:00</span></div><div class="gc-bar"><i></i></div><div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg"></span></div></div></div></figure>`;
-}
-function illusModel(){
-  if (freeOnly()){
-    const m = freeImageModel(false);
-    if (!m || modeFor(m.id) !== 'image') return null;
-    return isFreePlan() || /:free$/.test(m.id) ? m : null;
-  }
-  const cat = catById('image');
-  const list = prefOrder(cat, S.models.filter(cat.filter)).filter(x => x.s < 99 && !isVariant(x.m, cat) && modeFor(x.m.id) === 'image').map(x => x.m).slice(0, 8);
-  const priced = list.filter(m => priceScore(m, 'image') > 0).sort((a, b) => priceScore(a, 'image') - priceScore(b, 'image'));
-  return priced[0] || list[0] || null;
-}
-function shrinkImg(u, max, q){
-  return new Promise((res, rej) => {
-    const im = new Image(); im.crossOrigin = 'anonymous';
-    im.onload = () => { try{ const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight)); const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', q)); }catch(e){ rej(e); } };
-    im.onerror = rej; im.src = u;
-  });
-}
-const GILL = new Map();
-function genIllustration(mid, key, prompt){
-  const hit = findMsgConv(mid); if (!hit) return;
-  const { m, c } = hit;
-  m.illus = m.illus || {};
-  if (m.illus[key] || GILL.has(mid + key) || m._live || !S.key) return;
-  const model = illusModel();
-  if (!model){ m.illus[key] = 'none'; paint(m); return; }
-  const p = (async () => {
-    const body = { model: model.id, n: 1, aspect_ratio: '16:9',
-      prompt: "Illustration originale de livre, soignée et cohérente avec le récit (époque, lieu, personnages, vêtements, architecture, ambiance), sans aucun texte ni lettre, sans élément anachronique : " + prompt };
-    const res = await fetch(API + '/images', { method:'POST', headers: hdr(), body: JSON.stringify(body) });
-    if (!res.ok) throw await apiError(res);
-    const j = await res.json(); const d = (j.data || [])[0];
-    let u = d ? (d.b64_json ? `data:${d.media_type || 'image/png'};base64,${d.b64_json}` : d.url) : '';
-    if (!u) throw new Error('vide');
-    u = await shrinkImg(u, 1280, 0.86).catch(() => u);
-    m.illus[key] = u;
-    const cost = j.usage?.cost != null ? +j.usage.cost : (imgUnit(model)?.usd || 0);
-    if (cost > 0){ m.cost = (+m.cost || 0) + cost; try{ addSpend(cost, 'openrouter', j.usage?.cost == null); }catch(e){} }
-  })().catch(e => { m.illus[key] = 'none'; if (e?.limit) toast(e.message.split('.')[0] + '.'); })
-    .finally(() => { GILL.delete(mid + key); paint(m); saveConv(c); setTimeout(() => fetchKeyInfo?.(), 1200); });
-  GILL.set(mid + key, p);
-}
-function storyExcerpt(text){
-  const plain = String(text).replace(ILL_RE, '').replace(GILL_RE, '').replace(/^#+\s*/gm, '').replace(/[*_`>#]/g, '').replace(/\s+/g, ' ').trim();
-  return plain.slice(0, 520);
-}
-/* Récit inventé : pas de vraies photos (anachronismes), une illustration générée à la place */
-function finalizeFiction(asst, user){
-  let t = asst.text || '';
-  const had = (t.match(ILL_RE) || []).length; ILL_RE.lastIndex = 0;
-  t = t.replace(ILL_RE, '').replace(/\n{3,}/g, '\n\n');
-  const ask = user?.text ? 'Demande : ' + user.text.replace(/\s+/g, ' ').slice(0, 200) + '. ' : '';
-  if (S.set.illusGen === false){ t = t.replace(GILL_RE, '').replace(/\n{3,}/g, '\n\n'); }
-  else {
-    const existing = (t.match(GILL_RE) || []).length; GILL_RE.lastIndex = 0;
-    if (existing > 3){ let n = 0; t = t.replace(GILL_RE, m => ++n > 3 ? '' : m); }
-    const lines = t.split('\n');
-    const bodyIdx = lines.map((l, i) => l.trim() && !/^\[\[/.test(l.trim()) ? i : -1).filter(i => i >= 0);
-    const add = [];
-    if (existing === 0){
-      let at = lines.findIndex(l => /^#{1,3}\s+\S/.test(l)); if (at < 0) at = bodyIdx[0] ?? 0;
-      add.push({ at, prompt: ask + 'Scène d\'ouverture : ' + storyExcerpt(lines.slice(at).join('\n')).slice(0, 420) });
-    }
-    if (existing <= 1 && bodyIdx.length > 4){
-      const heads = lines.map((l, i) => /^#{2,3}\s+\S/.test(l) ? i : -1).filter(i => i > lines.length * 0.4);
-      const at2 = heads[0] ?? bodyIdx[Math.floor(bodyIdx.length * 0.6)];
-      if (at2 != null) add.push({ at: at2, prompt: ask + 'Scène suivante du même récit, mêmes personnages et même style : ' + storyExcerpt(lines.slice(at2).join('\n')).slice(0, 420) });
-    }
-    for (const x of add.sort((a, b) => b.at - a.at)) lines.splice(x.at + 1, 0, '', `[[illustration: ${x.prompt.replace(/[\[\]]/g, '')}]]`, '');
-    t = lines.join('\n').replace(/\n{3,}/g, '\n\n');
-  }
-  GILL_RE.lastIndex = 0;
-  if (t !== asst.text){ asst.text = t; paint(asst); const conv = asst._conv || S.conv; if (conv) saveConv(conv); }
-  return had;
-}
-
 function mdHtml(text, mid){
   curMid = mid; curIdx = 0;
   let html; const figs = [];
