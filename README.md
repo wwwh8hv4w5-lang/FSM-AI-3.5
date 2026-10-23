@@ -1,4 +1,4 @@
-# FSM AI 3.5
+# FSM AI 5.0
 
 Application web de FERAL SYSTEM MEDIA : chat multi-modèles, mode vocal et FSM BOT, l'agent personnel.
 
@@ -6,15 +6,16 @@ Application web de FERAL SYSTEM MEDIA : chat multi-modèles, mode vocal et FSM B
 
 ## Clé API FSM AI : à obtenir auprès de FSM AI
 
-L'application ne fonctionne qu'avec une **clé API FSM AI**. Cette clé **ne se crée pas soi-même** : elle est fournie uniquement par **FSM AI (FERAL SYSTEM MEDIA)**, avec ton abonnement FSM AI 3.5.
+L'application ne fonctionne qu'avec une **clé API FSM AI**. Cette clé **ne se crée pas soi-même** : elle est fournie uniquement par **FSM AI (FERAL SYSTEM MEDIA)**, avec ton abonnement FSM AI 5.0.
 
 | Abonnement | Clé fournie | Limite d'usage |
 |---|---|---|
-| FSM AI 3.5 Entreprise | Clé Entreprise | 18 $ / mois |
-| FSM AI 3.5 Compétence | Clé Compétence | 50 $ / mois |
-| FSM AI 3.5 Élite | Clé Élite | 200 $ / mois |
+| FSM AI 5.0 Free | Clé Free | Gratuit (modèles gratuits uniquement) |
+| FSM AI 5.0 Entreprise | Clé Entreprise | 18 $ / mois |
+| FSM AI 5.0 Compétence | Clé Compétence | 50 $ / mois |
+| FSM AI 5.0 Élite | Clé Élite | 200 $ / mois |
 
-Tous les abonnements donnent accès à tous les modèles.
+Free est limité aux modèles gratuits. Les abonnements payants donnent accès à tous les modèles.
 
 Pour obtenir ta clé ou un abonnement, contacte FERAL SYSTEM MEDIA : camillafsm.admin@gmail.com
 
