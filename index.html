@@ -755,6 +755,16 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .kfig .kf b{font:700 clamp(19px,5.4vw,27px)/1.05 var(--f-display);letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .kfig .kf span{font-size:12.5px;line-height:1.3;color:var(--muted)}
 .kfig.n3 .kf b{font-size:clamp(17px,4.6vw,24px)}
+
+#modelSheet.client .cats,#modelSheet.client .catdesc,#modelSheet.client .search,#modelSheet.client .sheet-b>.field{display:none}
+.upsell{margin:10px 2px 0;font-size:13.5px;line-height:1.45;color:var(--muted);padding:12px 14px;border-radius:14px;background:var(--raised)}
+.editum{display:flex;flex-direction:column;gap:6px;padding:2px 2px 8px}
+.editum .ed-h{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:16px;background:linear-gradient(135deg,rgba(108,140,255,.10),rgba(229,140,255,.08));border:1px solid var(--line)}
+.editum .ed-logo{flex:0 0 30px;height:30px;background:var(--fsm-logo) center/contain no-repeat;filter:drop-shadow(0 0 6px rgba(170,180,255,.5));animation:gcFloat 3.2s ease-in-out infinite}
+.editum b.ed-plan{display:inline;font:inherit;font-weight:600;color:var(--ink);letter-spacing:0}
+.editum b{display:block;font:700 13px var(--f-display);letter-spacing:.02em}
+.editum,.editum *{font-family:var(--f-display)}
+.editum small{display:block;font-size:12.5px;line-height:1.35;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
@@ -765,7 +775,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
     <button class="model-btn" id="btnModel" aria-label="Choisir le modèle"><span class="name" id="hdrModel">FSM AI 5.0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
     <button class="spend" id="btnSpend" aria-label="Dépenses de la session" hidden><span id="spendAmt">$0.00</span></button>
     <button class="spend balpill" id="btnBal" aria-label="Abonnement" hidden><span class="conn" id="balConn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span id="balAmt"></span></button>
-    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Solde restant"><div class="bal" id="balBody"></div><p class="note">Solde de ta clé FSM AI, tous appareils confondus.</p></div>
+    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Dépenses"><div class="bal" id="balBody"></div><p class="note">Dépenses de ta clé FSM AI, tous appareils confondus.</p></div>
     <button class="icon-btn" id="btnNew" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-4 1 1-4Z"/></svg></button>
     <div class="spend-pop" id="spendPop" hidden role="dialog" aria-label="Dépenses de la session">
       <div class="sp-total"><span>Dépensé cette session</span><b id="spendTotal"></b></div>
@@ -1440,7 +1450,7 @@ function shortName(id){ const m = modelInfo(id); return m?.name || id || 'Aucun 
 const bare = n => String(n).replace(/^[^:]{1,40}:\s+/, '');
 function refreshModelUI(){
   { const auto = routerOn(S.set.category) && !isXai(S.set.model), h = $('#hdrModel');
-    if (auto){ h.innerHTML = '<span class="brand"><b>FSM AI 5.0</b><small>MULTIMODAL</small></span>'; h.setAttribute('aria-label', 'FSM AI 5.0 MULTIMODAL'); }
+    if (auto){ const b = brand(); h.innerHTML = `<span class="brand"><b>${esc(b.top)}</b><small>${esc(b.sub)}</small></span>`; h.setAttribute('aria-label', b.name); }
     else { h.textContent = bare(shortName(S.set.model)); h.removeAttribute('aria-label'); } }
   if (typeof VC !== 'undefined' && VC.on) updateVcModel();
   if (S.pending.length) renderSuggest();
@@ -1520,6 +1530,8 @@ $('#opts').addEventListener('change', e => {
 
 /* ---------- Feuille des modèles ---------- */
 function openModelSheet(catId){
+  enforceClientMode();
+  if (!isOwner()) catId = 'chat';
   S.sheetCat = catId || S.set.category;
   $('#mSearch').value = '';
   $('#modelSheet').hidden = false;
@@ -1535,6 +1547,7 @@ function renderCats(){
   const on = $('#cats [aria-pressed="true"]'); if (on) on.scrollIntoView({ block:'nearest', inline:'center' });
 }
 function renderModelList(){
+  if (!isOwner()){ $('#mList').innerHTML = brandRowHtml(); return; }
   const c = catById(S.sheetCat), q = $('#mSearch').value.trim();
   const items = ranked(c, q);
   if (c.id === 'xai' && !S.xaiKey){
@@ -1547,7 +1560,7 @@ function renderModelList(){
   }
   if (!S.models.length){ $('#mList').innerHTML = `<div class="empty">Le catalogue n'a pas pu être chargé. Saisis un identifiant ci-dessous.</div>`; return; }
   if (!items.length){ $('#mList').innerHTML = `<div class="empty">Aucun modèle${q ? ' pour « ' + esc(q) + ' »' : ''} dans cette catégorie.</div>`; return; }
-  const autoRow = ROUTER_CATS.includes(c.id) && !q ? (() => { return `<button class="mrow auto${routerOn(c.id) && S.set.category === c.id ? ' on' : ''}" data-auto="1"><span class="l1"><span class="mn">FSM AI 5.0 MULTIMODAL</span><span class="rec">Recommandé</span></span><span class="mid auto-d">Notre modèle le plus abouti : il fait appel à toutes les API disponibles pour te fournir, à chaque demande, la réponse la plus adaptée.</span></button>`; })() : '';
+  const autoRow = ROUTER_CATS.includes(c.id) && !q ? (() => { return `<button class="mrow auto${routerOn(c.id) && S.set.category === c.id ? ' on' : ''}" data-auto="1"><span class="l1"><span class="mn">${esc(brand().name)}</span><span class="rec">Recommandé</span></span><span class="mid auto-d">${esc(brand().desc)}</span></button>`; })() : '';
   $('#mList').innerHTML = autoRow + items.map(({ m, rec }) => `
     <button class="mrow${m.id === S.set.model ? ' on' : ''}" data-model="${esc(m.id)}">
       <span class="l1"><span class="mn">${esc(m.name || m.id)}</span>${rec ? '<span class="rec">Recommandé</span>' : ''}</span>
@@ -1604,7 +1617,7 @@ function renderPlan(){
   const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${fmtUsd(spent)} sur ${cap} $${ki && ki.remaining != null ? ' · reste ' + fmtUsd(Math.max(0, ki.remaining)) : ''}${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
   const balBlock = (ki || S.set.plan === 'unlimited') && balanceHtml() ? `<div class="bal">${balanceHtml()}</div>` : '';
   const auto = S.set.planAuto ? `<div class="pl-row"><span>Détection</span><span>Reconnu automatiquement grâce à ta clé</span></div>` : '';
-  el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}${p.auto ? '' : `<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div>`}<div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèles utilisés</span><span>${esc(pol.label)}</span></div>` : ''}${used}`;
+  el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}${p.auto ? '' : `<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div>`}<div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèle</span><span><b>${esc(brand().name)}</b> · ${esc(brand().desc)}${['elite', 'unlimited'].includes(S.set.plan) ? '' : ' ' + esc(UPSELL)}</span></div>` : ''}${used}`;
 }
 $('#planSel').addEventListener('change', e => { if (e.target.value) setPlan(e.target.value); else { S.set.plan = ''; saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); } });
 let keyDeb = 0;
@@ -1787,6 +1800,7 @@ function renderSuggest(){
   const list = suggestionsFor(S.pending); S.sugg = list;
   const warn = compatNote(S.pending);
   el.hidden = false;
+  if (!isOwner() || universalOn()){ el.innerHTML = editumHtml(warn); return; }
   el.innerHTML = `<div class="sg-h">${warn ? `<span class="sg-warn">${esc(warn)}</span>` : 'Modèles suggérés pour ce fichier'}</div><div class="sg-row">${list.map((x, i) =>
     `<button class="sg${x.m.id === S.set.model ? ' on' : ''}" data-sg="${i}">${svgI(x.icon)}<span class="sgt"><span class="f">${esc(x.fn)}</span><span class="m">${esc(bare(x.m.name || x.m.id))}</span><span class="p">${esc(shortPrice(x.m, x.cat.id === 'docs' || x.cat.id === 'folder' || x.cat.id === 'videoedit' ? 'chat' : x.cat.id))}</span></span></button>`).join('')}<button class="sg more" data-sgmore>Autres modèles…</button></div>`;
 }
@@ -2049,7 +2063,7 @@ async function send(){
   if (!text && !S.pending.length) return;
   if (isXai(S.set.model) ? !S.xaiKey : !S.key){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   let cat = S.set.category, uni = null, refMode = null;
-  if (text && !S.conv?.bot && (universalOn() || ['image', 'photoedit', 'video'].includes(cat))) refMode = await autoVisualRef(text, universalOn() ? 'chat' : cat);
+  if (text && !S.conv?.bot && (universalOn() || ['image', 'photoedit', 'video'].includes(cat))) refMode = (await autoVideoContinuation(text)) || await autoVisualRef(text, universalOn() ? 'chat' : cat);
   if (universalOn()){
     uni = universalRoute(text, S.pending, S.conv, refMode || undefined);
     if (uni?.blocked){ toast(uni.blocked); return; }
@@ -2142,12 +2156,28 @@ async function run(user, conv, model, cat, route){
   const ctrl = new AbortController(); conv._abort = ctrl; conv._busy = true; updateBusyUI();
   saveConv(conv);
   try{
-    const x = isXai(asst.model);
-    if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
-    else if (asst.mode === 'video') await (x ? runXaiVideo : runVideo)(asst, user, ctrl.signal);
-    else if (asst.mode === 'image') await (x ? runXaiImage : runImage)(asst, user, ctrl.signal);
-    else await (x ? runXaiChat : runChat)(asst, ctrl.signal, conv);
-    if (!asst.text.trim() && !asst.images.length && !asst.videos.length) asst.error = 'Réponse vide. Réessaie ou choisis un autre modèle.';
+    const tried = [];
+    for (let attempt = 0; ; attempt++){
+      try{
+        const x = isXai(asst.model);
+        if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
+        else if (asst.mode === 'video') await (x ? runXaiVideo : runVideo)(asst, user, ctrl.signal);
+        else if (asst.mode === 'image') await (x ? runXaiImage : runImage)(asst, user, ctrl.signal);
+        else await (x ? runXaiChat : runChat)(asst, ctrl.signal, conv);
+        if (!asst.text.trim() && !asst.images.length && !asst.videos.length) throw Object.assign(new Error('Réponse vide. Réessaie dans un instant.'), { empty: true });
+        break;
+      }catch(e){
+        if (e?.name === 'AbortError' || ctrl.signal.aborted || !canFallback(e, asst, attempt)) throw e;
+        tried.push(asst.model);
+        const alt = altModel(asst, user, conv, tried);
+        if (!alt) throw e;
+        /* FSM AI s'adapte : un autre modèle reprend la demande */
+        asst.model = alt; asst.mode = modeFor(alt);
+        asst.text = ''; asst.images = []; asst.videos = []; asst.sources = []; asst.steps = []; asst.reasoning = '';
+        asst.retried = (asst.retried || 0) + 1;
+        asst.status = 'Nouvelle tentative avec un autre outil…'; paint(asst);
+      }
+    }
   }catch(e){
     if (e?.name === 'AbortError') asst.stopped = true;
     else if (e instanceof TypeError && /fetch|network|load/i.test(e.message)) asst.error = "Connexion à OpenRouter impossible. Vérifie ta connexion internet. Sur téléphone, ouvre ce fichier dans un vrai navigateur (pas dans l'aperçu de l'app Fichiers).";
@@ -2748,7 +2778,7 @@ function welcomeHtml(){
     return `<button class="tile${S.set.category === c.id ? ' on' : ''}" data-act="preset" data-cat="${c.id}">${svgI(c.id)}<span class="tl">${esc(c.short)}</span><span class="tp">${esc(sub)}</span></button>`;
   }).join('');
   const cur = catById(S.set.category), mi = modelInfo(S.set.model);
-  const pick = universalOn() ? `<div class="pick"><span>FSM AI 5.0 MULTIMODAL</span>${PLANS[S.set.plan] ? `<span>·</span><b>${esc(PLANS[S.set.plan].key)}</b>${keyExhausted() ? '<span>· limite atteinte</span>' : S.set.planAuto ? '' : '<button data-act="planchg">Changer</button>'}` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
+  const pick = universalOn() ? `<div class="pick"><span>${esc(brand().name)}</span>${PLANS[S.set.plan] ? `<span>·</span><b>${esc(PLANS[S.set.plan].key)}</b>${keyExhausted() ? '<span>· limite atteinte</span>' : S.set.planAuto ? '' : '<button data-act="planchg">Changer</button>'}` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
   return `<div class="welcome solo"><div class="greet"> <span class="logo" role="img" aria-label="F.S.M AI"></span><h1>Que veux-tu créer aujourd'hui ?</h1>${key ? `<div class="greet-acts">${key}</div>` : ''}</div>${planRowHtml()}${pick}</div>`;
 }
 function syncThread(){
@@ -5262,7 +5292,7 @@ function fetchKeyInfo(force){
       LS.set('fsm.keyinfo', S.keyInfo);
       keyInfoAt = Date.now();
       S.keyState = 'ok';
-      applyKeyPlan(); renderKeyStat(); try{ renderGm(); }catch(e){}
+      applyKeyPlan(); renderKeyStat(); try{ renderGm(); enforceClientMode(); refreshModelUI(); }catch(e){}
       return S.keyInfo;
     }catch(e){ if (k === S.key){ S.keyState = 'err'; renderKeyStat(); } return S.keyInfo; }
     finally{ keyInfoP = null; }
@@ -5300,7 +5330,7 @@ function renderKeyStat(){
   else if (st === 'err'){ cls = 'bad'; h = 'Impossible de vérifier la clé pour le moment (connexion).'; }
   else if (st === 'ok' && ki){
     cls = 'ok';
-    if (S.set.planAuto && p) h = `Clé reconnue · statut <b>${esc(p.key)}</b> sélectionné automatiquement` + (ki.limit > 0 && ki.remaining != null ? ` · solde <b>${fmtUsd(Math.max(0, ki.remaining))}</b>` : '');
+    if (S.set.planAuto && p) h = `Clé reconnue · statut <b>${esc(p.key)}</b> sélectionné automatiquement`;
     else h = 'Clé valide · choisis ton statut ci-dessous';
   }
   el.className = 'keystat ' + cls; el.innerHTML = h ? '<i></i><span>' + h + '</span>' : ''; el.hidden = !h;
@@ -5330,12 +5360,11 @@ function resetShort(){
 }
 function balanceHtml(compact){
   const ki = S.keyInfo, p = PLANS[S.set.plan];
-  if (ki && ki.limit > 0 && ki.remaining != null){
-    const rem = Math.max(0, ki.remaining);
-    return `<div class="bal-top"><span>Solde restant</span><b>${fmtUsd(rem)}</b></div>${budgetBar(ki.used, ki.limit)}<div class="bal-sub">${fmtUsd(ki.used)} utilisés sur ${ki.limit} $${p ? ' · ' + esc(p.key) : ''}${resetShort() ? ' · ' + resetShort() : ''}</div>`;
-  }
   if (S.set.plan === 'free') return `<div class="bal-top"><span>Abonnement Free</span><b>Gratuit</b></div><div class="bal-sub">Modèles gratuits uniquement</div>`;
-  if (S.set.plan === 'unlimited' && ki) return `<div class="bal-top"><span>Statut</span><b>Illimité</b></div><div class="bal-sub">Clé sans plafond · ${fmtUsd(ki.monthly || 0)} utilisés ce mois-ci</div>`;
+  if (ki){
+    const spent = ki.limit > 0 ? (ki.used || 0) : (ki.monthly || 0);
+    return `<div class="bal-top"><span>Dépensé ce mois-ci</span><b>${fmtUsd(spent)}</b></div><div class="bal-sub">${p ? 'Abonnement ' + esc(p.key) : ''}${ki.limit > 0 && resetShort() ? ' · ' + resetShort() : ''}</div>`;
+  }
   return '';
 }
 function renderBalance(){
@@ -5514,6 +5543,7 @@ async function autoVisualRef(text, cat){
 function refApiText(text, atts, mode){
   const a = (atts || []).find(x => x.ref);
   if (!a) return '';
+  if (mode === 'video' && a.refCont) return `${text}\n\nCette image est la dernière image de la vidéo précédente : poursuis la même scène à partir d'elle, sans coupure visible, avec les mêmes personnages, le même décor, la même lumière, le même cadrage et le même style.${a.refPrompt ? ' Vidéo précédente : ' + a.refPrompt : ''}`;
   if (mode === 'video') return `${text}\n\nAnime l'image fournie (elle sert de première image) : garde exactement le même sujet, la même apparence, les mêmes couleurs et le même style.${a.refPrompt ? ' Description de l\'image d\'origine : ' + a.refPrompt : ''}`;
   return `Modifie l'image fournie selon cette demande : ${text}\nGarde exactement le même sujet, la même apparence, la même composition et le même style : ne change que ce qui est demandé.${a.refPrompt ? ' (Image d\'origine : ' + a.refPrompt + ')' : ''}`;
 }
@@ -5596,12 +5626,123 @@ function refApiText(text, atts, mode){
   document.addEventListener('click', e => { if (swallowClick){ e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
 })();
 
+
+/* =====================================================================
+   11. MODÈLES FSM AI PAR ABONNEMENT, ÉDITUM, REPRISE SUR ÉCHEC, SUITE DE VIDÉO
+   ===================================================================== */
+const BRANDS = {
+  entreprise:{ name:'FSM AI CORSER 5.0', top:'FSM AI 5.0', sub:'CORSER',
+    desc:"Le modèle de l'abonnement Entreprise : il tire le meilleur de tes 18 $ mensuels en choisissant, à chaque demande, l'outil le plus efficace au meilleur coût." },
+  competence:{ name:'FSM AI NEURAL 5.5', top:'FSM AI 5.5', sub:'NEURAL',
+    desc:"Le modèle de l'abonnement Compétence : il mobilise des modèles plus puissants dès que la demande l'exige, tout en pilotant ton budget de 50 $ par mois." },
+  elite:{ name:'FSM AI NEURAL 8.0', top:'FSM AI 8.0', sub:'NEURAL',
+    desc:"Le modèle de l'abonnement Élite : il donne accès aux modèles les plus puissants dès que la demande le justifie, dans la limite de 200 $ par mois." },
+  free:{ name:'FSM AI 5.0 MULTIMODAL', top:'FSM AI 5.0', sub:'MULTIMODAL',
+    desc:"Le modèle de l'abonnement Free : il répond avec les meilleurs modèles gratuits disponibles et choisit lui-même l'outil adapté à chaque demande." },
+  _default:{ name:'FSM AI 5.0 MULTIMODAL', top:'FSM AI 5.0', sub:'MULTIMODAL',
+    desc:"Notre modèle le plus abouti : il fait appel à toutes les API disponibles pour te fournir, à chaque demande, la réponse la plus adaptée." }
+};
+function brand(){ return BRANDS[S.set.plan] || BRANDS._default; }
+function isOwner(){ return S.set.plan === 'unlimited'; }
+const UPSELL = "Pour utiliser des modèles plus puissants, demande l'accès à une clé API FSM AI avec un abonnement adapté.";
+function brandRowHtml(){
+  const b = brand();
+  return `<button class="mrow auto on" data-auto="1"><span class="l1"><span class="mn">${esc(b.name)}</span><span class="rec">${isOwner() ? 'Recommandé' : 'Ton modèle'}</span></span><span class="mid auto-d">${esc(b.desc)}</span></button>`
+    + (['elite', 'unlimited'].includes(S.set.plan) ? '' : `<div class="upsell">${esc(UPSELL)}</div>`);
+}
+/* Les clients n'ont pas accès au catalogue : FSM AI choisit pour eux */
+function enforceClientMode(){
+  const owner = isOwner();
+  document.getElementById('modelSheet')?.classList.toggle('client', !owner);
+  const show = (sel, on) => { const el = document.querySelector(sel); if (el) el.hidden = !on; };
+  show('#btnModels2', owner);
+  const rl = document.getElementById('stRouter')?.closest('label'); if (rl) rl.hidden = !owner;
+  const fb = document.getElementById('fbModel')?.closest('.field'); if (fb) fb.hidden = !owner;
+  if (!owner && S.key && S.set.plan){
+    let ch = false;
+    if (S.set.router === false || S.set.routerOff){ S.set.router = true; S.set.routerOff = false; ch = true; }
+    if (!S.conv?.bot && S.set.category !== 'chat'){ applyPreset(catById('chat')); ch = true; }
+    if (isXai(S.set.model)){ S.set.model = DEFAULTS.model; ch = true; }
+    if (ch){ saveSettings(); try{ refreshModelUI(); }catch(e){} }
+  }
+}
+/* ----- ÉDITUM : remplace les suggestions de modèles quand un fichier est joint ----- */
+function editumHtml(warn){
+  const k = S.pending.map(kindOf);
+  const what = k.includes('video') ? 'monter, retoucher, analyser ou prolonger ta vidéo'
+    : k.includes('image') ? 'retoucher, transformer, animer ou analyser ta photo'
+    : k.includes('audio') ? 'transcrire, traduire ou résumer ton audio'
+    : 'lire, analyser et exploiter ton fichier';
+  return `<div class="editum">${warn ? `<div class="sg-warn">${esc(warn)}</div>` : ''}<div class="ed-h"><span class="ed-logo"></span><span><b>FSM AI EDITUM MULTIMODAL 5.5</b><small>Fait appel aux meilleurs outils disponibles pour ${esc(what)}.${PLANS[S.set.plan] ? ` Inclus dans ton abonnement <b class="ed-plan">${esc(PLANS[S.set.plan].key)}</b>.` : ''} Décris simplement ce que tu veux.</small></span></div></div>`;
+}
+/* ----- Reprise automatique : si un modèle échoue, FSM AI en essaie un autre ----- */
+function canFallback(e, asst, attempt){
+  if (attempt >= 2 || !e || e.name === 'AbortError' || e.limit) return false;
+  if (e.status === 401 || e.status === 402) return false;
+  if (e instanceof TypeError && /fetch|network|load/i.test(e.message)) return false;
+  if (isXai(asst.model) || asst.cat === 'videoedit' || S.voiceActive) return false;
+  return !!(asst.route?.universal || routerOn(asst.cat || '') || !isOwner());
+}
+function altModel(asst, user, conv, exclude){
+  const saved = S.models;
+  S.models = saved.filter(m => !exclude.includes(m.id));
+  try{
+    const cat = asst.cat || 'chat';
+    if (['image', 'photoedit', 'video'].includes(cat)){
+      if (freeOnly()){ const m = freeImageModel(cat === 'photoedit'); return m && cat !== 'video' ? m.id : null; }
+      const m = planPick(cat); return m ? m.id : null;
+    }
+    const r = routeModel(user.apiText || user.text || '', user.atts || [], conv, cat) || routeModel(user.text || '', user.atts || [], conv, 'chat');
+    return r ? r.model : null;
+  }catch(e){ return null; }
+  finally{ S.models = saved; }
+}
+/* ----- Suite d'une vidéo générée : la dernière image sert de point de départ ----- */
+var CONT_RE = /(?:^|[^\p{L}])(suite|continue[rz]?|prolonge[rz]?|enchaîne[rz]?|enchaine[rz]?|rallonge[rz]?|allonge[rz]?|séquence suivante|plan suivant|scène suivante|après ça|et ensuite|et après|la fin de (?:la|cette) vidéo|deuxième partie|partie 2)(?![\p{L}])/iu;
+function recentVideoRef(maxBack){
+  const c = S.conv; if (!c) return null;
+  let back = 0;
+  for (let i = c.messages.length - 1; i >= 0 && back < (maxBack || 8); i--, back++){
+    const m = c.messages[i];
+    if (m.role === 'assistant' && m.videos?.length){
+      const v = m.videos[m.videos.length - 1];
+      const u = c.messages.slice(0, i).reverse().find(x => x.role === 'user');
+      return { src: vidSrc(v), prompt: (u?.text || '').slice(0, 500), recent: back <= 1 };
+    }
+  }
+  return null;
+}
+function lastFrame(src){
+  return new Promise(res => {
+    if (!src) return res(null);
+    const v = document.createElement('video'); let done = false;
+    const fin = r => { if (!done){ done = true; res(r); try{ v.removeAttribute('src'); v.load(); }catch(e){} } };
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+    v.onloadedmetadata = () => { try{ v.currentTime = Math.max(0, (v.duration || 0) - 0.08); }catch(e){ fin(null); } };
+    v.onseeked = () => { try{ const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); fin({ data: c.toDataURL('image/jpeg', 0.92), w: c.width, h: c.height }); }catch(e){ fin(null); } };
+    v.onerror = () => fin(null);
+    setTimeout(() => fin(null), 9000);
+    v.src = src;
+  });
+}
+async function autoVideoContinuation(text){
+  if (!text || S.pending.some(a => ['image', 'video'].includes(kindOf(a)))) return null;
+  if (!CONT_RE.test(text) || ASK_RE.test(text) || HOWTO_RE.test(text)) return null;
+  const ref = recentVideoRef(); if (!ref) return null;
+  if (!ref.recent && !/vid[ée]o|clip|séquence|scène|plan/i.test(text)) return null;
+  const f = await lastFrame(ref.src);
+  if (!f) return null;
+  S.pending.push({ id: uid(), name: 'derniere-image-video.jpg', type: 'image/jpeg', size: f.data.length * 0.75, data: f.data, w: f.w, h: f.h, ref: 'video', refCont: true, refPrompt: ref.prompt });
+  renderPending();
+  return 'video';
+}
+
 (function init(){
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
   mergeXai(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
-  renderBalance(); fetchKeyInfo(true);
+  try{ enforceClientMode(); }catch(e){} renderBalance(); fetchKeyInfo(true);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') fetchKeyInfo(); });
 })();
 </script>
