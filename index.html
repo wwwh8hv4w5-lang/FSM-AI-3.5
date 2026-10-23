@@ -290,6 +290,11 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .conv .del{border:0;background:transparent;color:var(--faint);padding:8px 10px;border-radius:8px;font-size:12.5px}
 .conv .del.arm{color:var(--danger);font-weight:600}
 .dfoot{border-top:1px solid var(--line);padding:8px 8px 0}
+.bal{display:flex;flex-direction:column;gap:6px;background:var(--surface);border-radius:12px;padding:10px 12px}
+.dbal{display:flex;flex-direction:column;gap:6px;margin:4px 10px 10px}
+.bal-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--muted)}
+.bal-top b{font:600 18px var(--f-mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.bal-sub{font-size:12px;color:var(--faint);line-height:1.4}
 
 .drop{position:fixed;inset:10px;z-index:60;border-radius:24px;background:rgba(18,18,20,.85);border:2px dashed var(--line2);display:grid;place-items:center;font-size:20px;font-weight:600;pointer-events:none}
 .toast{position:fixed;left:50%;top:calc(60px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--raised);border:1px solid var(--line);color:var(--ink);padding:9px 16px;border-radius:14px;font-size:14px;z-index:90;max-width:calc(100% - 32px);text-align:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.8)}
@@ -486,6 +491,7 @@ input[type=range]{accent-color:var(--ink);width:100%}
 #btnDrawer{position:relative}
 #btnDrawer.has-bg::after{content:"";position:absolute;top:10px;right:9px;width:8px;height:8px;border-radius:50%;background:#93c5fd;box-shadow:0 0 0 2px var(--bg)}
 .spend,#spendPop{display:none!important}
+.sel:disabled{opacity:.75}
 .welcome.solo{margin:auto;gap:clamp(18px,3.5vh,30px)}
 .greet-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
 .planq{display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;min-width:0}
@@ -844,7 +850,7 @@ html,body{overflow-x:hidden;max-width:100%}
     <div class="dnav" id="projList"></div>
     <div class="dsec label">Récents</div>
     <div class="convs" id="convs"></div>
-    <div class="dfoot"><button class="dlink nudge" id="bkNudge" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span></span></button><button class="dlink" id="btnSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Réglages et clé API</button></div>
+    <div class="dfoot"><div class="dbal" id="dBal" hidden></div><button class="dlink nudge" id="bkNudge" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span></span></button><button class="dlink" id="btnSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Réglages et clé API</button></div>
   </aside>
 </div>
 
@@ -1384,6 +1390,7 @@ $('#customId').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prev
 /* ---------- Réglages ---------- */
 function openSettings(focusKey, which){
   $('#planSel').value = S.set.plan || ''; renderPlan();
+  fetchKeyInfo(true).then(() => { $('#planSel').value = S.set.plan || ''; renderPlan(); });
   $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; $('#sysPrompt').value = S.set.system;
   $('#temp').value = S.set.temperature; $('#tempVal').textContent = (+S.set.temperature).toFixed(1);
   $('#fileHints').checked = !!S.set.fileHints;
@@ -1405,15 +1412,22 @@ const PLANS = {
 };
 function renderPlan(){
   const p = PLANS[S.set.plan], el = $('#planInfo');
+  $('#planSel').disabled = !!(S.set.planAuto && p); $('#planSel').value = S.set.plan || '';
   if (!p){ el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
   const pol = typeof PLAN_POL !== 'undefined' ? PLAN_POL[S.set.plan] : null;
   const lim = p.limit ? `<b>${p.limit} $/mois</b> · Accès à tous les modèles` : `<b>Gratuit</b> · Modèles gratuits uniquement · 1 modèle de génération d'images (le moins cher) · Pas de génération de vidéos`;
-  const used = p.limit ? `<div class="pl-row"><span>Ce mois-ci</span><span>${fmtUsd(spentMonth())} utilisés sur ${p.limit} $${spentMonth() >= p.limit * 0.8 ? ' · le routeur passe sur des modèles plus économes' : ''}</span></div>` : '';
-  el.innerHTML = `<b>Abonnement ${esc(p.name)}</b><div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div><div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${pol ? `<div class="pl-row"><span>Modèles utilisés</span><span>${esc(pol.label)}</span></div>` : ''}${used}`;
+  const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
+  const spent = ki ? ki.used : spentMonth(), cap = ki ? ki.limit : p.limit;
+  const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${fmtUsd(spent)} sur ${cap} $${ki && ki.remaining != null ? ' · reste ' + fmtUsd(Math.max(0, ki.remaining)) : ''}${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
+  const balBlock = ki ? `<div class="bal">${balanceHtml()}</div>` : '';
+  const auto = S.set.planAuto ? `<div class="pl-row"><span>Détection</span><span>Reconnu automatiquement grâce à ta clé</span></div>` : '';
+  el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div><div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèles utilisés</span><span>${esc(pol.label)}</span></div>` : ''}${used}`;
 }
 $('#planSel').addEventListener('change', e => { if (e.target.value) setPlan(e.target.value); else { S.set.plan = ''; saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); } });
-$('#apiKey').addEventListener('input', e => { S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread(); });
+let keyDeb = 0;
+$('#apiKey').addEventListener('input', e => { S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
+  S.keyInfo = null; S._exhaustToast = 0; clearTimeout(keyDeb); keyDeb = setTimeout(() => fetchKeyInfo(true), 700); });
 $('#btnShowKey').addEventListener('click', e => { const i = $('#apiKey'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; e.target.textContent = show ? 'Masquer' : 'Afficher'; });
 $('#sysPrompt').addEventListener('input', e => { S.set.system = e.target.value; saveSettings(); });
 $('#temp').addEventListener('input', e => { S.set.temperature = +e.target.value; $('#tempVal').textContent = (+e.target.value).toFixed(1); saveSettings(); });
@@ -1479,7 +1493,7 @@ $('#convs').addEventListener('click', async e => {
   if (S.conv?.id === id) newConv();
   renderConvs();
 });
-$('#btnDrawer').addEventListener('click', () => { renderConvs(); renderProjects(); renderBackupInfo(); $('#drawer').hidden = false; });
+$('#btnDrawer').addEventListener('click', () => { renderConvs(); renderProjects(); renderBackupInfo(); renderBalance(); $('#drawer').hidden = false; fetchKeyInfo(); });
 const startNew = () => { newConv(); closeSheets(); if (!coarse) $('#input').focus(); };
 $('#btnNew').addEventListener('click', startNew);
 $('#btnNew2').addEventListener('click', startNew);
@@ -1651,6 +1665,12 @@ async function apiError(res){
   try{ const j = await res.json(); msg = j.error?.message || j.message || ''; const raw = j.error?.metadata?.raw; if (raw) msg += '\n' + String(typeof raw === 'string' ? raw : JSON.stringify(raw)).slice(0, 300); }
   catch(e){ try{ msg = (await res.text()).slice(0, 300); }catch(_){} }
   const map = { 400:'Requête refusée par le modèle.', 401:'Clé API refusée. Vérifie-la dans les réglages.', 402:'Crédits OpenRouter insuffisants pour ce modèle.', 403:'Accès refusé (modération ou modèle restreint).', 404:'Modèle ou service introuvable. Vérifie que ce modèle gère ce type de demande.', 408:'Délai dépassé.', 413:'Fichier trop lourd pour ce modèle.', 429:'Trop de requêtes : patiente un peu ou change de modèle.', 502:'Le fournisseur du modèle ne répond pas. Réessaie ou change de modèle.', 503:'Aucun fournisseur disponible pour ce modèle avec ces fichiers.' };
+  if (/openrouter\.ai/.test(res.url || '') && (res.status === 403 || res.status === 402) && /key limit|limit exceeded|budget|spend limit|credit limit/i.test(msg)){
+    if (S.keyInfo){ S.keyInfo.remaining = 0; S.keyInfo.used = S.keyInfo.limit || S.keyInfo.used; }
+    fetchKeyInfo(true);
+    const le = new Error(limitMsg(false) + ' Les modèles gratuits restent disponibles en attendant : renvoie ton message pour continuer.');
+    le.status = res.status; le.limit = true; return le;
+  }
   const e = new Error((map[res.status] || ('Erreur ' + res.status)) + (msg ? '\n' + msg : ''));
   e.status = res.status; return e;
 }
@@ -1836,6 +1856,7 @@ async function attachLast(kind){
 async function send(){
   if (S.set.category === 'videoedit') blessEditor();
   const text0 = $('#input').value.trim();
+  if (text0 && !S.set.plan && S.key && !S.conv?.bot){ await Promise.race([fetchKeyInfo(), sleep(3500)]).catch(() => {}); }
   if (text0 && !S.set.plan && !planLater() && !S.conv?.messages?.length && !S.conv?.bot && S.key){ await askPlan(); }
   const text = $('#input').value.trim();
   if (S.busy && !text && !S.pending.length){ S.abort?.abort(); return; }
@@ -1847,7 +1868,7 @@ async function send(){
     if (uni?.blocked){ toast(uni.blocked); return; }
     if (uni){ cat = uni.cat; if (cat === 'videoedit') blessEditor(); }
   } else {
-    if (isFreePlan() && (modeFor(S.set.model) === 'video' || cat === 'video')){ toast(FREE_NO_VIDEO); return; }
+    if (freeOnly() && (modeFor(S.set.model) === 'video' || cat === 'video')){ toast(isFreePlan() ? FREE_NO_VIDEO : limitMsg(false)); return; }
     const routed = autoRoute(text, cat);
     if (routed){ cat = routed; }
   }
@@ -1856,7 +1877,7 @@ async function send(){
   const item = { id: uid(), text, atts: S.pending.slice(), model: S.set.model, cat };
   if (uni){ item.model = uni.model; item.route = uni.route; }
   else if (routerOn(cat) && !isXai(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
-  else if (isFreePlan() && !S.conv?.bot){
+  else if (freeOnly() && !S.conv?.bot){
     const mi = modelInfo(item.model), md = modeFor(item.model);
     if (md === 'image' || md === 'chat+image'){ const im = freeImageModel(cat === 'photoedit'); if (im && im.id !== item.model){ item.model = im.id; toast('Abonnement Free : modèle d\'images gratuit utilisé'); } }
     else if (!mi || !isFree(mi)){ const r = freeRoute(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; toast('Abonnement Free : modèle gratuit utilisé'); } }
@@ -1935,6 +1956,7 @@ async function run(user, conv, model, cat, route){
     if (+asst.cost > 0) addSpend(asst.cost, isXai(asst.model) ? 'xai' : 'openrouter', asst.estimated);
     paint(asst); await saveConv(conv);
     if (!asst.error && !asst.stopped && !S.voiceActive) autoIllustrate(asst, user);
+    if (!isXai(asst.model)) setTimeout(() => fetchKeyInfo(asst.error ? true : false), 1500);
     if (conv === S.conv) scrollEnd();
     else if (!asst.stopped){ conv._unread = true; toast(`« ${conv.title} » : ${asst.error ? 'erreur' : 'réponse prête'}`); }
     updateBusyUI();
@@ -2330,7 +2352,7 @@ function welcomeHtml(){
     return `<button class="tile${S.set.category === c.id ? ' on' : ''}" data-act="preset" data-cat="${c.id}">${svgI(c.id)}<span class="tl">${esc(c.short)}</span><span class="tp">${esc(sub)}</span></button>`;
   }).join('');
   const cur = catById(S.set.category), mi = modelInfo(S.set.model);
-  const pick = universalOn() ? `<div class="pick"><span>Mode automatique</span>${PLANS[S.set.plan] ? `<span>·</span><b>${esc(PLANS[S.set.plan].key)}</b><button data-act="planchg">Changer</button>` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
+  const pick = universalOn() ? `<div class="pick"><span>Mode automatique</span>${PLANS[S.set.plan] ? `<span>·</span><b>${esc(PLANS[S.set.plan].key)}</b>${keyExhausted() ? '<span>· limite atteinte</span>' : S.set.planAuto ? '' : '<button data-act="planchg">Changer</button>'}` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
   return `<div class="welcome solo"><div class="greet"> <span class="logo" role="img" aria-label="F.S.M AI"></span><h1>Que veux-tu créer aujourd'hui ?</h1>${key ? `<div class="greet-acts">${key}</div>` : ''}</div>${planRowHtml()}${pick}</div>`;
 }
 function syncThread(){
@@ -4265,7 +4287,7 @@ function capable(m, nd){
     && (!nd.file || ins(m, 'file') || ins(m, 'image')) && (!nd.tools || hasParam(m, 'tools'));
 }
 function routeModel(text, atts, conv, cat, forceTier){
-  if (typeof isFreePlan === 'function' && isFreePlan()) return freeRoute(text, atts, conv, cat, forceTier);
+  if (typeof freeOnly === 'function' && freeOnly()) return freeRoute(text, atts, conv, cat, forceTier);
   const d0 = forceTier ? { tier: forceTier, why: 'à ta demande' } : difficulty(text, atts, conv, cat);
   const d = { ...d0 };
   if (!forceTier && S.set.plan && PLANS[S.set.plan]){ const t2 = planTier(d0.tier, d0.sc || 0, d0.simple); if (t2 !== d0.tier) d.why = (d.why ? d.why + ' · ' : '') + 'abonnement ' + PLANS[S.set.plan].key; d.tier = t2; }
@@ -4620,7 +4642,8 @@ var PLAN_POL = {
 };
 function planPolicy(){
   const p = PLANS[S.set.plan], base = PLAN_POL[S.set.plan] || { cap:'max', bias:0, maxOut:Infinity, media:'best' };
-  const used = p && p.limit ? spentMonth() / p.limit : 0;
+  const real = keyUsedRatio();
+  const used = real != null ? real : p && p.limit ? spentMonth() / p.limit : 0;
   return { ...base, plan: p, used, drop: used >= 1 ? 2 : used >= 0.8 ? 1 : 0 };
 }
 function planTier(tier, sc, simple){
@@ -4679,10 +4702,12 @@ function detectIntent(text, atts){
 }
 function universalRoute(text, atts, conv){
   let cat = detectIntent(text, atts);
-  if (isFreePlan()){
-    if (cat === 'video') return { blocked: FREE_NO_VIDEO, cat };
+  if (freeOnly()){
+    const capped = !isFreePlan();
+    if (cat === 'video') return { blocked: capped ? limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.' : FREE_NO_VIDEO, cat };
     if (cat === 'image' || cat === 'photoedit'){
       const im = freeImageModel(cat === 'photoedit');
+      if (capped && im && !/:free$/.test(im.id)) return { blocked: limitMsg(false) + " La création d'images reviendra à ce moment-là.", cat };
       if (im) return { cat, model: im.id, route:{ model: im.id, cat, label: INTENT_FR[cat], why: INTENT_FR[cat] + ' · abonnement Free', universal:true, plan:'free', imgAspect: cat === 'photoedit' ? 'auto' : undefined } };
       if (cat === 'photoedit') return { blocked: "Aucun modèle d'images gratuit ne sait retoucher une photo jointe : la retouche photo n'est pas disponible avec l'abonnement Free.", cat };
       return { blocked: "Aucun modèle de génération d'images n'est disponible pour le moment.", cat };
@@ -4770,11 +4795,106 @@ async function askPlan(){
 }
 function planLater(){ try{ return sessionStorage.getItem('fsm.planLater') === '1'; }catch(e){ return false; } }
 
+
+/* =====================================================================
+   7. CLÉ FSM AI : plafond, consommation réelle et abonnement détectés via OpenRouter
+   ===================================================================== */
+S.keyInfo = LS.get('fsm.keyinfo', null);
+if (S.keyInfo && S.keyInfo.k !== keyTag(S.key)) S.keyInfo = null;
+function keyTag(k){ k = String(k || ''); return k ? k.slice(0, 6) + '…' + k.slice(-4) : ''; }
+let keyInfoP = null, keyInfoAt = 0;
+function fetchKeyInfo(force){
+  if (!S.key) return Promise.resolve(null);
+  if (!force && keyInfoP) return keyInfoP;
+  if (!force && Date.now() - keyInfoAt < 45000 && S.keyInfo) return Promise.resolve(S.keyInfo);
+  const k = S.key;
+  keyInfoP = (async () => {
+    try{
+      const r = await fetch(API + '/key', { headers: { 'Authorization': 'Bearer ' + k } });
+      if (!r.ok) return S.keyInfo;
+      const d = (await r.json()).data || {};
+      if (k !== S.key) return S.keyInfo;
+      const eb = d.effective_budget || null;
+      const limit = d.limit != null ? +d.limit : (eb && eb.limit_usd != null ? +eb.limit_usd : null);
+      const remaining = d.limit_remaining != null ? +d.limit_remaining : (eb && eb.remaining_usd != null ? +eb.remaining_usd : null);
+      const monthly = d.limit_reset === 'monthly';
+      const used = limit != null ? (remaining != null ? Math.max(0, limit - remaining) : +(monthly ? d.usage_monthly : d.usage) || 0) : +(d.usage_monthly || 0);
+      S.keyInfo = { k: keyTag(k), limit, remaining, used, reset: d.limit_reset || null, monthly: +(d.usage_monthly || 0), t: Date.now() };
+      LS.set('fsm.keyinfo', S.keyInfo);
+      keyInfoAt = Date.now();
+      applyKeyPlan();
+      return S.keyInfo;
+    }catch(e){ return S.keyInfo; }
+    finally{ keyInfoP = null; }
+  })();
+  return keyInfoP;
+}
+function planFromLimit(limit){
+  if (limit == null) return '';
+  if (limit <= 0.5) return 'free';
+  let best = '', diff = Infinity;
+  for (const [id, p] of Object.entries(PLANS)){ if (!p.limit) continue; const d = Math.abs(p.limit - limit) / p.limit; if (d < diff){ diff = d; best = id; } }
+  return diff <= 0.1 ? best : '';
+}
+function applyKeyPlan(){
+  const ki = S.keyInfo; if (!ki) return;
+  const det = planFromLimit(ki.limit);
+  const was = S.set.plan;
+  if (det){
+    S.set.plan = det; S.set.planAuto = true; S.planEdit = false; saveSettings();
+    if (S.conv) S.conv.plan = det;
+    if (was !== det && was) toast(`Abonnement ${PLANS[det].key} reconnu grâce à ta clé`);
+  } else if (S.set.planAuto){ S.set.planAuto = false; S.set.plan = ''; saveSettings(); }
+  try{ renderPlan(); }catch(e){}
+  renderBalance();
+  if (!S.conv?.messages?.length) try{ renderThread(); }catch(e){}
+  if (keyExhausted() && !S._exhaustToast){ S._exhaustToast = 1; toast(limitMsg(true)); }
+}
+function keyExhausted(){ const ki = S.keyInfo; return !!(ki && ki.limit != null && ki.limit > 0 && ki.remaining != null && ki.remaining <= 0.005); }
+function keyUsedRatio(){ const ki = S.keyInfo; return ki && ki.limit > 0 ? Math.min(2, ki.used / ki.limit) : null; }
+function resetText(){
+  const r = S.keyInfo?.reset;
+  if (r === 'monthly'){ const d = new Date(); const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)); return ` Elle se renouvelle le 1er ${n.toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}.`; }
+  if (r === 'weekly') return ' Elle se renouvelle lundi prochain.';
+  if (r === 'daily') return ' Elle se renouvelle demain.';
+  return '';
+}
+function limitMsg(fallback){
+  const p = PLANS[S.set.plan];
+  const base = `Limite mensuelle de ton abonnement${p ? ' ' + p.key : ''} atteinte${S.keyInfo?.limit ? ' (' + S.keyInfo.limit + ' $)' : ''}.` + resetText();
+  return base + (fallback ? ' En attendant, les modèles gratuits prennent le relais.' : '');
+}
+/* La limite atteinte bascule le routeur sur les modèles gratuits */
+function freeOnly(){ return isFreePlan() || keyExhausted(); }
+
+function resetShort(){
+  const r = S.keyInfo?.reset;
+  if (r === 'monthly'){ const d = new Date(); const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)); return 'Renouvellement le 1er ' + n.toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' }); }
+  if (r === 'weekly') return 'Renouvellement lundi'; if (r === 'daily') return 'Renouvellement demain';
+  return '';
+}
+function balanceHtml(compact){
+  const ki = S.keyInfo, p = PLANS[S.set.plan];
+  if (ki && ki.limit > 0 && ki.remaining != null){
+    const rem = Math.max(0, ki.remaining);
+    return `<div class="bal-top"><span>Solde restant</span><b>${fmtUsd(rem)}</b></div>${budgetBar(ki.used, ki.limit)}<div class="bal-sub">${fmtUsd(ki.used)} utilisés sur ${ki.limit} $${p ? ' · ' + esc(p.key) : ''}${resetShort() ? ' · ' + resetShort() : ''}</div>`;
+  }
+  if (S.set.plan === 'free') return `<div class="bal-top"><span>Abonnement Free</span><b>Gratuit</b></div><div class="bal-sub">Modèles gratuits uniquement</div>`;
+  return '';
+}
+function renderBalance(){
+  const el = document.getElementById('dBal'); if (!el) return;
+  const h = S.key ? balanceHtml(true) : '';
+  el.hidden = !h; el.innerHTML = h;
+}
+
 (function init(){
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
   mergeXai(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
+  fetchKeyInfo(true);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') fetchKeyInfo(); });
 })();
 </script>
 </body>
