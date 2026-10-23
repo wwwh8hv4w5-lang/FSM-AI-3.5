@@ -349,6 +349,27 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .sg.more{width:auto;align-items:center;color:var(--muted);font-size:13.5px;font-weight:500}
 :root.has-pending .thread.home .tiles,:root.has-pending .thread.home .pick{display:none}
 .queue{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.msg.user .bubble{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .25s cubic-bezier(.2,.8,.2,1),filter .25s}
+.msg.user .bubble.pressed{transform:scale(.97);filter:brightness(1.15)}
+.msg.user .bubble.selecting{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;box-shadow:0 0 0 2px var(--line2)}
+.msg.user.editing .bubble{opacity:.45}
+.img-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:120px;border-radius:16px;background:var(--surface);border:1px dashed var(--line2);color:var(--muted);font-size:14px;text-align:center;padding:16px}
+.img-missing small{color:var(--faint);font-size:12px}
+figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform .25s}
+.umenu-ghost{position:fixed;z-index:81;margin:0;box-sizing:border-box;pointer-events:none;white-space:pre-wrap;overflow-wrap:anywhere;animation:umPop .3s cubic-bezier(.2,.9,.25,1.2)}
+@keyframes umPop{0%{transform:scale(.97)}60%{transform:scale(1.03)}100%{transform:none}}
+.umenu-scrim{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.28);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fadeIn .2s ease}
+.umenu{position:fixed;z-index:81;min-width:250px;max-width:calc(100vw - 32px);background:rgba(28,28,32,.94);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:8px;box-shadow:0 18px 50px rgba(0,0,0,.55);transform-origin:top right;animation:umIn .28s cubic-bezier(.2,.9,.25,1.15)}
+.umenu.up{transform-origin:bottom right}
+.umenu button{display:flex;align-items:center;gap:16px;width:100%;border:0;background:transparent;color:#f2f2f4;font:inherit;font-size:17px;padding:13px 16px;border-radius:14px;text-align:left}
+.umenu button:active,.umenu button:hover{background:rgba(255,255,255,.08)}
+.umenu svg{width:22px;height:22px;flex:0 0 22px;color:rgba(255,255,255,.75)}
+@keyframes umIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.editbar{display:flex;align-items:center;gap:10px;margin:0 4px 8px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:14px;color:var(--muted);animation:fadeIn .2s ease}
+.editbar svg{width:17px;height:17px;flex:0 0 17px}
+.editbar span{flex:1}
+.editbar button{border:0;background:var(--raised);color:var(--ink);border-radius:10px;padding:7px 12px;font:inherit;font-size:13.5px;font-weight:600}
 .qitem{display:flex;align-items:center;gap:8px;min-width:0;background:var(--surface);border:1px dashed var(--line2);border-radius:14px;padding:4px 4px 4px 12px;font-size:14px}
 .qn{flex:0 0 auto;font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
 .qt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -638,6 +659,8 @@ html,body{overflow-x:hidden;max-width:100%}
 .scrim.leaving,.drawer-scrim.leaving{animation:fsmFadeOut .26s var(--e-in) both;pointer-events:none}
 .scrim.leaving>.sheet{animation:fsmSheetOut .26s var(--e-in) both}
 .drawer-scrim.leaving>.drawer{animation:fsmDrawerOut .26s var(--e-in) both}
+#vStage > img{touch-action:none;will-change:transform;transform-origin:center center;-webkit-user-drag:none;user-select:none}
+.viewer.zoomed #vStage > img{cursor:grab}
 .viewer{animation:fsmZoomIn .28s var(--e-out) both}
 .viewer.leaving{animation:fsmZoomOut .2s var(--e-in) both;pointer-events:none}
 .voice{animation:fsmFadeIn .34s var(--e-out) both}
@@ -710,6 +733,7 @@ figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
 .gencard .gc-emblem{width:min(30cqw,40cqh,128px)}
 .gencard .gc-core{bottom:56px}
 @container (max-height:200px){.gencard .gc-core{bottom:50px}.gencard .gc-foot{padding:9px 12px 10px;gap:5px}}
+.gencard .gc-sub.gc-later{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.4}
 .gencard .gc-time{font:500 12.5px var(--f-mono);color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}
 .gencard .gc-bar{position:relative;height:3px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
 .gencard .gc-bar i{position:absolute;top:0;bottom:0;left:0;width:40%;border-radius:3px;background:linear-gradient(90deg,transparent,#a5b4ff,#fff,#e58cff,transparent);animation:gcBar 1.6s cubic-bezier(.6,0,.3,1) infinite}
@@ -866,6 +890,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 
   <footer class="composer">
     <div class="col">
+      <div class="editbar" id="editBar" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modification du message</span><button type="button" id="editCancel">Annuler</button></div>
       <div class="queue" id="queue" hidden></div>
       <div class="suggest" id="suggest" hidden></div>
       <div class="box">
@@ -957,13 +982,12 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="field"><label for="bgConfirm">Confirmation au-delà de ($ par demande)</label><input id="bgConfirm" type="text" inputmode="decimal" placeholder="0,50"><small>Alerte à 80 % du budget, confirmation au-delà. Les veilles se mettent en pause quand le budget est atteint. Mets 0 pour ne jamais demander.</small></div>
       </div>
       <div class="st-sec" id="gmSec" hidden><h3>Grok Bot de gestion</h3>
-        <p class="note" style="margin:0">Réservé au statut Illimité. Confie à Grok Bot ta clé API de gestion OpenRouter : il crée, suit, suspend et renouvelle les clés de tes clients, et t'envoie un rapport chaque jour.</p>
+        <p class="note" style="margin:0">Réservé au statut Illimité. Grok Bot crée, suit, suspend et renouvelle les clés de tes clients, et t'envoie un rapport chaque jour. Pour ta sécurité, la clé de gestion n'est jamais copiée dans une conversation : tu l'enregistres toi-même sur l'ordinateur de Grok Bot.</p>
         <div class="field"><label for="gmKey">Clé API de gestion (OpenRouter)</label>
           <div class="row"><input id="gmKey" type="password" placeholder="Colle ta Management key OpenRouter" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button class="btn ghost" id="gmShow" type="button">Afficher</button></div>
           <div class="keystat" id="gmStat" hidden></div>
-          <small>À créer sur openrouter.ai, rubrique Settings → Management keys. Elle reste sur cet appareil jusqu'à ce que tu la copies pour Grok Bot.</small></div>
-        <div class="row"><button class="btn" id="gmCopy" type="button">Copier pour Grok Bot</button><a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir Grok Bot</a></div>
-        <button class="btn ghost" id="gmCopyNoKey" type="button">Copier les instructions sans la clé</button>
+          <small>Facultatif : sert seulement à vérifier la clé et à afficher l'état de tes clés clients. Elle n'est gardée que pendant cette session et n'est jamais envoyée ailleurs qu'à OpenRouter.</small></div>
+        <div class="row"><button class="btn" id="gmCopyNoKey" type="button">Copier les instructions pour Grok Bot</button><a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir Grok Bot</a></div>
         <textarea id="gmOut" hidden readonly style="min-height:160px;border:0;background:var(--raised);border-radius:12px;padding:11px 14px;font-size:13px"></textarea>
         <p class="note" style="margin:0">Colle le texte dans l'app Grok Bot (iPhone, Mac ou Windows), jamais en mentionnant @bot sur X : les publications sur X sont publiques.</p>
       </div>
@@ -1730,6 +1754,7 @@ $('#btnGallery').addEventListener('click', () => { closeSheets(); openGallery();
 
 /* ---------- Conversations ---------- */
 function newConv(){
+  if (S.editing) endEdit(false);
   S.conv = { id: uid(), title: 'Nouvelle conversation', messages: [], t: Date.now(), plan: S.set.plan || '' };
   if (!S.set.routerOff && (S.set.category !== 'chat' || S.set.router === false || isXai(S.set.model))){
     S.set.category = 'chat'; S.set.router = true; if (isXai(S.set.model) || modeFor(S.set.model) !== 'chat') S.set.model = DEFAULTS.model;
@@ -1746,6 +1771,7 @@ async function saveConv(conv){
   LS.set('relais.index', S.index);
 }
 async function openConv(id){
+  if (S.editing) endEdit(false);
   const c = S.live.get(id) || await DB.get('conv:' + id);
   if (!c){ toast("Cette conversation n'est plus disponible dans ce navigateur."); S.index = S.index.filter(x => x.id !== id); LS.set('relais.index', S.index); renderConvs(); return; }
   c._unread = false; S.live.set(c.id, c);
@@ -1794,6 +1820,61 @@ function videoMime(a){
   if (/\.(mpeg|mpg)$/.test(n)) return 'video/mpeg';
   return 'video/mp4';
 }
+/* Images clés d'une vidéo (horodatées), pour les vidéos trop lourdes pour être envoyées telles quelles */
+function videoFrames(blob, n){
+  return new Promise(res => {
+    const v = document.createElement('video'), url = URL.createObjectURL(blob), frames = []; let done = false, i = 0, times = [];
+    const fin = () => { if (done) return; done = true; try{ v.removeAttribute('src'); v.load(); }catch(e){} URL.revokeObjectURL(url); res({ frames, dur: v.duration || 0 }); };
+    const next = () => { if (i >= times.length) return fin(); try{ v.currentTime = times[i]; }catch(e){ fin(); } };
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.onloadedmetadata = () => {
+      const d = v.duration; if (!isFinite(d) || d <= 0) return fin();
+      const k = Math.max(1, Math.min(n, Math.ceil(d / 2)));
+      times = Array.from({ length: k }, (_, j) => Math.min(d - 0.05, (j + 0.5) * d / k));
+      next();
+    };
+    v.onseeked = () => {
+      try{
+        const sc = Math.min(1, 768 / Math.max(v.videoWidth, v.videoHeight || 1));
+        const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * sc); c.height = Math.round(v.videoHeight * sc);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        frames.push({ t: Math.round(times[i] * 10) / 10, data: c.toDataURL('image/jpeg', 0.8) });
+      }catch(e){}
+      i++; next();
+    };
+    v.onerror = fin;
+    setTimeout(fin, 45000);
+    v.src = url;
+  });
+}
+const fmtTC = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+function loadImg(src){ return new Promise((res, rej) => { const i = new Image(); i.decoding = 'async'; i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+async function normImage(f){
+  const raw = await readAs(f, 'readAsDataURL');
+  if (/image\/(gif|svg)/i.test(f.type || '')) return { data: raw };
+  try{
+    let w, h, src;
+    try{ src = await createImageBitmap(f, { imageOrientation: 'from-image' }); w = src.width; h = src.height; }
+    catch(e){ src = await loadImg(raw); w = src.naturalWidth; h = src.naturalHeight; }
+    if (!w || !h) return { data: raw };
+    const sc = Math.min(1, 2048 / Math.max(w, h)), cw = Math.round(w * sc), ch = Math.round(h * sc);
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const x = c.getContext('2d'), alpha = /png|webp/i.test(f.type || '');
+    if (!alpha){ x.fillStyle = '#fff'; x.fillRect(0, 0, cw, ch); }
+    x.drawImage(src, 0, 0, cw, ch); try{ src.close?.(); }catch(e){}
+    const type = alpha ? 'image/png' : 'image/jpeg';
+    const data = c.toDataURL(type, 0.92);
+    if (!/^data:image\/(png|jpeg)/.test(data)) return { data: raw, w, h };
+    return { data, w: cw, h: ch, type };
+  }catch(e){ return { data: raw }; }
+}
+/* Formats courants : la retouche garde le cadrage le plus proche de la photo d'origine */
+var ASPECTS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+async function imgDims(a){
+  if (a.w && a.h) return a;
+  try{ const i = await loadImg(a.data); a.w = i.naturalWidth; a.h = i.naturalHeight; }catch(e){}
+  return a;
+}
 async function addFiles(list){
   for (const f of list){
     const k = kindOf(f);
@@ -1804,6 +1885,15 @@ async function addFiles(list){
       if (k === 'video'){
         a.blob = f;
         if (f.size <= 20 * 1048576) a.data = (await readAs(f, 'readAsDataURL')).replace(/^data:[^;,]*/, 'data:' + videoMime(a));
+        else {
+          /* Trop lourde pour être envoyée entière : images clés extraites en arrière-plan, réparties sur toute la durée */
+          const fp = videoFrames(f, 12).then(fr => { if (fr?.frames.length){ a.frames = fr.frames; a.dur = fr.dur; } }).catch(() => {});
+          Object.defineProperty(a, '_framesP', { value: fp, enumerable: false });
+        }
+      } else if (k === 'image'){
+        /* Photo remise dans le bon sens (orientation iPhone), redimensionnée à 2048 px max : le modèle voit exactement ce que voit l'utilisateur */
+        const n = await normImage(f);
+        a.data = n.data; if (n.w){ a.w = n.w; a.h = n.h; } if (n.type){ a.type = n.type; a.size = Math.round(n.data.length * 0.75); if (n.type === 'image/jpeg') a.name = a.name.replace(/\.(heic|heif|png|webp|jpe?g)$/i, '') + '.jpg'; }
       } else a.data = await readAs(f, 'readAsDataURL');
       if (k === 'text') a.text = await readAs(f, 'readAsText');
       S.pending.push(a);
@@ -1815,7 +1905,7 @@ const BLOB_URLS = new WeakMap();
 function blobSrc(b){ if (!b) return ''; if (!BLOB_URLS.has(b)) BLOB_URLS.set(b, URL.createObjectURL(b)); return BLOB_URLS.get(b); }
 function attChip(a, removable){
   const k = kindOf(a);
-  const th = k === 'image' ? `<img src="${a.data}" alt="">` : k === 'video' ? `<video src="${esc(a.data || blobSrc(a.blob))}#t=0.1" muted playsinline preload="metadata"></video>` : esc((a.name.split('.').pop() || k).slice(0, 4));
+  const th = k === 'image' ? `<img src="${esc(safeSrc(a.data))}" alt="">` : k === 'video' ? `<video src="${esc(a.data || blobSrc(a.blob))}#t=0.1" muted playsinline preload="metadata"></video>` : esc((a.name.split('.').pop() || k).slice(0, 4));
   return `<div class="att"><span class="th">${th}</span><span class="nm"><b>${esc(a.name)}</b><span>${fmtSize(a.size || 0)}</span></span>${removable ? `<button class="x" data-rm="${a.id}" aria-label="Retirer ${esc(a.name)}">×</button>` : ''}</div>`;
 }
 function renderPending(){
@@ -1923,7 +2013,14 @@ function userParts(m, light){
   for (const a of m.atts || []){
     const k = kindOf(a);
     if (k === 'image') parts.push({ type:'image_url', image_url:{ url:a.data } });
-    else if (k === 'video'){ if (a.data) parts.push({ type:'video_url', video_url:{ url:a.data } }); else parts.push({ type:'text', text:`[Vidéo « ${a.name} » de ${fmtSize(a.size || 0)} : trop lourde pour être envoyée telle quelle au modèle.]` }); }
+    else if (k === 'video'){
+      if (a.data) parts.push({ type:'video_url', video_url:{ url:a.data } });
+      else if (a.frames?.length){
+        parts.push({ type:'text', text:`[Vidéo « ${a.name} » (${fmtSize(a.size || 0)}${a.dur ? ', durée ' + fmtTC(a.dur) : ''}) : trop lourde pour être envoyée en entier, voici ${a.frames.length} images clés réparties sur toute la durée, avec leur horodatage. Le son n'est pas inclus : appuie-toi sur les images, et dis-le simplement si la demande dépend de l'audio.]` });
+        for (const f of a.frames){ parts.push({ type:'text', text:`Image à ${fmtTC(f.t)} :` }); parts.push({ type:'image_url', image_url:{ url:f.data } }); }
+      }
+      else parts.push({ type:'text', text:`[Vidéo « ${a.name} » de ${fmtSize(a.size || 0)} : trop lourde pour être envoyée au modèle et ses images n'ont pas pu être extraites. Dis-le à l'utilisateur et propose-lui d'envoyer un extrait de moins de 20 Mo.]` });
+    }
     else if (k === 'audio') parts.push({ type:'input_audio', input_audio:{ data:a.data.split(',')[1], format:audioFmt(a) } });
     else if (k === 'pdf' || k === 'file') parts.push({ type:'file', file:{ filename:a.name, file_data:a.data } });
   }
@@ -1966,6 +2063,7 @@ QUALITÉ DES RÉPONSES
 CE QUE FSM AI SAIT FAIRE (l'application s'en charge automatiquement)
 - Créer des images ; retoucher des photos ; créer des vidéos, y compris à partir d'une image ou pour prolonger une vidéo ; monter des vidéos ; analyser photos, vidéos, audios et documents ; chercher sur le web ; afficher un aperçu jouable des jeux et pages HTML ; regrouper des fichiers dans une archive ZIP.
 - Quand l'utilisateur demande l'une de ces choses, l'outil adapté s'en occupe : ne dis jamais que c'est impossible et ne renvoie jamais vers une catégorie, un menu, un autre service ou un autre modèle.
+- Tu ne crées jamais d'image toi-même dans ton texte : n'écris jamais « voici l'image » ou « j'ai généré/retouché » si aucune image n'accompagne réellement ta réponse, et ne donne jamais à l'utilisateur une consigne à recopier pour relancer une création : l'application la relance elle-même.
 - Si l'on te demande quel modèle tu es : tu es ${name}, le modèle de FSM AI, qui s'appuie sur les meilleurs modèles d'IA du moment, choisis automatiquement pour chaque demande.
 
 PETITS MESSAGES
@@ -2102,19 +2200,45 @@ async function runChat(asst, signal, conv){
     }
   }
 }
+/* Requête avec délai maximal : si le service ne répond pas, FSM AI passe à un autre modèle au lieu d'attendre indéfiniment */
+async function fetchT(url, opts, ms){
+  const c = new AbortController(), outer = opts.signal, onA = () => c.abort();
+  outer?.addEventListener('abort', onA);
+  let timedOut = false; const t = setTimeout(() => { timedOut = true; c.abort(); }, ms);
+  try{ return await fetch(url, { ...opts, signal: c.signal }); }
+  catch(e){ if (timedOut && !outer?.aborted){ const er = new Error('Le service de génération ne répond pas pour le moment. Réessaie dans quelques minutes.'); er.timeout = true; throw er; } throw e; }
+  finally{ clearTimeout(t); outer?.removeEventListener('abort', onA); }
+}
+/* Image envoyée à un modèle : 1 920 px max, JPEG, pour un envoi rapide même en 4G */
+async function lightImg(data, max){
+  max = max || 1920;
+  if (!/^data:image\//.test(data || '')) return data;
+  try{
+    const i = await loadImg(data), w = i.naturalWidth, h = i.naturalHeight;
+    if (!w || !h || (Math.max(w, h) <= max && data.length < 1.6e6)) return data;
+    const sc = Math.min(1, max / Math.max(w, h)), c = document.createElement('canvas');
+    c.width = Math.round(w * sc); c.height = Math.round(h * sc);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(i, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.9);
+  }catch(e){ return data; }
+}
 async function runImage(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
   const body = { model: asst.model, prompt: user.apiText || user.text || 'Une image', n: 1 };
   { const asp = asst.imgAspect || S.set.imgAspect; if (asp && asp !== 'auto') body.aspect_ratio = asp; }
   const refs = (user.atts || []).filter(a => kindOf(a) === 'image');
-  if (refs.length) body.input_references = refs.map(a => ({ type:'image_url', image_url:{ url:a.data } }));
+  if (refs.length) body.input_references = await Promise.all(refs.map(async a => ({ type:'image_url', image_url:{ url: await lightImg(a.data, 2048) } })));
   asst.status = "Création de l'image…"; paint(asst);
-  const res = await fetch(API + '/images', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal });
+  const res = await fetchT(API + '/images', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal }, 240000);
   if (!res.ok) throw await apiError(res);
   const j = await res.json();
   for (const d of j.data || []){ const u = d.b64_json ? `data:${d.media_type || 'image/png'};base64,${d.b64_json}` : d.url; if (u) asst.images.push({ url:u }); }
   if (j.usage?.cost != null) asst.cost = j.usage.cost;
   if (!asst.images.length) throw new Error("Le modèle n'a renvoyé aucune image.");
+}
+/* La clé OpenRouter n'est jamais envoyée ailleurs qu'aux serveurs d'OpenRouter, même si une réponse fournit une autre adresse */
+function orAuthOk(url){
+  try{ const u = new URL(url, 'https://openrouter.ai'); return u.protocol === 'https:' && (u.hostname === 'openrouter.ai' || u.hostname.endsWith('.openrouter.ai')); }catch(e){ return false; }
 }
 async function runVideo(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
@@ -2123,12 +2247,12 @@ async function runVideo(asst, user, signal){
   if (S.set.vidRes) body.resolution = S.set.vidRes;
   if (asst.vidAspect || S.set.vidAspect) body.aspect_ratio = asst.vidAspect || S.set.vidAspect;
   const img = (user.atts || []).find(a => kindOf(a) === 'image');
-  if (img) body.frame_images = [{ type:'image_url', image_url:{ url: img.data }, frame_type:'first_frame' }];
+  if (img) body.frame_images = [{ type:'image_url', image_url:{ url: await lightImg(img.data) }, frame_type:'first_frame' }];
   let job, pollUrl, t0;
   if (asst._job){ job = { status:'pending' }; pollUrl = asst._job.url; t0 = asst._job.t0; }
   else {
     asst.status = 'Envoi de la demande…'; paint(asst);
-    const res = await fetch(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal });
+    const res = await fetchT(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal }, 90000);
     if (!res.ok) throw await apiError(res);
     job = await res.json();
     pollUrl = job.polling_url ? (job.polling_url.startsWith('http') ? job.polling_url : 'https://openrouter.ai' + job.polling_url) : API + '/videos/' + job.id;
@@ -2143,7 +2267,7 @@ async function runVideo(asst, user, signal){
     asst.status = `${FR[job.status] || 'Génération'} · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
     await sleep(5000, signal);
     let r;
-    try{ r = await fetch(pollUrl, { headers: hdr(), signal }); }
+    try{ r = await fetch(pollUrl, orAuthOk(pollUrl) ? { headers: hdr(), signal } : { signal }); }
     catch(err){ if (!isNetErr(err)) throw err; asst.status = NET_MSG; paint(asst); await waitOnline(signal, 8000); continue; }
     if (!r.ok) throw await apiError(r);
     job = await r.json();
@@ -2153,7 +2277,7 @@ async function runVideo(asst, user, signal){
   for (let i = 0; i < Math.max(list.length, (job.urls || []).length); i++){
     try{
       if (!list[i]) throw 0;
-      const r = await fetch(list[i], { headers: { 'Authorization': 'Bearer ' + S.key }, signal });
+      const r = await fetch(list[i], orAuthOk(list[i]) ? { headers: { 'Authorization': 'Bearer ' + S.key }, signal } : { signal });
       if (!r.ok) throw 0;
       const b = await r.blob(); asst.videos.push({ blob: b, type: b.type || 'video/mp4' });
     }catch(e){
@@ -2207,6 +2331,98 @@ async function attachLast(kind){
   if (lm.blob){ const data = await readAs(lm.blob, 'readAsDataURL'); S.pending.push({ id: uid(), name:'video-precedente.' + extFromMime(lm.blob.type || 'video/mp4'), type: lm.blob.type || 'video/mp4', size: lm.blob.size, data, blob: lm.blob }); return true; }
   return false;
 }
+/* =====================================================================
+   APPUI LONG SUR UN MESSAGE ENVOYÉ : Copier · Envoyer vers · Sélectionner le texte · Modifier
+   ===================================================================== */
+const UM_IC = {
+  get copy(){ return IC.copy; },
+  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l5 5-5 5"/><path d="M20 10h-8a7 7 0 0 0-7 7v2"/></svg>',
+  select:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h13a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6"/><path d="M9 9h6M9 13h6M9 17h3"/><circle cx="5" cy="4" r="1.6" fill="currentColor"/><circle cx="19" cy="20.5" r="1.6" fill="currentColor"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>'
+};
+function userMsgById(id){ return S.conv?.messages.find(m => m.id === id && m.role === 'user'); }
+function closeUMenu(){ document.querySelectorAll('.umenu,.umenu-scrim,.umenu-ghost').forEach(n => n.remove()); document.querySelectorAll('.bubble.pressed').forEach(b => b.classList.remove('pressed')); }
+function openUMenu(bub){
+  const m = userMsgById(bub.dataset.umid); if (!m) return;
+  closeUMenu(); clearSelecting();
+  try{ navigator.vibrate?.(12); }catch(e){}
+  bub.classList.add('pressed');
+  const scrim = document.createElement('div'); scrim.className = 'umenu-scrim';
+  const menu = document.createElement('div'); menu.className = 'umenu'; menu.setAttribute('role', 'menu');
+  const items = [['copy', 'Copier'], ['share', 'Envoyer vers'], ['select', 'Sélectionner le texte'], ...(S.conv?.bot ? [] : [['edit', 'Modifier']])];
+  menu.innerHTML = items.map(([k, l]) => `<button type="button" role="menuitem" data-um="${k}">${UM_IC[k]}<span>${l}</span></button>`).join('');
+  /* la bulle reste nette au-dessus du flou, comme sur iOS */
+  const r = bub.getBoundingClientRect();
+  const ghost = bub.cloneNode(true); ghost.className = 'bubble umenu-ghost'; ghost.removeAttribute('data-umid');
+  Object.assign(ghost.style, { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px' });
+  document.body.append(scrim, ghost, menu);
+  const mh = menu.offsetHeight, mw = menu.offsetWidth, vh = innerHeight;
+  const below = r.bottom + 10 + mh < vh - 90;
+  menu.style.top = (below ? r.bottom + 10 : Math.max(12, r.top - 10 - mh)) + 'px';
+  menu.style.left = Math.max(16, Math.min(innerWidth - mw - 16, r.right - mw)) + 'px';
+  if (!below) menu.classList.add('up');
+  scrim.addEventListener('click', closeUMenu);
+  menu.addEventListener('click', async e => {
+    const b = e.target.closest('[data-um]'); if (!b) return;
+    const k = b.dataset.um; closeUMenu();
+    if (k === 'copy') toast((await copyText(m.text)) ? 'Message copié' : 'Copie impossible');
+    else if (k === 'share'){
+      if (navigator.share){ try{ await navigator.share({ text: m.text }); }catch(err){} }
+      else toast((await copyText(m.text)) ? 'Partage indisponible ici : message copié' : 'Partage indisponible');
+    }
+    else if (k === 'select') selectBubble(bub);
+    else if (k === 'edit') startEdit(m);
+  });
+}
+function clearSelecting(){ document.querySelectorAll('.bubble.selecting').forEach(b => b.classList.remove('selecting')); }
+function selectBubble(bub){
+  bub.classList.add('selecting');
+  try{ const rg = document.createRange(); rg.selectNodeContents(bub); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); }catch(e){}
+}
+document.addEventListener('selectionchange', () => { const sel = getSelection(); if (sel && sel.isCollapsed) setTimeout(() => { const s2 = getSelection(); if (!s2 || s2.isCollapsed) clearSelecting(); }, 400); });
+/* Modifier : le message revient dans la zone de saisie ; à l'envoi, la conversation repart de ce message */
+function startEdit(m){
+  S.editing = { conv: S.conv, mid: m.id };
+  $('#input').value = m.text || '';
+  S.pending = (m.atts || []).map(a => ({ ...a, id: uid() })); renderPending();
+  autosize(); renderSend();
+  $('#editBar').hidden = false;
+  document.querySelectorAll('.msg.user.editing').forEach(x => x.classList.remove('editing'));
+  els.get(m.id)?.classList.add('editing');
+  const i = $('#input'); i.focus(); try{ i.setSelectionRange(i.value.length, i.value.length); }catch(e){}
+}
+function endEdit(clear){
+  if (!S.editing) return;
+  S.editing = null; $('#editBar').hidden = true;
+  document.querySelectorAll('.msg.user.editing').forEach(x => x.classList.remove('editing'));
+  if (clear){ $('#input').value = ''; S.pending = []; renderPending(); autosize(); renderSend(); }
+}
+async function applyEdit(){
+  const ed = S.editing; if (!ed) return;
+  endEdit(false);
+  if (ed.conv !== S.conv) return;
+  const i = S.conv.messages.findIndex(x => x.id === ed.mid); if (i < 0) return;
+  if (S.busy){ S.queue = []; S.abort?.abort(); const t0 = Date.now(); while (S.busy && Date.now() - t0 < 4000) await sleep(60); }
+  S.conv.messages.splice(i);
+  try{ await saveConv(S.conv); }catch(e){}
+  renderThread();
+}
+document.getElementById('editCancel')?.addEventListener('click', () => endEdit(true));
+/* Détection de l'appui long (doigt immobile 450 ms), clic droit sur ordinateur */
+(() => {
+  let timer = 0, sx = 0, sy = 0, target = null, fired = false;
+  const cancel = () => { clearTimeout(timer); timer = 0; if (target && !fired) target.classList.remove('pressed'); target = null; };
+  document.addEventListener('touchstart', e => {
+    const b = e.target.closest?.('.msg.user .bubble[data-umid]'); if (!b || b.classList.contains('selecting') || e.touches.length > 1) return;
+    target = b; fired = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    timer = setTimeout(() => { fired = true; timer = 0; openUMenu(b); }, 450);
+  }, { passive: true });
+  document.addEventListener('touchmove', e => { if (!timer) return; const t = e.touches[0]; if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) cancel(); }, { passive: true });
+  document.addEventListener('touchend', e => { if (fired){ e.preventDefault?.(); } cancel(); }, { passive: false });
+  document.addEventListener('touchcancel', cancel, { passive: true });
+  document.addEventListener('contextmenu', e => { const b = e.target.closest?.('.msg.user .bubble[data-umid]'); if (!b || b.classList.contains('selecting')) return; e.preventDefault(); openUMenu(b); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeUMenu(); if (S.editing) endEdit(true); } });
+})();
 async function send(){
   if (S.set.category === 'videoedit') blessEditor();
   const text0 = $('#input').value.trim();
@@ -2218,11 +2434,14 @@ async function send(){
   if (isXai(S.set.model) ? !S.xaiKey : !S.key){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   let cat = S.set.category, uni = null, refMode = null;
   let regen = null;
-  if (text && !S.conv?.bot && universalOn()) regen = autoRegen(text);
+  /* « Génère-le » : on reprend la dernière demande visuelle restée sans image */
+  const goT = text && !S.conv?.bot && universalOn() ? goTarget(text) : null;
+  const rtext = goT || text;
+  if (text && !goT && !S.conv?.bot && universalOn()) regen = autoRegen(text);
   if (regen) refMode = regen.cat;
-  else if (text && !S.conv?.bot && (universalOn() || ['image', 'photoedit', 'video'].includes(cat))) refMode = (await autoVideoContinuation(text)) || await autoVisualRef(text, universalOn() ? 'chat' : cat);
+  else if (text && !S.conv?.bot && (universalOn() || ['image', 'photoedit', 'video'].includes(cat))) refMode = (await autoVideoContinuation(rtext)) || await autoVisualRef(rtext, universalOn() ? 'chat' : cat, !!goT);
   if (universalOn()){
-    uni = universalRoute(text, S.pending, S.conv, refMode || undefined);
+    uni = universalRoute(rtext, S.pending, S.conv, refMode || (goT ? (IMG_GEN_RE.test(goT) || IMG_LEAD_RE.test(goT) ? 'image' : VID_GEN_RE.test(goT) ? 'video' : undefined) : undefined));
     if (uni?.blocked){ toast(uni.blocked); return; }
     if (uni){ cat = uni.cat; if (cat === 'videoedit') blessEditor(); }
   } else {
@@ -2235,13 +2454,14 @@ async function send(){
   const item = { id: uid(), text, atts: S.pending.slice(), model: S.set.model, cat };
   if (regen){ item.apiText = regen.apiText; if (regen.cat === 'photoedit' && uni?.route) uni.route.imgAspect = 'auto'; }
   else if (refMode){
-    item.apiText = refApiText(text, item.atts, refMode === 'video' ? 'video' : 'edit');
+    item.apiText = refApiText(rtext, item.atts, refMode === 'video' ? 'video' : 'edit');
     const ra = item.atts.find(a => a.ref);
     if (refMode === 'video' && ra?.w && ra?.h && uni?.route){ const mi = modelInfo(uni.model); uni.route.vidAspect = closestAspect(ra.w, ra.h, mi?.aspects); }
     if (refMode === 'photoedit' && uni?.route) uni.route.imgAspect = 'auto';
   }
+  if (!item.apiText && goT) item.apiText = goT;
   if (!item.apiText && cat === 'photoedit' && text && item.atts.some(a => kindOf(a) === 'image'))
-    item.apiText = `Modifie la photo fournie selon cette demande : ${text}\nGarde la même personne ou le même sujet, le même cadrage et le même rendu photo réaliste : ne change que ce qui est demandé.`;
+    item.apiText = `Modifie la photo fournie selon cette demande : ${rtext}\nGarde la même personne ou le même sujet, le même cadrage et le même rendu photo réaliste : ne change que ce qui est demandé.`;
   if (uni){ item.model = uni.model; item.route = uni.route; }
   else if (routerOn(cat) && !isXai(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
   else if (freeOnly() && !S.conv?.bot){
@@ -2252,6 +2472,7 @@ async function send(){
   if (!(await budgetGate(estimateCost(item, cat)))) return;
   S.pending = []; renderPending(); $('#input').value = ''; autosize(); renderSend();
   try{ localStorage.removeItem('relais.draft'); }catch(e){}
+  if (S.editing) await applyEdit();
   if (S.busy){ S.queue.push(item); renderQueue(); toast('Message en file : il partira dès la fin de la réponse.'); return; }
   await dispatch(item, S.conv);
 }
@@ -2318,6 +2539,10 @@ async function run(user, conv, model, cat, route){
   if (asst.route?.reason) asst.reason = true;
   if (asst.route?.imgAspect) asst.imgAspect = asst.route.imgAspect;
   if (asst.route?.vidAspect) asst.vidAspect = asst.route.vidAspect;
+  if (asst.cat === 'photoedit' && (!asst.imgAspect || asst.imgAspect === 'auto')){
+    const im = (user.atts || []).find(a => kindOf(a) === 'image' && a.data);
+    if (im){ await imgDims(im); if (im.w && im.h) asst.imgAspect = closestAspect(im.w, im.h, modelInfo(mdl)?.aspects?.length ? modelInfo(mdl).aspects : ASPECTS); }
+  }
   Object.defineProperty(asst, '_live', { value: true, writable: true, enumerable: false });
   Object.defineProperty(asst, '_t0', { value: Date.now(), writable: true, enumerable: false });
   Object.defineProperty(asst, '_fresh', { value: false, writable: true, enumerable: false });
@@ -2327,7 +2552,9 @@ async function run(user, conv, model, cat, route){
   const ctrl = new AbortController(); conv._abort = ctrl; conv._busy = true; updateBusyUI();
   saveConv(conv);
   try{
-    const tried = []; let attempt = 0, net = 0;
+    const tried = []; let attempt = 0, net = 0, fixed = false;
+    /* grosse vidéo : on attend (au plus 20 s) que ses images clés soient prêtes */
+    { const fps = (user.atts || []).map(a => a._framesP).filter(Boolean); if (fps.length && cat !== 'videoedit' && (user.atts || []).some(a => !a.frames && a._framesP)){ asst.status = 'Préparation de la vidéo…'; paint(asst); await Promise.race([Promise.all(fps), sleep(20000)]); } }
     for (;;){
       try{
         const x = isXai(asst.model);
@@ -2336,6 +2563,19 @@ async function run(user, conv, model, cat, route){
         else if (asst.mode === 'image') await (x ? runXaiImage : runImage)(asst, user, ctrl.signal);
         else await (x ? runXaiChat : runChat)(asst, ctrl.signal, conv);
         if (!asst.text.trim() && !asst.images.length && !asst.videos.length) throw Object.assign(new Error('Réponse vide. Réessaie dans un instant.'), { empty: true });
+        if (!fixed && asst.mode === 'chat' && !asst.images.length && !asst.videos.length){
+          const fx = await mediaFix(user, conv, asst).catch(() => null);
+          if (fx){
+            fixed = true;
+            asst.model = fx.model; asst.mode = modeFor(fx.model); asst.cat = fx.cat; if (fx.aspect) asst.imgAspect = fx.aspect;
+            asst.text = ''; asst.images = []; asst.sources = []; asst.steps = []; asst.reasoning = ''; asst.web = false; asst.reason = false;
+            asst.route = { ...(asst.route || {}), cat: fx.cat, why: 'création de l\'image demandée' };
+            { const im = (user.atts || []).find(a => kindOf(a) === 'image' && a.data); asst._src = im ? im.data : ''; }
+            asst.status = fx.cat === 'photoedit' ? 'Retouche de la photo…' : "Création de l'image…";
+            paint(user); paint(asst); saveConv(conv);
+            continue;
+          }
+        }
         break;
       }catch(e){
         if (e?.name === 'AbortError' || ctrl.signal.aborted) throw e;
@@ -2366,6 +2606,7 @@ async function run(user, conv, model, cat, route){
     else asst.error = e?.message || String(e);
   }finally{
     asst.status = ''; conv._abort = null; conv._busy = false;
+    { const seen = new Set(); asst.images = asst.images.filter(im => { const k = String(im.url).length + ':' + String(im.url).slice(-200); if (seen.has(k)) return false; seen.add(k); return true; }); }
     const hadMedia = asst.images.length || asst.videos.length;
     asst._live = false; if (hadMedia){ asst._fresh = true; setTimeout(() => { asst._fresh = false; }, 1600); }
     if (+asst.cost > 0) addSpend(asst.cost, isXai(asst.model) ? 'xai' : 'openrouter', asst.estimated);
@@ -2532,6 +2773,52 @@ window.addEventListener('message', e => {
 if (window.marked){ marked.use({ gfm:true, breaks:true, renderer:{ code(code, info){ return codeHtml(typeof code === 'object' ? code.text : code, typeof code === 'object' ? code.lang : info); } } }); }
 /* ----- Illustrations : [[image: requête | légende | source]] → image réelle (Fandom / Wikipédia / Commons / Openverse) ----- */
 const ILL_RE = /\[\[\s*image\s*:\s*([^\]|\n]{2,400}?)\s*(?:\|\s*([^\]|\n]{0,160}?)\s*)?(?:\|\s*([^\]\n]{0,80}?)\s*)?\]\]/gi;
+/* =====================================================================
+   VÉRIFICATION PERMANENTE DES IMAGES : testées avant affichage, retirées proprement si elles échouent
+   ===================================================================== */
+const BROKEN_IMG = new Set((() => { try{ return LS.get('fsm.badimg', []); }catch(e){ return []; } })());
+function markBad(src){ if (!src || /^data:|^blob:/.test(src)) return; BROKEN_IMG.add(src); try{ LS.set('fsm.badimg', [...BROKEN_IMG].slice(-400)); }catch(e){} }
+const PROBE = new Map();
+function probeImg(src, ms){
+  if (!src) return Promise.resolve(false);
+  if (/^data:image\//.test(src)) return Promise.resolve(true);
+  if (BROKEN_IMG.has(src)) return Promise.resolve(false);
+  if (PROBE.has(src)) return PROBE.get(src);
+  const pr = new Promise(res => {
+    const i = new Image(); let done = false;
+    const fin = ok => { if (done) return; done = true; if (!ok) markBad(src); res(ok); };
+    i.referrerPolicy = 'no-referrer'; i.decoding = 'async';
+    i.onload = () => fin(i.naturalWidth >= 48 && i.naturalHeight >= 48);
+    i.onerror = () => fin(false);
+    setTimeout(() => fin(false), ms || 7000);
+    i.src = src;
+  });
+  PROBE.set(src, pr); return pr;
+}
+/* image cassée dans une réponse : illustration retirée, image du texte retirée, image générée remplacée par un encart clair */
+function onBrokenImg(img){
+  if (!img || img.dataset.broken) return;
+  img.dataset.broken = '1';
+  const src = img.getAttribute('src') || '';
+  markBad(src);
+  const fig = img.closest('figure.ill');
+  if (fig){ fig.classList.add('gone'); setTimeout(() => fig.remove(), 260); return; }
+  if (img.closest('.md')){ (img.closest('p') && img.closest('p').textContent.trim() === '' ? img.closest('p') : img).remove(); return; }
+  const box = img.closest('.gen-img, .gimg, .media-item') || img.parentElement;
+  if (img.closest('.msg.assistant') && box){
+    const d = document.createElement('div'); d.className = 'img-missing';
+    d.innerHTML = '<span>Image indisponible</span><small>Touche ↻ pour la régénérer</small>';
+    img.replaceWith(d);
+  } else if (img.closest('.msg')) img.remove();
+}
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.closest?.('.msg, .thread')) onBrokenImg(t); }, true);
+function checkImgs(el){
+  el.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    if (!src || BROKEN_IMG.has(src)){ onBrokenImg(img); return; }
+    if (img.complete && img.naturalWidth === 0 && !/^data:/.test(src) && img.loading !== 'lazy') onBrokenImg(img);
+  });
+}
 const ILL = new Map();
 try{ for (const [k, v] of Object.entries(LS.get('fsm.illcache', {}))) ILL.set(k, v); }catch(e){}
 function saveIll(){ try{ const o = {}; [...ILL.entries()].filter(([, v]) => v && typeof v === 'object' && !v.then).slice(-200).forEach(([k, v]) => o[k] = v); LS.set('fsm.illcache', o); }catch(e){} }
@@ -2541,10 +2828,11 @@ const isImgUrl = q => IMG_URL_RE.test(q.trim()) && (/\.(jpe?g|png|webp|gif|avif)
 const hostOf = u => { try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return 'source'; } };
 function figHtml(q, cap, src){
   q = String(q || '').trim();
-  if (isImgUrl(q)) return `<figure class="ill"><img src="${esc(q)}" alt="${esc(cap || '')}" loading="lazy" data-act="viewsrc" referrerpolicy="no-referrer"><figcaption>${cap ? esc(cap) + ' · ' : ''}<a href="${esc(q)}" target="_blank" rel="noopener">${esc(hostOf(q))}</a></figcaption></figure>`;
+  if (isImgUrl(q) && BROKEN_IMG.has(q)) return '';
+  if (isImgUrl(q)) return `<figure class="ill"><img src="${esc(q)}" alt="${esc(cap || '')}" loading="lazy" data-act="viewsrc" referrerpolicy="no-referrer"><figcaption>${cap ? esc(cap) + ' · ' : ''}<a href="${esc(safeHref(q))}" target="_blank" rel="noopener">${esc(hostOf(q))}</a></figcaption></figure>`;
   const r = ILL.get(illKey(q, src));
-  if (r === null) return '';
-  if (r && !r.then) return `<figure class="ill"><img src="${esc(r.src)}" alt="${esc(cap || r.title)}" loading="lazy" referrerpolicy="no-referrer"><figcaption>${cap ? esc(cap) + ' · ' : ''}<a href="${esc(r.page)}" target="_blank" rel="noopener">${esc(r.site)}</a></figcaption></figure>`;
+  if (r === null || (r && r.src && BROKEN_IMG.has(r.src))) return '';
+  if (r && !r.then) return `<figure class="ill"><img src="${esc(r.src)}" alt="${esc(cap || r.title)}" loading="lazy" referrerpolicy="no-referrer"><figcaption>${cap ? esc(cap) + ' · ' : ''}<a href="${esc(safeHref(r.page))}" target="_blank" rel="noopener">${esc(r.site)}</a></figcaption></figure>`;
   return `<figure class="ill wait" data-q="${esc(q)}" data-cap="${esc(cap || '')}" data-src="${esc(src || '')}"><div class="ill-sk"></div></figure>`;
 }
 const KFIG_RE = /\[\[\s*chiffres\s*:\s*([^\]\n]{3,700}?)\s*\]\]/gi;
@@ -2690,7 +2978,8 @@ function findIll(q, src, ctx){
     steps.push(() => openverseImg(vs[0]));
     if (!PHOTO_RE.test(q)) steps.push(() => unsplashImg(vplain), () => pexelsImg(vplain));
     if (!ART_RE.test(q) && /(histoire|history|ancien|old|vintage|époque)/i.test(all)) steps.push(() => metImg(vplain), () => aicImg(vplain));
-    for (const fn of steps){ try{ const r = await fn(); if (r) return r; }catch(e){} }
+    /* chaque image trouvée est d'abord chargée pour de vrai : si elle ne s'affiche pas, on passe à la banque suivante */
+    for (const fn of steps){ try{ const r = await fn(); if (r && !BROKEN_IMG.has(r.src) && await probeImg(r.src)) return r; }catch(e){} }
     return null;
   })().then(r => { ILL.set(k, r); saveIll(); return r; });
   ILL.set(k, pr); return pr;
@@ -2925,7 +3214,7 @@ function mdHtml(text, mid){
   if (html == null){
     html = esc(text).replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, i, c) => codeHtml(c.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&'), i)).replace(/\n{3,}/g, '\n\n').replace(/\n/g, '<br>');
   }
-  html = window.DOMPurify ? DOMPurify.sanitize(html, { ADD_ATTR:['target', 'loading'] }) : html;
+  html = window.DOMPurify ? DOMPurify.sanitize(html, { ADD_ATTR:['target', 'loading'] }) : fallbackSanitize(html);
   if (figs.length) html = html.replace(/(?:<p>)?FSMFIG(\d+)X(?:<\/p>)?/g, (m0, n) => figs[+n] || '');
   return html;
 }
@@ -2987,10 +3276,11 @@ function genCardHtml(m, kind){
   return `<div class="gencard${wide ? ' wide' : ''}" style="--ar:${ar}" data-kind="${kind}" data-t0="${t0}" role="status" aria-label="${esc(title)} en cours">
     ${src}<div class="gc-grid"></div><div class="gc-scan"></div><div class="gc-noise"></div>
     <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div><div class="gc-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-    <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span><span class="gc-time">0:00</span></div>
+    <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span>${kind === 'video' ? '' : '<span class="gc-time">0:00</span>'}</div>
       <div class="gc-bar${pc != null ? ' det' : ''}"${pc != null ? ` style="--p:${pc}%"` : ''}><i></i></div>
-      <div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Création de l'image|Création de l'image avec Grok|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div></div></div>`;
+      ${kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Création de l'image|Création de l'image avec Grok|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
 }
+const VIDEO_LATER = 'Revenez plus tard, votre vidéo est en cours de préparation.';
 let genTick = 0;
 function genClock(){
   if (genTick) return;
@@ -3016,15 +3306,15 @@ function msgHtml(m){
   if (m.role === 'user'){
     const imgs = (m.atts || []).filter(a => kindOf(a) === 'image');
     const others = (m.atts || []).filter(a => kindOf(a) !== 'image');
-    return `${imgs.map(a => `<img class="att-img" data-act="viewsrc" src="${a.data}" alt="${esc(a.name)}">`).join('')}
+    return `${imgs.map(a => `<img class="att-img" data-act="viewsrc" src="${esc(safeSrc(a.data))}" alt="${esc(a.name)}">`).join('')}
       ${others.length ? `<div class="att-row">${others.map(a => attChip(a, false)).join('')}</div>` : ''}
-      ${m.text ? `<div class="bubble">${esc(m.text)}</div>` : ''}`;
+      ${m.text ? `<div class="bubble" data-umid="${esc(m.id)}">${esc(m.text)}</div>` : ''}`;
   }
   let h = '';
   if (m.reasoning) h += `<details class="think"${m.status ? ' open' : ''}><summary>${m.status ? 'Réflexion en cours' : 'Réflexion'}</summary><div>${esc(m.reasoning)}</div></details>`;
   if (m.steps?.length) h += `<div class="steps">${m.steps.map(st => `<div class="step ${st.status}"><span class="si">${{ run:'…', ok:'✓', err:'!', no:'×' }[st.status] || ''}</span><span>${esc(st.label)}${st.detail ? ` <em>· ${esc(st.detail)}</em>` : ''}</span></div>`).join('')}</div>`;
   if (m.runs?.length) h += m.runs.map(r => `<details class="pyrun"><summary>${r.ok ? 'Code Python exécuté' : 'Erreur Python'}${r.ms ? ' · ' + (r.ms / 1000).toFixed(1).replace('.', ',') + ' s' : ''}</summary><pre class="pycode">${esc(r.code)}</pre>${r.out ? `<pre class="pyout">${esc(r.out)}</pre>` : ''}${r.err ? `<pre class="pyout err-t">${esc(r.err)}</pre>` : ''}</details>`).join('');
-  if (m.cards?.length) h += m.cards.map(c => `<div class="svc"><b>${esc(c.title)}</b>${(c.lines || []).map(l => `<div class="note">${esc(l)}</div>`).join('')}<div class="svc-links${c.list ? ' list' : ''}">${c.links.map((l, i) => `<a class="${c.list ? 'chip' : i ? 'btn ghost' : 'btn'}" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('')}</div></div>`).join('');
+  if (m.cards?.length) h += m.cards.map(c => `<div class="svc"><b>${esc(c.title)}</b>${(c.lines || []).map(l => `<div class="note">${esc(l)}</div>`).join('')}<div class="svc-links${c.list ? ' list' : ''}">${c.links.map((l, i) => `<a class="${c.list ? 'chip' : i ? 'btn ghost' : 'btn'}" href="${esc(safeHref(l.url))}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('')}</div></div>`).join('');
   if (m.confirm) h += `<div class="cfm"><b>${esc(m.confirm.title)}</b>${m.confirm.rows.map(r => `<div class="cf-row"><span>${esc(r[0])}</span><div>${esc(r[1])}</div></div>`).join('')}<div class="cf-acts"><button class="btn" data-act="cfm" data-cid="${m.confirm.id}">Confirmer</button><button class="btn ghost" data-act="cfx" data-cid="${m.confirm.id}">Annuler</button></div></div>`;
   if (m.needTap) h += `<button class="btn" data-act="edtap">Lancer le montage</button>`;
   const gk = genKind(m);
@@ -3040,10 +3330,10 @@ function msgHtml(m){
   if (named.length && !m.status) h += `<div class="files">${named.map(([k, c]) => `<div class="file-row">${IC.file}<span class="fname">${esc(c.fname)}</span><span class="fs">${fmtSize(new Blob([c.code]).size)}</span><button class="act" data-act="dl" data-k="${esc(k)}" aria-label="Télécharger ${esc(c.fname)}">${IC.dl}</button></div>`).join('')}</div>`;
   if (!m.status && !m._live && !m.error){
     const zf = msgFiles(m);
-    if (zf.length >= 2 || (zf.length && ZIP_RE.test(m.text || ''))) h += `<div class="zipbar"><button class="zipbtn" data-act="zip" data-mid="${m.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg><span><b>Tout télécharger en .zip</b><small>${zf.length} fichier${zf.length > 1 ? 's' : ''} · ${esc(zipName(m, m._conv || S.conv))}.zip</small></span></button></div>`;
+    if ((zf.length >= 2 && zf.some(f => !f.path.startsWith('images/'))) || (zf.length && ZIP_RE.test(m.text || ''))) h += `<div class="zipbar"><button class="zipbtn" data-act="zip" data-mid="${m.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg><span><b>Tout télécharger en .zip</b><small>${zf.length} fichier${zf.length > 1 ? 's' : ''} · ${esc(zipName(m, m._conv || S.conv))}.zip</small></span></button></div>`;
   }
   if (m.files?.length && !m.status) h += `<div class="files">${m.files.map((fl, i) => `<div class="file-row">${IC.file}<span class="fname">${esc(fl.name)}</span><span class="fs">${fmtSize(fl.size || 0)}</span><button class="act" data-act="dlfile" data-mid="${m.id}" data-i="${i}" aria-label="Télécharger ${esc(fl.name)}">${IC.dl}</button></div>`).join('')}</div>`;
-  if (m.sources?.length) h += `<div class="sources">${m.sources.map((s, i) => { let host = s.url; try{ host = new URL(s.url).hostname.replace(/^www\./, ''); }catch(e){} return `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.title)}"><b>${i + 1}</b>${esc(host)}</a>`; }).join('')}</div>`;
+  if (m.sources?.length) h += `<div class="sources">${m.sources.map((s, i) => { let host = s.url; try{ host = new URL(s.url).hostname.replace(/^www\./, ''); }catch(e){} return `<a href="${esc(safeHref(s.url))}" target="_blank" rel="noopener" title="${esc(s.title)}"><b>${i + 1}</b>${esc(host)}</a>`; }).join('')}</div>`;
   if (m.stopped) h += `<div class="note">Réponse arrêtée.</div>`;
   if (m.error) h += `<div class="err"><span>${esc(m.error)}</span><button class="btn ghost" data-act="retry" data-mid="${m.id}">Réessayer</button></div>`;
   if (!m.status && !m.error){
@@ -3055,7 +3345,7 @@ const IMG_RE = /\.(png|jpe?g|webp|gif|avif)(\?|$)/i, VID_RE = /\.(mp4|webm|mov|m
 function enhanceMedia(el){
   mountPreviews(el);
   mountIll(el);
-  el.querySelectorAll('figure.ill img').forEach(img => { if (!img.onerror) img.onerror = () => img.closest('figure')?.remove(); });
+  checkImgs(el);
   el.querySelectorAll('.md img').forEach(img => { img.dataset.act = 'viewsrc'; img.loading = 'lazy'; });
   el.querySelectorAll('.md a[href]').forEach(a => {
     a.target = '_blank'; a.rel = 'noopener';
@@ -3077,8 +3367,7 @@ function paint(m){
     if (nw && nw.dataset.kind === oldCard.dataset.kind){
       const ob = oldCard.querySelector('.gc-bar'), nb = nw.querySelector('.gc-bar');
       if (ob && nb){ ob.className = nb.className; ob.setAttribute('style', nb.getAttribute('style') || ''); }
-      const os = oldCard.querySelector('.gc-msg'), ns = nw.querySelector('.gc-msg');
-      if (os && ns && os.textContent !== ns.textContent) os.textContent = ns.textContent;
+      for (const sel of ['.gc-msg', '.gc-later']){ const os = oldCard.querySelector(sel), ns = nw.querySelector(sel); if (os && ns && os.textContent !== ns.textContent) os.textContent = ns.textContent; }
       if (near) scrollEnd();
       return;
     }
@@ -3091,8 +3380,7 @@ function paint(m){
     if (nw && nw.dataset.kind === oldCard.dataset.kind){
       const ob = oldCard.querySelector('.gc-bar'), nb = nw.querySelector('.gc-bar');
       if (ob && nb){ ob.className = nb.className; ob.setAttribute('style', nb.getAttribute('style') || ''); }
-      const os = oldCard.querySelector('.gc-msg'), ns = nw.querySelector('.gc-msg');
-      if (os && ns) os.textContent = ns.textContent;
+      for (const sel of ['.gc-msg', '.gc-later']){ const os = oldCard.querySelector(sel), ns = nw.querySelector(sel); if (os && ns) os.textContent = ns.textContent; }
       nw.replaceWith(oldCard);
     }
   }
@@ -3256,6 +3544,7 @@ function showV(){
   const it = V.items[V.i]; if (!it) return;
   if (it.kind === 'html'){ $('#vStage').innerHTML = ''; $('#vStage').appendChild(makeFrame(it.doc)); }
   else $('#vStage').innerHTML = it.kind === 'video' ? `<video controls playsinline autoplay src="${esc(it.src)}"></video>` : `<img src="${esc(it.src)}" alt="">`;
+  zReset();
   $('#vCount').textContent = V.items.length > 1 ? (V.i + 1) + ' / ' + V.items.length : ({ video:'Vidéo', html:'Aperçu' }[it.kind] || 'Image');
   $('#vPrev').hidden = $('#vNext').hidden = V.items.length < 2;
 }
@@ -3268,12 +3557,70 @@ $('#vDl').addEventListener('click', () => saveMedia(V.items[V.i]));
 let tX = 0, tY = 0;
 $('#vStage').addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, { passive:true });
 $('#vStage').addEventListener('touchend', e => {
-  if (V.items[V.i]?.kind === 'html') return;
+  if (V.items[V.i]?.kind === 'html' || Z.s > 1.02 || Z.gest) return;
   const dx = e.changedTouches[0].clientX - tX, dy = e.changedTouches[0].clientY - tY;
   if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) stepV(dx < 0 ? 1 : -1);
   else if (dy > 110 && Math.abs(dy) > Math.abs(dx)) closeViewer();
 });
-$('#vStage').addEventListener('click', e => { if (e.target.id === 'vStage') closeViewer(); });
+$('#vStage').addEventListener('click', e => { if (e.target.id === 'vStage' && Z.s <= 1.02) closeViewer(); });
+
+/* ---------- Zoom dans la visionneuse : pincer, double-toucher, glisser ; molette et double-clic sur ordinateur ---------- */
+const Z = { s:1, x:0, y:0, gest:false };
+function zImg(){ return $('#vStage').querySelector(':scope > img'); }
+function zApply(anim){ const i = zImg(); if (!i) return; i.style.transition = anim ? 'transform .25s cubic-bezier(.2,.8,.2,1)' : 'none'; i.style.transform = `translate(${Z.x}px,${Z.y}px) scale(${Z.s})`; $('#viewer').classList.toggle('zoomed', Z.s > 1.02); }
+function zReset(){ Z.s = 1; Z.x = 0; Z.y = 0; Z.gest = false; zApply(false); }
+function zClamp(){
+  const i = zImg(); if (!i) return;
+  const st = $('#vStage').getBoundingClientRect(), nw = i.naturalWidth || i.offsetWidth, nh = i.naturalHeight || i.offsetHeight;
+  const k = Math.min(i.offsetWidth / nw, i.offsetHeight / nh), w = nw * k * Z.s, h = nh * k * Z.s;
+  const mx = Math.max(0, (w - st.width) / 2), my = Math.max(0, (h - st.height) / 2);
+  Z.x = Math.max(-mx, Math.min(mx, Z.x)); Z.y = Math.max(-my, Math.min(my, Z.y));
+}
+/* zoom vers s2 en gardant le point (px, py) de l'écran immobile */
+function zTo(s2, px, py, anim){
+  const i = zImg(); if (!i) return;
+  s2 = Math.max(1, Math.min(5, s2));
+  const r = i.getBoundingClientRect(), cx = r.left + r.width / 2 - Z.x, cy = r.top + r.height / 2 - Z.y;
+  const k = s2 / Z.s;
+  Z.x = px - cx - k * (px - cx - Z.x); Z.y = py - cy - k * (py - cy - Z.y); Z.s = s2;
+  if (s2 <= 1.001){ Z.x = 0; Z.y = 0; }
+  zClamp(); zApply(anim);
+}
+(() => {
+  const stg = $('#vStage'); let pinch = null, pan = null, lastTap = 0;
+  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  stg.addEventListener('touchstart', e => {
+    if (!zImg()) return;
+    if (e.touches.length === 2){ Z.gest = true; const [a, b] = e.touches; pinch = { d: dist(a, b), s: Z.s }; pan = null; }
+    else if (e.touches.length === 1){
+      const t = e.touches[0], now = Date.now();
+      if (now - lastTap < 280){ e.preventDefault(); Z.gest = true; zTo(Z.s > 1.02 ? 1 : 2.5, t.clientX, t.clientY, true); lastTap = 0; setTimeout(() => { Z.gest = false; }, 300); return; }
+      lastTap = now;
+      if (Z.s > 1.02){ pan = { x: t.clientX, y: t.clientY, ox: Z.x, oy: Z.y }; }
+    }
+  }, { passive:false });
+  stg.addEventListener('touchmove', e => {
+    if (!zImg()) return;
+    if (pinch && e.touches.length === 2){
+      e.preventDefault();
+      const [a, b] = e.touches, mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2;
+      zTo(pinch.s * dist(a, b) / pinch.d, mx, my, false);
+    } else if (pan && e.touches.length === 1 && Z.s > 1.02){
+      e.preventDefault();
+      const t = e.touches[0]; Z.x = pan.ox + t.clientX - pan.x; Z.y = pan.oy + t.clientY - pan.y; zClamp(); zApply(false);
+    }
+  }, { passive:false });
+  stg.addEventListener('touchend', e => {
+    if (e.touches.length < 2) pinch = null;
+    if (!e.touches.length){ pan = null; if (Z.s < 1.05 && Z.s !== 1){ zReset(); zApply(true); } setTimeout(() => { if (!pinch) Z.gest = false; }, 60); }
+  });
+  stg.addEventListener('wheel', e => { if (!zImg()) return; e.preventDefault(); zTo(Z.s * Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY, false); }, { passive:false });
+  stg.addEventListener('dblclick', e => { if (!zImg()) return; zTo(Z.s > 1.02 ? 1 : 2.5, e.clientX, e.clientY, true); });
+  let drag = null;
+  stg.addEventListener('mousedown', e => { if (Z.s > 1.02 && zImg()){ drag = { x: e.clientX, y: e.clientY, ox: Z.x, oy: Z.y }; e.preventDefault(); } });
+  addEventListener('mousemove', e => { if (drag){ Z.x = drag.ox + e.clientX - drag.x; Z.y = drag.oy + e.clientY - drag.y; zClamp(); zApply(false); } });
+  addEventListener('mouseup', () => { drag = null; });
+})();
 
 /* ---------- Galerie ---------- */
 async function openGallery(){
@@ -4326,7 +4673,22 @@ function textToB64url(t){
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 const mimeWord = t => /^[\x20-\x7e]*$/.test(t) ? t : '=?UTF-8?B?' + btoa(String.fromCharCode(...new TextEncoder().encode(t))) + '?=';
+/* Adresses e-mail : format vérifié, aucun retour à la ligne (qui permettrait d'ajouter des en-têtes cachés) */
+const MAIL_ADDR = /^[A-Za-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+function normAddrs(v, required){
+  const raw = String(v ?? '');
+  if (/[\r\n\u0000-\u001f\u007f\u2028\u2029]/.test(raw)) throw new Error('Adresse e-mail invalide (caractères interdits).');
+  const list = raw.split(/[,;]/).map(x => x.trim()).filter(Boolean).map(x => { const m = x.match(/<([^<>]+)>\s*$/); return (m ? m[1] : x).trim(); });
+  if (required && !list.length) throw new Error('Destinataire manquant.');
+  if (list.length > 20) throw new Error('Trop de destinataires (20 au maximum).');
+  const bad = list.filter(x => x.length > 254 || !MAIL_ADDR.test(x));
+  if (bad.length) throw new Error('Adresse e-mail invalide : ' + bad.join(', '));
+  return list.join(', ');
+}
+const oneLine = v => String(v ?? '').replace(/[\r\n\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').trim();
 function buildMail({ to, cc, subject, body, inReplyTo }){
+  to = normAddrs(to, true); cc = normAddrs(cc, false); subject = oneLine(subject).slice(0, 900);
+  inReplyTo = /^<[^<>\s]{1,900}>$/.test(String(inReplyTo || '').trim()) ? String(inReplyTo).trim() : '';
   const h = ['To: ' + to];
   if (cc) h.push('Cc: ' + cc);
   h.push('Subject: ' + mimeWord(subject || ''), 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: 8bit');
@@ -4373,7 +4735,7 @@ const TOOLS = [
   { svc:'gmail', name:'gmail_send', write:true, desc:"Envoie un e-mail depuis Gmail. L'utilisateur doit confirmer dans l'interface. Pour répondre, fournis reply_to_id (id de l'e-mail d'origine).",
     params:{ to:{ type:'string' }, subject:{ type:'string' }, body:{ type:'string' }, cc:{ type:'string' }, reply_to_id:{ type:'string' } }, req:['to', 'subject', 'body'],
     label: a => `Gmail · envoi à ${a.to || '?'}`,
-    confirm: a => ({ title:'Envoyer cet e-mail ?', rows:[['À', a.to], ['Cc', a.cc], ['Objet', a.subject], ['Message', a.body]] }),
+    confirm: a => { const nz = (v, r) => { try{ return normAddrs(v, r); }catch(e){ return '⚠ ' + e.message; } }; return { title:'Envoyer cet e-mail ?', rows:[['À', nz(a.to, true)], ['Cc', nz(a.cc, false)], ['Objet', oneLine(a.subject)], ['Message', a.body]] }; },
     run: async a => {
       let threadId, inReplyTo;
       if (a.reply_to_id){ const o = await gjson(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${enc(a.reply_to_id)}?format=metadata&metadataHeaders=Message-ID`); threadId = o.threadId; inReplyTo = hdrsOf(o)['message-id']; }
@@ -4702,7 +5064,7 @@ function renderBot(){
       const last = w.results[0];
       return `<div class="wcard${w.active ? '' : ' off'}"><div class="wh"><b>${esc(w.title)}</b><span>${esc(FREQ[w.freq])}${/daily|weekly/.test(w.freq) ? ' à ' + esc(w.time) : ''} · ${w.running ? 'en cours…' : w.active ? 'prochaine : ' + fmtDT(w.nextRun) : 'en pause'}</span></div>
         ${w.error ? `<div class="wr err-t">${esc(w.error)}</div>` : last ? `<div class="wr"><em>${fmtDT(last.t)}</em> ${esc(last.text)}</div>` : '<div class="wr"><em>Pas encore lancée.</em></div>'}
-        ${w.open ? `<div class="whist">${w.results.slice(1, 12).map(r => `<div><em>${fmtDT(r.t)}</em> ${esc(r.text)}</div>`).join('') || '<div><em>Pas d\'historique.</em></div>'}${(last?.sources || []).map(s2 => `<a href="${esc(s2.url)}" target="_blank" rel="noopener">${esc(s2.title)}</a>`).join('')}</div>` : ''}
+        ${w.open ? `<div class="whist">${w.results.slice(1, 12).map(r => `<div><em>${fmtDT(r.t)}</em> ${esc(r.text)}</div>`).join('') || '<div><em>Pas d\'historique.</em></div>'}${(last?.sources || []).map(s2 => `<a href="${esc(safeHref(s2.url))}" target="_blank" rel="noopener">${esc(s2.title)}</a>`).join('')}</div>` : ''}
         <div class="wa"><button class="mini" data-fb="wrun" data-id="${w.id}"${w.running ? ' disabled' : ''}>Lancer</button><button class="mini" data-fb="wtog" data-id="${w.id}">${w.active ? 'Pause' : 'Reprendre'}</button><button class="mini" data-fb="wopen" data-id="${w.id}">${w.open ? 'Masquer' : 'Historique'}</button><button class="mini" data-fb="wdel" data-id="${w.id}">Supprimer</button></div></div>`;
     }).join('') : '<div class="empty">Aucune veille. Crée-en une ci-dessous ou demande à FSM BOT.</div>';
     h += `<div class="fb-form"><label class="label" for="wPrompt">Nouvelle veille</label><textarea id="wPrompt" placeholder="Ex. : nouvelles offres de développeur React à Lyon, prix du vol Paris–Tokyo en décembre, actualité de mon club…"></textarea>
@@ -5321,6 +5683,109 @@ function budgetBar(spent, lim){ const p = Math.min(100, spent / lim * 100); retu
    ===================================================================== */
 async function blobToDataUrl(b){ return readAs(b, 'readAsDataURL'); }
 async function dataUrlToBlob(u){ return (await fetch(u)).blob(); }
+/* =====================================================================
+   SÉCURITÉ : adresses sûres, assainissement HTML de secours, validation des sauvegardes
+   ===================================================================== */
+const SAFE_ID = /^[\w.:-]{1,80}$/;
+const MIME_RE = /^[\w.+-]{1,40}\/[\w.+-]{1,80}$/;
+const DATA_URL_RE = /^data:([\w.+-]{1,40}\/[\w.+-]{1,80})(;[\w.+-]+=[\w.+-]+)*;base64,[A-Za-z0-9+/=\s]*$/;
+/* Adresse d'image ou de vidéo affichable : https, data: média, blob: */
+function safeSrc(u){
+  u = String(u ?? '').trim();
+  if (/^(https?:|blob:)/i.test(u)) return u;
+  const m = u.slice(0, 200).match(/^data:(image|video|audio)\//i);
+  return m && !/^data:image\/svg/i.test(u) ? u : '';
+}
+/* Lien cliquable : uniquement web et e-mail */
+function safeHref(u){ u = String(u ?? '').trim(); return /^(https?:|mailto:)/i.test(u) ? u : '#'; }
+/* Si DOMPurify n'a pas pu se charger : on retire tout ce qui peut exécuter du code */
+const BAD_TAGS = 'script,iframe,frame,frameset,object,embed,applet,style,link,meta,base,form,input,textarea,select,math,template,noscript,portal,foreignObject,foreignobject,animate,set,animateTransform,animatetransform,animateMotion,animatemotion,use';
+function fallbackSanitize(html){
+  try{
+    const t = document.createElement('template'); t.innerHTML = html;
+    t.content.querySelectorAll(BAD_TAGS).forEach(n => n.remove());
+    t.content.querySelectorAll('*').forEach(el => {
+      for (const a of [...el.attributes]){
+        const n = a.name.toLowerCase(), v = a.value.replace(/[\s\u0000-\u001f]+/g, '').toLowerCase();
+        if (n.startsWith('on') || n === 'srcdoc' || n === 'formaction' || n === 'xlink:href') el.removeAttribute(a.name);
+        else if (['href', 'src', 'action', 'poster', 'background', 'srcset'].includes(n) && (/^(javascript|vbscript):/.test(v) || (/^data:/.test(v) && !(n === 'src' && /^data:image\/(png|jpe?g|gif|webp|avif)/.test(v))))) el.removeAttribute(a.name);
+      }
+    });
+    return t.innerHTML;
+  }catch(e){ return esc(html); }
+}
+/* Sauvegarde importée : tout est conservé, sauf ce qui pourrait exécuter du code.
+   Identifiants au format strict, adresses web/média vérifiées, données intégrées validées, champs internes écartés. */
+const DATA_HEAD_RE = /^data:[\w.+-]{1,40}\/[\w.+-]{1,80}(;[\w.+-]+=[\w.+-]+)*;base64,$/;
+function okData(v){
+  if (typeof v !== 'string' || v.length > 3e9) return '';
+  const c = v.indexOf(','); if (c < 0 || c > 300) return '';
+  if (!DATA_HEAD_RE.test(v.slice(0, c + 1))) return '';
+  if (/^data:image\/svg/i.test(v)) return '';
+  return /^[A-Za-z0-9+/=\s]*$/.test(v.slice(c + 1, c + 4000)) ? v : '';
+}
+function scrubVal(v, k, depth){
+  if (depth > 10) return undefined;
+  if (v === null || typeof v === 'boolean') return v;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  if (typeof v === 'string'){
+    if (k === 'id' || /Id$|^(mid|cid|project|conv|parent)$/.test(k)) return SAFE_ID.test(v) ? v : (k === 'id' ? uid() : undefined);
+    if (/^(url|src|href|page|link|poster|thumb|image)$/i.test(k)) return /^(https?:\/\/|mailto:)[^\s"'<>]+$/i.test(v) ? v : okData(v) || undefined;
+    if (k === 'data') return okData(v) || undefined;
+    if (k === 'type' || k === 'mime') return MIME_RE.test(v) ? v : (v.length < 40 && /^[\w.+\/-]*$/.test(v) ? v : undefined);
+    return v.slice(0, 400000);
+  }
+  if (Array.isArray(v)) return v.slice(0, 20000).map(x => scrubVal(x, k === 'rows' ? 'cell' : '', depth + 1)).filter(x => x !== undefined);
+  if (typeof v === 'object'){
+    const o = {};
+    for (const [kk, vv] of Object.entries(v)){
+      if (kk === '__proto__' || kk === 'constructor' || kk === 'prototype' || kk.startsWith('_') || kk === 'confirm' || kk === 'blob') continue;
+      const r = scrubVal(vv, kk, depth + 1); if (r !== undefined) o[kk] = r;
+    }
+    return o;
+  }
+  return undefined;
+}
+function cleanBackup(d){
+  const arr = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && !Array.isArray(x)) : [];
+  const out = { app: d.app, exported: typeof d.exported === 'string' ? d.exported.slice(0, 40) : '' };
+  out.convs = arr(d.convs).map(c => {
+    const x = scrubVal(c, '', 0);
+    x.messages = arr(x.messages).filter(m => m.role === 'user' || m.role === 'assistant');
+    for (const m of x.messages){
+      if (m.cat != null && !/^[a-z]{1,20}$/.test(m.cat)) delete m.cat;
+      if (m.model != null && !/^[\w.\/:~-]{1,120}$/.test(m.model)) delete m.model;
+      for (const f of ['atts', 'images', 'videos', 'files', 'sources', 'cards', 'steps', 'runs']) if (m[f] != null && !Array.isArray(m[f])) delete m[f];
+      if (m.images) m.images = m.images.filter(im => im && im.url);
+      if (m.sources) m.sources = m.sources.filter(x => x && x.url);
+      if (m.status) delete m.status;
+    }
+    if (typeof x.title !== 'string') x.title = 'Conversation';
+    return x;
+  });
+  const ids = new Set(out.convs.map(c => c.id));
+  out.index = arr(d.index).map(x => scrubVal(x, '', 0)).filter(x => ids.has(x.id));
+  for (const c of out.convs) if (!out.index.some(x => x.id === c.id)) out.index.push({ id: c.id, title: c.title, t: c.t || 0 });
+  out.projects = arr(d.projects).map(p => scrubVal(p, '', 0));
+  for (const p of out.projects) if (!Array.isArray(p.docs)) p.docs = [];
+  const b = d.bot && typeof d.bot === 'object' ? d.bot : {};
+  out.bot = { facts: arr(b.facts).map(x => scrubVal(x, '', 0)), tasks: arr(b.tasks).map(x => scrubVal(x, '', 0)), watches: arr(b.watches).map(x => ({ ...scrubVal(x, '', 0), running: false })) };
+  if (typeof b.model === 'string' && /^[\w.\/:~-]{1,120}$/.test(b.model)) out.bot.model = b.model;
+  /* Réglages : seulement les champs connus, du même type ; l'abonnement n'est jamais importé, il vient de la clé */
+  if (d.settings && typeof d.settings === 'object'){
+    out.settings = {};
+    for (const [k, v] of Object.entries(d.settings)){
+      if (['plan', 'variant', 'planAsked', '__proto__', 'constructor', 'prototype'].includes(k)) continue;
+      if (k in DEFAULTS ? typeof v === typeof DEFAULTS[k] : ['boolean', 'number'].includes(typeof v) || (typeof v === 'string' && v.length < 20000)) out.settings[k] = v;
+    }
+  }
+  if (d.ledger && typeof d.ledger === 'object') out.ledger = scrubVal(d.ledger, '', 0);
+  if (d.adultOk != null) out.adultOk = !!d.adultOk;
+  if (d.keys && typeof d.keys === 'object') out.keys = { openrouter: /^sk-or-[\w-]{10,200}$/.test(d.keys.openrouter || '') ? d.keys.openrouter : '', xai: /^xai-[\w-]{10,200}$/.test(d.keys.xai || '') ? d.keys.xai : '' };
+  const cn = d.conn && typeof d.conn === 'object' ? d.conn : {};
+  out.conn = { githubToken: /^(gh[pousr]_|github_pat_)\w{10,250}$/.test(cn.githubToken || '') ? cn.githubToken : '', googleClientId: /^[\w-]{5,120}\.apps\.googleusercontent\.com$/.test(cn.googleClientId || '') ? cn.googleClientId : '' };
+  return out;
+}
 async function serializeConv(c, withVideo){
   const out = { id:c.id, title:c.title, t:c.t, project:c.project, bot:c.bot, messages:[] };
   for (const m of c.messages){
@@ -5361,8 +5826,10 @@ async function exportBackup(){
 async function importBackup(file){
   let data;
   try{ data = JSON.parse(await file.text()); }catch(e){ return toast('Fichier illisible : ce n’est pas une sauvegarde FSM AI.'); }
-  if (!data || data.app !== 'FSM AI' || !Array.isArray(data.convs)) return toast('Ce fichier n’est pas une sauvegarde FSM AI.');
-  const mode = await ask({ title:'Restaurer la sauvegarde', body:`<p>Sauvegarde du ${new Date(data.exported).toLocaleString('fr-FR', { dateStyle:'long', timeStyle:'short' })} : <b>${data.convs.length}</b> conversation${data.convs.length > 1 ? 's' : ''}, ${data.bot?.facts?.length || 0} souvenir${(data.bot?.facts?.length || 0) > 1 ? 's' : ''}, ${data.projects?.length || 0} projet${(data.projects?.length || 0) > 1 ? 's' : ''}.</p><p class="note">« Fusionner » ajoute ce qui manque sans rien effacer. « Remplacer » efface les données actuelles de cet appareil.</p>`,
+  if (!data || typeof data !== 'object' || data.app !== 'FSM AI' || !Array.isArray(data.convs)) return toast('Ce fichier n’est pas une sauvegarde FSM AI.');
+  try{ data = cleanBackup(data); }catch(e){ return toast('Sauvegarde invalide : elle n’a pas pu être vérifiée.'); }
+  const exp = new Date(data.exported); const expTxt = isNaN(exp) ? 'date inconnue' : exp.toLocaleString('fr-FR', { dateStyle:'long', timeStyle:'short' });
+  const mode = await ask({ title:'Restaurer la sauvegarde', body:`<p>Sauvegarde du ${esc(expTxt)} : <b>${data.convs.length}</b> conversation${data.convs.length > 1 ? 's' : ''}, ${data.bot?.facts?.length || 0} souvenir${(data.bot?.facts?.length || 0) > 1 ? 's' : ''}, ${data.projects?.length || 0} projet${(data.projects?.length || 0) > 1 ? 's' : ''}.</p><p class="note">« Fusionner » ajoute ce qui manque sans rien effacer. « Remplacer » efface les données actuelles de cet appareil.</p>`,
     buttons:[{ label:'Fusionner', value:'merge' }, { label:'Tout remplacer', value:'replace', ghost:true, danger:true }, { label:'Annuler', value:null, ghost:true }] });
   if (!mode) return;
   const byId = (a, b) => { const ids = new Set(a.map(x => x.id)); return a.concat((b || []).filter(x => !ids.has(x.id))); };
@@ -5371,7 +5838,7 @@ async function importBackup(file){
     for (const x of S.index) await DB.del('conv:' + x.id);
     S.index = [];
     S.bot.facts = []; S.bot.tasks = []; S.bot.watches = []; S.projects = [];
-    if (data.settings) S.set = Object.assign({}, DEFAULTS, data.settings);
+    if (data.settings){ const keep = { plan: S.set.plan, variant: S.set.variant, planAsked: S.set.planAsked }; S.set = Object.assign({}, DEFAULTS, data.settings, keep); }
     if (data.ledger) S.ledger = Object.assign({ d:{}, m:{}, warned:{} }, data.ledger);
   }
   let added = 0;
@@ -5385,6 +5852,7 @@ async function importBackup(file){
   if (data.conn?.googleClientId && !S.conn.googleClientId){ S.conn.googleClientId = data.conn.googleClientId; saveConn(); }
   LS.set('relais.index', S.index); saveSettings(); saveBot(); saveProjects(); LS.set('fsm.ledger', S.ledger);
   mergeXai(); renderProjects(); refreshModelUI(); newConv(); closeSheets();
+  try{ if (S.key) fetchKeyInfo(true); }catch(e){}
   toast(`Sauvegarde restaurée : ${added} conversation${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''}.`);
 }
 function renderBackupInfo(){
@@ -5474,17 +5942,23 @@ function planTier(tier, sc, simple){
   return TIERS[i];
 }
 function priceOkForPlan(m){ const pol = planPolicy(); if (pol.free) return true; const out = +(m.pricing?.completion || 0) * 1e6; return !(out > pol.maxOut); }
+var STRONG_IMAGE = [/gemini-2\.5-flash-image|nano-banana(?!-pro)/i, /gemini[\w.-]*image/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*(pro|max)/i, /seedream/i];
+var TOP_IMAGE = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /^openai\/gpt-[\w.-]*image/i];
+var STRONG_VIDEO = [/^google\/veo-3[\w.-]*fast/i, /^bytedance[\w-]*\/seedance-2\.5(?!-mini)/i, /kling[\w.-]*(pro|master)/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2(?!(\.\d)?-mini)/i, /kling/i];
+var TOP_VIDEO = [/^google\/veo-3\.1(?![\w.-]*fast)/i, /^openai\/sora-2-pro/i, /^google\/veo-3(?![\w.-]*fast)/i, /^openai\/sora/i, /kling[\w.-]*master/i];
+var STRONG_EDIT = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /gemini[\w.-]*image|nano-banana/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*kontext[\w.-]*(max|pro)/i, /seedream/i];
 function planPick(catId){
   const cat = catById(catId);
   const list = prefOrder(cat, S.models.filter(cat.filter)).filter(x => x.s < 99 && !isVariant(x.m, cat)).map(x => x.m);
   if (!list.length) return topPick(cat);
-  if (planPolicy().media === 'mid' && (catId === 'image' || catId === 'photoedit')){
-    const top = list.slice(0, 6).filter(m => priceScore(m, catId) > 0).sort((a, b) => priceScore(a, catId) - priceScore(b, catId));
-    if (top.length) return top[Math.min(1, top.length - 1)];
-  }
-  if (planPolicy().media === 'cheap' && (catId === 'image' || catId === 'photoedit')){
-    const top = list.slice(0, 6).filter(m => priceScore(m, catId) > 0);
-    if (top.length) return top.sort((a, b) => priceScore(a, catId) - priceScore(b, catId))[0];
+  /* Images, retouches et vidéos : des modèles solides et fiables dès l'abonnement Entreprise (jamais de version « mini » ou expérimentale) ;
+     les abonnements supérieurs passent aux modèles haut de gamme */
+  const MEDIA_ORDER = { photoedit: [STRONG_EDIT, STRONG_EDIT], image: [STRONG_IMAGE, TOP_IMAGE], video: [STRONG_VIDEO, TOP_VIDEO] }[catId];
+  if (MEDIA_ORDER){
+    const top = planPolicy().media === 'best';
+    for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id) && !/(^|[-_.:])(mini|lite|preview|exp|experimental|alpha|beta)([-_.:]|$)/i.test(x.id.split('/')[1] || '')); if (m) return m; }
+    for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id)); if (m) return m; }
+    return list[0];
   }
   if (!['image', 'photoedit', 'video'].includes(catId)){ const ok = list.find(priceOkForPlan); if (ok) return ok; }
   return list[0];
@@ -5761,7 +6235,10 @@ document.addEventListener('click', e => { if (!$('#balPop').hidden && !e.target.
       Grok Bot n'a pas d'API entrante : on lui transmet un brief prêt à coller dans son app.
    ===================================================================== */
 const GM = { info: null };
-function gmKey(){ return LS.get('fsm.mgmtkey', ''); }
+/* La clé de gestion n'est gardée que pour la session (jamais dans le stockage permanent, jamais copiée) */
+try{ localStorage.removeItem('fsm.mgmtkey'); }catch(e){}
+function gmKey(){ try{ return sessionStorage.getItem('fsm.mgmtkey') || ''; }catch(e){ return ''; } }
+function gmSetKey(v){ try{ v ? sessionStorage.setItem('fsm.mgmtkey', v) : sessionStorage.removeItem('fsm.mgmtkey'); }catch(e){} }
 function appLink(){ return /^https?:/.test(location.href) ? location.href.split('#')[0].split('?')[0] : 'l\'adresse GitHub Pages de l\'app FSM AI'; }
 async function gmVerify(){
   const k = gmKey(); if (!k) return null;
@@ -5791,16 +6268,15 @@ function renderGm(){
   if (i.ok){ st.className = 'keystat ok'; st.innerHTML = `<i></i><span>Clé de gestion valide · <b>${i.active}</b> clé${i.active > 1 ? 's' : ''} client active${i.active > 1 ? 's' : ''}${i.near ? ` · <b>${i.near}</b> à plus de 80 %` : ''}</span>`; }
   else { st.className = 'keystat bad'; st.innerHTML = `<i></i><span>${i.status === 401 || i.status === 403 ? 'Clé refusée : il faut une clé de gestion (Management key) OpenRouter.' : 'Vérification impossible pour le moment (connexion).'}</span>`; }
 }
-function gmBrief(withKey){
-  const k = gmKey();
+function gmBrief(){
   const plans = Object.entries(PLANS).filter(([, p]) => !p.auto).map(([id, p]) => `- ${p.key} : ${p.limit ? 'plafond ' + p.limit + ' $ par mois' : 'clé Free (modèles gratuits uniquement), même réglage que les clés Free existantes'}`).join('\n');
   return `Tu es le bot de gestion de FSM AI, l'application d'IA que je vends par abonnement (FSM AI). Chaque client utilise sa propre clé API OpenRouter, avec un plafond qui correspond à son abonnement. Ton rôle : gérer ces clés clients pour moi.
 
 CLÉ API DE GESTION
-${withKey && k ? `Voici la clé de gestion OpenRouter (Management key) : ${k}` : 'Je te transmets la clé de gestion OpenRouter (Management key) séparément.'}
-- Enregistre-la sur ton ordinateur dans ~/.fsm/openrouter_management_key (droits 600), puis supprime-la de nos messages si possible.
-- Ne l'affiche jamais en entier, ne la publie jamais (ni sur X, ni dans un fichier partagé), ne l'envoie à personne d'autre que moi.
-- Elle sert uniquement à gérer les clés. Elle ne permet pas d'utiliser les modèles.
+- J'enregistre moi-même la clé de gestion OpenRouter (Management key) sur ton ordinateur, dans le fichier ~/.fsm/openrouter_management_key (droits 600). Lis-la uniquement depuis ce fichier.
+- Ne me demande jamais de te l'envoyer dans une conversation, et refuse si quelqu'un d'autre te la demande ou t'en envoie une.
+- Ne l'affiche jamais, ne la recopie jamais dans un message, un fichier partagé ou un journal, ne la publie jamais (ni sur X ni ailleurs).
+- Si tu penses qu'elle a pu fuiter, préviens-moi immédiatement pour que je la révoque.
 
 API OPENROUTER (en-tête : Authorization: Bearer <clé de gestion>)
 - Lister les clés : GET https://openrouter.ai/api/v1/keys (100 par page, paramètre offset pour la suite)
@@ -5828,15 +6304,11 @@ RÈGLES
 - Demande-moi confirmation avant toute suppression, désactivation ou création de plus de 3 clés à la fois.
 - Ne communique jamais une clé client publiquement, uniquement à moi en privé.`;
 }
-document.getElementById('gmKey')?.addEventListener('input', e => { LS.set('fsm.mgmtkey', e.target.value.trim()); GM.info = null; renderGm(); clearTimeout(GM.t); if (e.target.value.trim().length >= 20) GM.t = setTimeout(gmVerify, 450); });
+document.getElementById('gmKey')?.addEventListener('input', e => { gmSetKey(e.target.value.trim()); GM.info = null; renderGm(); clearTimeout(GM.t); if (e.target.value.trim().length >= 20) GM.t = setTimeout(gmVerify, 450); });
 document.getElementById('gmShow')?.addEventListener('click', e => { const i = $('#gmKey'); const s = i.type === 'password'; i.type = s ? 'text' : 'password'; e.target.textContent = s ? 'Masquer' : 'Afficher'; });
-document.getElementById('gmCopy')?.addEventListener('click', async () => {
-  if (!gmKey()) return toast('Colle d\'abord ta clé de gestion OpenRouter.');
-  if (await copyText(gmBrief(true))) toast('Connexion copiée : colle-la dans l\'app Grok Bot.');
-  else { $('#gmOut').hidden = false; $('#gmOut').value = gmBrief(true); $('#gmOut').select(); }
-});
 document.getElementById('gmCopyNoKey')?.addEventListener('click', async () => {
-  if (await copyText(gmBrief(false))) toast('Instructions copiées, sans la clé.');
+  if (await copyText(gmBrief())) toast('Instructions copiées (sans aucune clé) : colle-les dans l\'app Grok Bot.');
+  else { $('#gmOut').hidden = false; $('#gmOut').value = gmBrief(); $('#gmOut').select(); }
 });
 document.getElementById('botGm')?.addEventListener('click', () => { closeSheets(); openSettings(false, 'gm'); });
 
@@ -5878,15 +6350,19 @@ function closestAspect(w, h, allowed){
   return best;
 }
 /* Décide si le message prolonge la dernière image ; si oui, la joint comme référence */
-async function autoVisualRef(text, cat){
+/* « Et un masque à gaz », « avec des lunettes », « un chapeau rouge » juste après une image : c'est une retouche de cette image */
+var NP_EDIT_RE = /^\s*(?:et|puis|plus|aussi|maintenant|ok|super|parfait)?[\s,]*(?:avec\s+|ajoute\s+|rajoute\s+)?(?:un|une|des|du|de la|de l['’]|le|la|les|ses|son|sa|leur|leurs)\s+[^?!.\n]{2,60}[?!.\s]*$/iu;
+var NP_ASK_RE = /(?:^|[^\p{L}])(prix|co[uû]t|combien|pourquoi|quel|quelle|quels|quelles|qui|comment|signifie|veut dire|c'est quoi|définition|histoire|origine|météo|heure|date|recette)(?![\p{L}])/iu;
+async function autoVisualRef(text, cat, force){
   if (S.pending.some(a => ['image', 'video'].includes(kindOf(a)))) return null;
   const t = text || '';
   if (!t || ASK_RE.test(t) || HOWTO_RE.test(t) || CODE_RE.test(t)) return null;
-  const ref = recentImageRef(); if (!ref) return null;
+  const ref = recentImageRef(force ? 10 : undefined); if (!ref) return null;
+  if (force) ref.recent = true;
   const vid = VID_GEN_RE.test(t) || VID_LEAD_RE.test(t) || /(?:^|[^\p{L}])(anime|animer|fais[- ](?:le|la|les) bouger|en vidéo|en video)(?![\p{L}])/iu.test(t);
   const img = IMG_GEN_RE.test(t) || IMG_LEAD_RE.test(t);
   const refers = REF_RE.test(t) || sharesSubject(t, ref.prompt);
-  const edit = FOLLOW_EDIT_RE.test(t) || PEDIT_RE.test(t);
+  const edit = FOLLOW_EDIT_RE.test(t) || PEDIT_RE.test(t) || (ref.recent && t.length <= 80 && NP_EDIT_RE.test(t) && !NP_ASK_RE.test(t));
   let mode = null;
   if (vid && (refers || /anime|bouger|en vid/i.test(t))) mode = 'video';
   else if (img && refers) mode = 'photoedit';
@@ -5904,6 +6380,58 @@ async function autoVisualRef(text, cat){
   const sz = await imgSize(att.data); if (sz){ att.w = sz.w; att.h = sz.h; }
   S.pending.push(att); renderPending();
   return mode;
+}
+/* « Génère-le », « vas-y », « fais-le » : reprend la dernière demande visuelle restée sans image */
+var GO_RE = /^\s*(?:oui|ok|okay|d'accord|bon|alors|allez)?[\s,!.]*(?:tu peux |peux-tu |est-ce que tu peux |stp |svp )?(?:(?:le|la|les)\s+)?(?:génère|génères|genere|générer|generer|crée|cree|créer|creer|fais|fait|faire|montre|envoie|affiche|produis|lance|dessine|réalise|realise|vas[- ]y|go)(?:[- ]?(?:le|la|les|moi|la[- ]moi|le[- ]moi|les[- ]moi|donc|alors))*\s*(?:stp|svp|s'il te pla[iî]t|maintenant|alors|donc|enfin|vraiment|pour de vrai|l'image|la photo|l'image stp)?\s*[?!.]*\s*$/i;
+/* « Tu ne l'as pas fait », « je ne vois pas l'image », « toujours rien » : même chose, on relance la vraie création */
+var COMPLAIN_RE = /(pas fait|rien fait|ne l'as pas|l'as pas fait|ne vois (pas|rien|aucune)|je vois rien|aucune (image|photo|retouche)|pas d'image|pas de photo|pas de retouche|(image|photo|retouche)[^.?!]{0,20}(ne s'affiche|n'appara[iî]t|n'est pas l[aà]|pas l[aà])|ça (ne )?marche pas|ca (ne )?marche pas|toujours rien|o[uù] est (l'image|la photo|la retouche|la vidéo)|tu mens|c'est faux|t'as rien|rien n'a changé|rien ne change|elle est o[uù]|il est o[uù])/i;
+function goTarget(text){
+  if (!text || text.length > 160 || !(GO_RE.test(text) || (COMPLAIN_RE.test(text) && text.length <= 160))) return null;
+  const c = S.conv; if (!c) return null;
+  const ms = c.messages;
+  for (let i = ms.length - 1, n = 0; i >= 0 && n < 10; i--, n++){
+    const m = ms[i];
+    if (m.role === 'assistant' && (m.images?.length || m.videos?.length)) return null;
+    if (m.role === 'user' && m.text && !GO_RE.test(m.text) && !COMPLAIN_RE.test(m.text)){
+      const t = m.text;
+      if (IMG_GEN_RE.test(t) || IMG_LEAD_RE.test(t) || FOLLOW_EDIT_RE.test(t) || PEDIT_RE.test(t) || NP_EDIT_RE.test(t) || VID_GEN_RE.test(t) || ANIMATE_RE.test(t)) return t;
+      return null;
+    }
+  }
+  return null;
+}
+/* Filet de sécurité : un modèle de discussion prétend avoir créé ou retouché une image (ou dit ne pas pouvoir le faire)
+   alors qu'aucune image n'accompagne sa réponse → FSM AI lance la vraie création */
+var MEDIA_CLAIM_RE = /(j'ai (?:bien )?(?:généré|genere|créé|cree|retouché|modifié|ajouté|dessiné|réalisé|produit|transformé)|(?:image|photo|illustration|version|visuel)s? (?:générée?|créée?|retouchée?|modifiée?)|générée? à partir de|si l'image ne s'affiche pas|voici (?:le|la|l'|ton|ta|votre|une|un|les|tes|vos) [^.\n]{0,40}(?:avec|portant|qui porte|coiffé|habillé|en train|sur fond|version)|je ne (?:peux|suis) pas (?:en mesure de )?(?:générer|créer|produire|modifier|retoucher|dessiner)[^.\n]{0,20}(?:image|photo|visuel|dessin|illustration)|(?:pas|aucun) d'outil|je n'ai pas (?:accès|la possibilité|la capacité|les moyens)[^.\n]{0,40}(?:image|photo|retouche|générer|modifier)|ne dispose pas[^.\n]{0,40}(?:image|photo|retouche|outil)|consigne que (?:vous pouvez|tu peux) (?:renvoyer|copier|utiliser)|affirmé avoir (?:modifié|généré|créé|retouché))/i;
+var DESCRIBE_RE = /(décri|decri|analyse|que vois|qu'est-ce qu|que représente|explique|lis |résume|traduis|identifie|reconnais|c'est quoi|qui est)/i;
+async function mediaFix(user, conv, asst){
+  if (S.voiceActive || conv.bot || isXai(asst.model)) return null;
+  if (!MEDIA_CLAIM_RE.test(asst.text || '')) return null;
+  const go = goTarget(user.text);
+  const t = go || user.text || '';
+  if (!t || DESCRIBE_RE.test(t) || CODE_RE.test(t) || VID_GEN_RE.test(t) || ANIMATE_RE.test(t)) return null;
+  let cat = 'image', att = (user.atts || []).find(a => kindOf(a) === 'image');
+  if (!att){
+    const ref = recentImageRef(10);
+    const fresh = IMG_GEN_RE.test(t) && !REF_RE.test(t) && !sharesSubject(t, ref?.prompt);
+    if (ref && !fresh){
+      if (ref.att) att = { ...ref.att, id: uid() };
+      else {
+        let data = ref.url;
+        if (!String(data).startsWith('data:')){ const b = await fetch(data).then(r => r.ok ? r.blob() : null).catch(() => null); if (b) data = await readAs(b, 'readAsDataURL'); }
+        att = { id: uid(), name: 'image-precedente.png', type: (String(data).match(/^data:([^;,]+)/) || [])[1] || 'image/png', size: String(data).length * 0.75, data };
+      }
+      att.ref = 'photoedit'; att.refPrompt = ref.prompt;
+      user.atts = [...(user.atts || []), att];
+    }
+  }
+  if (att) cat = 'photoedit';
+  const m = freeOnly() ? freeImageModel(cat === 'photoedit') : planPick(cat);
+  if (!m) return null;
+  user.apiText = cat === 'photoedit' ? (att.ref ? refApiText(t, user.atts, 'edit') : `Modifie la photo fournie selon cette demande : ${t}\nGarde la même personne ou le même sujet, le même cadrage et le même rendu photo réaliste : ne change que ce qui est demandé.`) : t;
+  let aspect = null;
+  if (cat === 'photoedit'){ await imgDims(att); if (att.w && att.h) aspect = closestAspect(att.w, att.h, modelInfo(m.id)?.aspects?.length ? modelInfo(m.id).aspects : ASPECTS); }
+  return { cat, model: m.id, aspect };
 }
 function refApiText(text, atts, mode){
   const a = (atts || []).find(x => x.ref);
