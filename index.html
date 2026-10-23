@@ -979,7 +979,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       </div>
       <div class="st-sec" id="budgetSec"><h3>Budget</h3>
         <div class="row2"><div class="field"><label for="bgDay">Par jour ($)</label><input id="bgDay" type="text" inputmode="decimal" placeholder="aucun"></div><div class="field"><label for="bgMonth">Par mois ($)</label><input id="bgMonth" type="text" inputmode="decimal" placeholder="aucun"></div></div>
-        <div class="field"><label for="bgConfirm">Confirmation au-delà de ($ par demande)</label><input id="bgConfirm" type="text" inputmode="decimal" placeholder="0,50"><small>Alerte à 80 % du budget, confirmation au-delà. Les veilles se mettent en pause quand le budget est atteint. Mets 0 pour ne jamais demander.</small></div>
+        <div class="field" hidden><input id="bgConfirm" type="text" inputmode="decimal"></div><small class="note">Alerte à 80 % du budget. Les veilles se mettent en pause quand le budget est atteint.</small>
       </div>
       <div class="st-sec" id="gmSec" hidden><h3>Grok Bot de gestion</h3>
         <p class="note" style="margin:0">Réservé au statut Illimité. Grok Bot crée, suit, suspend et renouvelle les clés de tes clients, et t'envoie un rapport chaque jour. Pour ta sécurité, la clé de gestion n'est jamais copiée dans une conversation : tu l'enregistres toi-même sur l'ordinateur de Grok Bot.</p>
@@ -5668,12 +5668,6 @@ async function budgetGate(est){
     if (v === 'edit'){ openSettings(false, 'budget'); return false; }
     return v === 'go';
   }
-  const lim = S.set.confirmAbove == null ? 0.5 : +S.set.confirmAbove;
-  if (lim > 0 && est >= lim){
-    const v = await ask({ title:'Demande coûteuse', body:`<p>Cette demande coûtera environ <b>${fmtUsd(est)}</b>.</p><p class="note">Estimation à partir des tarifs publics du modèle choisi.</p>`,
-      buttons:[{ label:'Continuer', value:'go' }, { label:'Annuler', value:null, ghost:true }] });
-    return v === 'go';
-  }
   return true;
 }
 function budgetBar(spent, lim){ const p = Math.min(100, spent / lim * 100); return `<div class="bbar${p >= 100 ? ' over' : p >= 80 ? ' warn' : ''}"><i style="width:${p.toFixed(1)}%"></i></div>`; }
@@ -5945,18 +5939,22 @@ function priceOkForPlan(m){ const pol = planPolicy(); if (pol.free) return true;
 var STRONG_IMAGE = [/gemini-2\.5-flash-image|nano-banana(?!-pro)/i, /gemini[\w.-]*image/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*(pro|max)/i, /seedream/i];
 var TOP_IMAGE = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /^openai\/gpt-[\w.-]*image/i];
 var STRONG_VIDEO = [/^google\/veo-3[\w.-]*fast/i, /^bytedance[\w-]*\/seedance-2\.5(?!-mini)/i, /kling[\w.-]*(pro|master)/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2(?!(\.\d)?-mini)/i, /kling/i];
+var ENT_VIDEO = [/^bytedance[\w-]*\/seedance-2\.2(?![\w.-]*(mini|lite))/i, /^bytedance[\w-]*\/seedance-2\.2/i];
+var ANIM_VIDEO = [/^google\/veo-3\.1[\w.-]*fast/i, /kling[\w.-]*(master|pro)/i, /^google\/veo-3[\w.-]*fast/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2\.5(?![\w.-]*(mini|lite))/i, /^bytedance[\w-]*\/seedance-2\.2(?![\w.-]*(mini|lite))/i];
 var TOP_VIDEO = [/^google\/veo-3\.1(?![\w.-]*fast)/i, /^openai\/sora-2-pro/i, /^google\/veo-3(?![\w.-]*fast)/i, /^openai\/sora/i, /kling[\w.-]*master/i];
 var STRONG_EDIT = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /gemini[\w.-]*image|nano-banana/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*kontext[\w.-]*(max|pro)/i, /seedream/i];
-function planPick(catId){
+function planPick(catId, opt){
   const cat = catById(catId);
   const list = prefOrder(cat, S.models.filter(cat.filter)).filter(x => x.s < 99 && !isVariant(x.m, cat)).map(x => x.m);
   if (!list.length) return topPick(cat);
   /* Images, retouches et vidéos : des modèles solides et fiables dès l'abonnement Entreprise (jamais de version « mini » ou expérimentale) ;
      les abonnements supérieurs passent aux modèles haut de gamme */
-  const MEDIA_ORDER = { photoedit: [STRONG_EDIT, STRONG_EDIT], image: [STRONG_IMAGE, TOP_IMAGE], video: [STRONG_VIDEO, TOP_VIDEO] }[catId];
+  /* vidéo : à partir d'un texte, Seedance 2.2 en Entreprise ; animation d'une photo ou suite de vidéo : toujours un modèle haut de gamme */
+  const anim = catId === 'video' && opt?.img;
+  const MEDIA_ORDER = { photoedit: [STRONG_EDIT, STRONG_EDIT], image: [STRONG_IMAGE, TOP_IMAGE], video: anim ? [ANIM_VIDEO, TOP_VIDEO] : [[...ENT_VIDEO, ...STRONG_VIDEO], TOP_VIDEO] }[catId];
   if (MEDIA_ORDER){
     const top = planPolicy().media === 'best';
-    for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id) && !/(^|[-_.:])(mini|lite|preview|exp|experimental|alpha|beta)([-_.:]|$)/i.test(x.id.split('/')[1] || '')); if (m) return m; }
+    for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id) && !/(^|[-_.:])(mini|lite|nano|flash-lite)([-_.:]|$)/i.test((x.id.split('/')[1] || '').replace(/^nano-banana/, 'nb'))); if (m) return m; }
     for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id)); if (m) return m; }
     return list[0];
   }
@@ -6018,7 +6016,7 @@ function universalRoute(text, atts, conv, forceCat){
   }
   const media = ['image', 'video', 'photoedit'].includes(cat);
   let model = null, r = null;
-  if (media){ model = planPick(cat); if (!model){ cat = 'chat'; } }
+  if (media){ model = planPick(cat, { img: (atts || []).some(a => kindOf(a) === 'image') }); if (!model){ cat = 'chat'; } }
   if (cat === 'videoedit'){ model = planPick('videoedit'); if (!model) cat = 'chat'; }
   if (!model || !['image', 'video', 'photoedit', 'videoedit'].includes(cat)){
     r = routeModel(text, atts, conv, cat);
@@ -6695,7 +6693,7 @@ function altModel(asst, user, conv, exclude){
     const cat = asst.cat || 'chat';
     if (['image', 'photoedit', 'video'].includes(cat)){
       if (freeOnly()){ const m = freeImageModel(cat === 'photoedit'); return m && cat !== 'video' ? m.id : null; }
-      const m = planPick(cat); return m ? m.id : null;
+      const m = planPick(cat, { img: (user.atts || []).some(a => kindOf(a) === 'image') }); return m ? m.id : null;
     }
     const r = routeModel(user.apiText || user.text || '', user.atts || [], conv, cat) || routeModel(user.text || '', user.atts || [], conv, 'chat');
     return r ? r.model : null;
