@@ -1352,7 +1352,7 @@ const CATS = [
     prefer:[/^google\/gemini-[\d.]+-(flash|pro)(?![\w.-]*image)/, /^openai\/gpt-[\w.-]*audio/, /voxtral/] },
   { id:'image', short:'Images', label:'Images', hue:'#E58CFF', desc:"Créer ou retoucher des images. Joins une photo pour la modifier.",
     filter: m => outs(m, 'image'),
-    prefer:[/^google\/gemini-[\w.-]*image|nano-banana/, /^openai\/gpt-[\w.-]*image/, /^black-forest-labs\/flux/, /^bytedance[\w-]*\/seedream/, /recraft/] },
+    prefer:[/^google\/gemini-[\w.-]*image|nano-banana/, /^openai\/gpt-[\w.-]*image/, /^black-forest-labs\/flux/, /^bytedance[\w-]*\/seedream/, /recraft/, /^x-ai\/grok-imagine-image/] },
   { id:'photoedit', short:'Retouche photo', label:'Retouche Photos', hue:'#F0ABFC', desc:"Joins une photo et décris la retouche : détourage, fond, objet à retirer, lumière, portrait, colorisation… Chaque demande suivante repart de la dernière image.",
     filter: m => outs(m, 'image') && ins(m, 'image'),
     prefer:[/nano-banana|gemini[\w.-]*image/, /^openai\/gpt-[\w.-]*image/, /flux[\w.-]*kontext/, /seedream/, /qwen[\w.-]*image[\w.-]*edit/, /^black-forest-labs\/flux/],
@@ -1365,7 +1365,7 @@ const CATS = [
     quick:["Passe au format TikTok 9:16", "Garde seulement les meilleurs moments, 30 secondes maximum", "Ajoute des sous-titres avec les paroles", "Coupe les silences et les temps morts", "Noir et blanc cinéma, contraste élevé", "Accélère ×1,5 et coupe le son", "Ajoute un titre d'intro accrocheur"] },
   { id:'video', short:'Vidéos', label:'Vidéos', hue:'#FF6B8E', desc:"Générer des clips vidéo. Joins une image pour l'animer.",
     filter: m => outs(m, 'video'),
-    prefer:[/^bytedance[\w-]*\/seedance-2\.5-mini/, /^bytedance[\w-]*\/seedance-2(\.\d)?-mini/, /^bytedance[\w-]*\/seedance-2\.5/, /^google\/veo/, /^openai\/sora/, /kling/, /^bytedance[\w-]*\/seedance/, /^alibaba\/wan/, /^minimax\/(hailuo|video)/] },
+    prefer:[/^bytedance[\w-]*\/seedance-2\.5-mini/, /^bytedance[\w-]*\/seedance-2(\.\d)?-mini/, /^bytedance[\w-]*\/seedance-2\.5/, /^google\/veo/, /^openai\/sora/, /kling/, /^bytedance[\w-]*\/seedance/, /^alibaba\/wan/, /^minimax\/(hailuo|video)/, /^x-ai\/grok-imagine-video/] },
   { id:'adult', short:'Adulte 18+', label:'Adulte · Non censuré', hue:'#FF5C7A', adult:true, desc:"Modèles sans filtre de contenu (texte, et image ou vidéo dès qu'OpenRouter en propose), pour adultes uniquement. Création à partir de photos désactivée pour protéger les personnes réelles.",
     filter: m => (textOnlyOut(m) && ADULT_RE.test(m.id)) || ((outs(m, 'image') || outs(m, 'video')) && /uncensored|nsfw|venice|lustify|pony|unstable|hidream-uncensored/i.test(m.id + ' ' + (m.name || ''))),
     prefer:[/^venice\/uncensored/, /dolphin/, /^nousresearch\/hermes/, /^thedrummer\//, /^sao10k\//, /^anthracite-org\/magnum/],
@@ -5939,7 +5939,10 @@ function priceOkForPlan(m){ const pol = planPolicy(); if (pol.free) return true;
 var STRONG_IMAGE = [/gemini-2\.5-flash-image|nano-banana(?!-pro)/i, /gemini[\w.-]*image/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*(pro|max)/i, /seedream/i];
 var TOP_IMAGE = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /^openai\/gpt-[\w.-]*image/i];
 var STRONG_VIDEO = [/^google\/veo-3[\w.-]*fast/i, /^bytedance[\w-]*\/seedance-2\.5(?!-mini)/i, /kling[\w.-]*(pro|master)/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2(?!(\.\d)?-mini)/i, /kling/i];
-var ENT_VIDEO = [/^bytedance[\w-]*\/seedance-2\.2(?![\w.-]*(mini|lite))/i, /^bytedance[\w-]*\/seedance-2\.2/i];
+/* Abonnement Entreprise (CORSER 5.0, PRO, MAX) : Grok Imagine Video 1.5 par défaut pour toutes les vidéos, la version Lite en secours */
+var GROK_VIDEO = [/^x-ai\/grok-imagine-video-1\.5(?![\w.-]*lite)/i, /^x-ai\/grok-imagine-video(?![\w.-]*lite)/i];
+var GROK_IMAGE = [/^x-ai\/grok-imagine-image(?![\w.-]*lite)/i];
+var GROK_LITE = [/^x-ai\/grok-imagine-video[\w.-]*lite/i];
 var ANIM_VIDEO = [/^google\/veo-3\.1[\w.-]*fast/i, /kling[\w.-]*(master|pro)/i, /^google\/veo-3[\w.-]*fast/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2\.5(?![\w.-]*(mini|lite))/i, /^bytedance[\w-]*\/seedance-2\.2(?![\w.-]*(mini|lite))/i];
 var TOP_VIDEO = [/^google\/veo-3\.1(?![\w.-]*fast)/i, /^openai\/sora-2-pro/i, /^google\/veo-3(?![\w.-]*fast)/i, /^openai\/sora/i, /kling[\w.-]*master/i];
 var STRONG_EDIT = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /gemini[\w.-]*image|nano-banana/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*kontext[\w.-]*(max|pro)/i, /seedream/i];
@@ -5949,9 +5952,10 @@ function planPick(catId, opt){
   if (!list.length) return topPick(cat);
   /* Images, retouches et vidéos : des modèles solides et fiables dès l'abonnement Entreprise (jamais de version « mini » ou expérimentale) ;
      les abonnements supérieurs passent aux modèles haut de gamme */
-  /* vidéo : à partir d'un texte, Seedance 2.2 en Entreprise ; animation d'une photo ou suite de vidéo : toujours un modèle haut de gamme */
+  /* vidéo : Grok Imagine Video 1.5 par défaut en Entreprise (création et animation), Veo 3.1 Fast / Kling en secours pour les animations ;
+     Compétence et Élite : Veo 3.1 */
   const anim = catId === 'video' && opt?.img;
-  const MEDIA_ORDER = { photoedit: [STRONG_EDIT, STRONG_EDIT], image: [STRONG_IMAGE, TOP_IMAGE], video: anim ? [ANIM_VIDEO, TOP_VIDEO] : [[...ENT_VIDEO, ...STRONG_VIDEO], TOP_VIDEO] }[catId];
+  const MEDIA_ORDER = { photoedit: [STRONG_EDIT, STRONG_EDIT], image: [[...GROK_IMAGE, ...STRONG_IMAGE], TOP_IMAGE], video: anim ? [[...GROK_VIDEO, ...ANIM_VIDEO], TOP_VIDEO] : [[...GROK_VIDEO, ...STRONG_VIDEO, ...GROK_LITE], TOP_VIDEO] }[catId];
   if (MEDIA_ORDER){
     const top = planPolicy().media === 'best';
     for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id) && !/(^|[-_.:])(mini|lite|nano|flash-lite)([-_.:]|$)/i.test((x.id.split('/')[1] || '').replace(/^nano-banana/, 'nb'))); if (m) return m; }
