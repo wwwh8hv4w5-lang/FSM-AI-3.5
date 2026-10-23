@@ -485,6 +485,8 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .cv-new{background:#6EE7A8}
 #btnDrawer{position:relative}
 #btnDrawer.has-bg::after{content:"";position:absolute;top:10px;right:9px;width:8px;height:8px;border-radius:50%;background:#93c5fd;box-shadow:0 0 0 2px var(--bg)}
+.spend,#spendPop{display:none!important}
+.welcome.solo{margin:auto;gap:clamp(18px,3.5vh,30px)}
 .greet-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
 .planq{display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;min-width:0}
 .plq-t{font-size:13px;color:var(--muted)}
@@ -597,7 +599,7 @@ html,body{overflow-x:hidden;max-width:100%}
     <button class="icon-btn" id="btnDrawer" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h16M4 16h10"/></svg></button>
     <button class="icon-btn" id="btnBot" aria-label="FSM BOT"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg></button>
     <button class="model-btn" id="btnModel" aria-label="Choisir le modèle"><span class="name" id="hdrModel">FSM AI 5.0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
-    <button class="spend" id="btnSpend" aria-label="Dépenses de la session"><span id="spendAmt">$0.00</span></button>
+    <button class="spend" id="btnSpend" aria-label="Dépenses de la session" hidden><span id="spendAmt">$0.00</span></button>
     <button class="icon-btn" id="btnNew" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-4 1 1-4Z"/></svg></button>
     <div class="spend-pop" id="spendPop" hidden role="dialog" aria-label="Dépenses de la session">
       <div class="sp-total"><span>Dépensé cette session</span><b id="spendTotal"></b></div>
@@ -1800,7 +1802,7 @@ function autoRoute(text, cat){
   if (cat !== 'videoedit' && (hasVid || lastVid) && VEDIT_RE.test(t) && !ASK_RE.test(t)){
     const p = topPick(catById('videoedit')); if (!p) return null;
     S.set.model = p.id; applyPreset(catById('videoedit')); refreshModelUI();
-    toast('Retouche vidéo activée · ' + bare(shortName(p.id)));
+    toast('Retouche vidéo activée');
     return 'videoedit';
   }
   const curMode = modeFor(S.set.model);
@@ -1808,7 +1810,7 @@ function autoRoute(text, cat){
   if (!['photoedit', 'image'].includes(cat) && curMode === 'chat' && (hasImg || lastImg) && !hasVid && PEDIT_RE.test(t) && !ASK_RE.test(t)){
     const p = topPick(catById('photoedit')); if (!p) return null;
     S.set.model = p.id; applyPreset(catById('photoedit')); refreshModelUI();
-    toast('Retouche photo activée · ' + bare(shortName(p.id)));
+    toast('Retouche photo activée');
     return 'photoedit';
   }
   return null;
@@ -1856,8 +1858,8 @@ async function send(){
   else if (routerOn(cat) && !isXai(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
   else if (isFreePlan() && !S.conv?.bot){
     const mi = modelInfo(item.model), md = modeFor(item.model);
-    if (md === 'image' || md === 'chat+image'){ const im = freeImageModel(cat === 'photoedit'); if (im && im.id !== item.model){ item.model = im.id; toast('Abonnement Free : modèle d\'images ' + bare(shortName(im.id))); } }
-    else if (!mi || !isFree(mi)){ const r = freeRoute(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; toast('Abonnement Free : modèle gratuit ' + bare(shortName(r.model))); } }
+    if (md === 'image' || md === 'chat+image'){ const im = freeImageModel(cat === 'photoedit'); if (im && im.id !== item.model){ item.model = im.id; toast('Abonnement Free : modèle d\'images gratuit utilisé'); } }
+    else if (!mi || !isFree(mi)){ const r = freeRoute(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; toast('Abonnement Free : modèle gratuit utilisé'); } }
   }
   if (!(await budgetGate(estimateCost(item, cat)))) return;
   S.pending = []; renderPending(); $('#input').value = ''; autosize(); renderSend();
@@ -2287,8 +2289,7 @@ function msgHtml(m){
   if (m.stopped) h += `<div class="note">Réponse arrêtée.</div>`;
   if (m.error) h += `<div class="err"><span>${esc(m.error)}</span><button class="btn ghost" data-act="retry" data-mid="${m.id}">Réessayer</button></div>`;
   if (!m.status && !m.error){
-    const cost = m.cost != null && +m.cost > 0 ? ` · ${m.estimated ? '≈' : ''}$${(+m.cost).toFixed(4)}` : '';
-    h += `<div class="acts">${m.text ? `<button class="act" data-act="copyall" data-mid="${m.id}" aria-label="Copier la réponse">${IC.copy}</button>` : ''}<button class="act" data-act="retry" data-mid="${m.id}" aria-label="Régénérer">${IC.redo}</button>${m.route && nextTier(m.route.tier) ? `<button class="act" data-act="upgrade" data-mid="${m.id}" aria-label="Réessayer avec un modèle plus puissant" title="Plus puissant">${IC.up}</button>` : ''}<span class="meta">${esc(bare(shortName(m.model)))}${m.route ? ' · auto' + (m.route.label ? ' ' + m.route.label : '') + (m.route.tier ? ' ' + TIER_FR[m.route.tier] : '') : ''}${cost}</span></div>`;
+    h += `<div class="acts">${m.text ? `<button class="act" data-act="copyall" data-mid="${m.id}" aria-label="Copier la réponse">${IC.copy}</button>` : ''}<button class="act" data-act="retry" data-mid="${m.id}" aria-label="Régénérer">${IC.redo}</button>${m.route && nextTier(m.route.tier) ? `<button class="act" data-act="upgrade" data-mid="${m.id}" aria-label="Réessayer avec un modèle plus puissant" title="Plus puissant">${IC.up}</button>` : ''}</div>`;
   }
   return h;
 }
@@ -2329,8 +2330,8 @@ function welcomeHtml(){
     return `<button class="tile${S.set.category === c.id ? ' on' : ''}" data-act="preset" data-cat="${c.id}">${svgI(c.id)}<span class="tl">${esc(c.short)}</span><span class="tp">${esc(sub)}</span></button>`;
   }).join('');
   const cur = catById(S.set.category), mi = modelInfo(S.set.model);
-  const pick = universalOn() ? `<div class="pick"><span>Mode automatique</span>${PLANS[S.set.plan] ? `<span>· abonnement</span><b>${esc(PLANS[S.set.plan].key)}</b><button data-act="planchg">Changer</button>` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
-  return `<div class="welcome"><div class="greet"> <span class="logo" role="img" aria-label="F.S.M AI"></span><h1>Que veux-tu créer aujourd'hui ?</h1><div class="greet-acts">${botBtn}${key}</div></div>${planRowHtml()}<div class="tiles">${tiles}</div>${pick}</div>`.replace('<div class="welcome">', `<div class="welcome${planRowHtml() ? ' asking' : ''}">`);
+  const pick = universalOn() ? `<div class="pick"><span>Mode automatique</span>${PLANS[S.set.plan] ? `<span>·</span><b>${esc(PLANS[S.set.plan].key)}</b><button data-act="planchg">Changer</button>` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
+  return `<div class="welcome solo"><div class="greet"> <span class="logo" role="img" aria-label="F.S.M AI"></span><h1>Que veux-tu créer aujourd'hui ?</h1>${key ? `<div class="greet-acts">${key}</div>` : ''}</div>${planRowHtml()}${pick}</div>`;
 }
 function syncThread(){
   if (!S.conv || !els.size || $('#thread').classList.contains('home')) return renderThread();
