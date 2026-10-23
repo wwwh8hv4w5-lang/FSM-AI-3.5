@@ -2068,6 +2068,8 @@ async function send(){
     if (refMode === 'video' && ra?.w && ra?.h && uni?.route){ const mi = modelInfo(uni.model); uni.route.vidAspect = closestAspect(ra.w, ra.h, mi?.aspects); }
     if (refMode === 'photoedit' && uni?.route) uni.route.imgAspect = 'auto';
   }
+  if (!item.apiText && cat === 'photoedit' && text && item.atts.some(a => kindOf(a) === 'image'))
+    item.apiText = `Modifie la photo fournie selon cette demande : ${text}\nGarde la même personne ou le même sujet, le même cadrage et le même rendu photo réaliste : ne change que ce qui est demandé.`;
   if (uni){ item.model = uni.model; item.route = uni.route; }
   else if (routerOn(cat) && !isXai(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
   else if (freeOnly() && !S.conv?.bot){
@@ -5124,6 +5126,8 @@ function detectIntent(text, atts){
   if (hasImg && !hasVid && ANIMATE_RE.test(t) && !ask) return 'video';
   const lastImg = !hasImg && /photo|image|portrait|selfie|l'image|la photo/i.test(t) && lastMedia('image');
   if ((hasImg || lastImg) && !hasVid && PEDIT_RE.test(t) && !ask && !CODE_RE.test(t)) return 'photoedit';
+  /* photo jointe + consigne de retouche formulée librement (« mets-le dans la neige », « rends-moi plus jeune »…) */
+  if (hasImg && !hasVid && !ask && !CODE_RE.test(t) && !/(fautes?|orthographe|grammaire|conjugaison|version (texte|écrite|word|pdf|résumée|courte|longue)|plus (de |d'|d’)\s*(détails|infos?|informations|explications|précisions|exemples)|plus sur |exercice|calcul|devoir|équation|traduction|transcri|résum)/i.test(t) && (FOLLOW_EDIT_RE.test(t) || /(noir et blanc|n ?& ?b|sépia|vintage|rétro|plus (jeune|vieux|vieille|âgée?|mince|musclée?|grande?|lumineu|clair|sombre|nette?|saturée?|chaud|froid)|en (hiver|été|automne|printemps|neige|nuit|plein jour|couleur|haute (qualité|définition)|hd|4k)|style |version |façon |à la manière|haute définition|upscale|résolution)/i.test(t))) return 'photoedit';
   if (!ask && !CODE_RE.test(t) && (VID_GEN_RE.test(t) || VID_LEAD_RE.test(t))) return 'video';
   if (!ask && !/(svg|html|css|code|ascii)/i.test(t) && (IMG_GEN_RE.test(t) || IMG_LEAD_RE.test(t))) return hasImg && !hasVid ? 'photoedit' : 'image';
   if (hasVid) return 'videoin';
