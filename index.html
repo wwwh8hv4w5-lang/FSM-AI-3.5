@@ -817,6 +817,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .vfam{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
 .vfam-h{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 4px}
 .vfam-h span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
+.vinc{font-size:15px;font-weight:600;color:var(--ink);padding:2px 4px 10px}
 .vrow em{font-style:normal;color:var(--faint)}
 
 .devcard{width:min(100%,520px);margin:4px 0 12px}
@@ -829,6 +830,17 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .livepv .pv-bar{padding:9px 14px}
 .livepv .live-dot::before{background:#F28B82;box-shadow:0 0 0 3px rgba(242,139,130,.18);animation:pulse 1.2s infinite}
 .livepv .live-dot em{font-style:normal;font-weight:500;color:var(--faint)}
+
+.zipbar{margin:2px 0 6px}
+.zipbtn{display:flex;align-items:center;gap:12px;width:100%;max-width:440px;text-align:left;padding:11px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.zipbtn svg{flex:0 0 22px;width:22px;height:22px;color:var(--muted)}
+.zipbtn b{display:block;font-size:14.5px;font-weight:600}
+.zipbtn small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px;font-family:var(--f-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zipbtn span{min-width:0}
+
+.livewrap{display:flex;flex-direction:column;gap:0;transition:opacity .4s ease}
+.livewrap.closing{opacity:0}
+.livewrap .devcard{margin:0 0 10px}
 </style>
 </head>
 <body>
@@ -1258,7 +1270,7 @@ const isFree = m => {
 };
 const textOnlyOut = m => outs(m, 'text') && !outs(m, 'image') && !outs(m, 'video');
 
-const FILE_HINT = "Quand tu produis un fichier (code, texte, CSV, JSON, HTML, SVG…), place-le dans un bloc de code dont la ligne d'ouverture contient le langage suivi du nom du fichier, par exemple ```python analyse.py. Un bloc par fichier, contenu complet. Pour un jeu, une animation ou une page interactive, livre un seul fichier ```html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale) : il s'affiche en aperçu jouable dans la conversation. Prévois des commandes tactiles si c'est un jeu.";
+const FILE_HINT = "Quand tu produis un fichier (code, texte, CSV, JSON, HTML, SVG…), place-le dans un bloc de code dont la ligne d'ouverture contient le langage suivi du nom du fichier, par exemple ```python analyse.py. Un bloc par fichier, contenu complet. Pour un jeu, une animation ou une page interactive, livre un seul fichier ```html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale) : il s'affiche en aperçu jouable dans la conversation. Prévois des commandes tactiles si c'est un jeu. Quand tu livres plusieurs fichiers (projet, site, application, jeu en plusieurs fichiers, documents), donne un nom à chaque bloc, avec des dossiers si utile (```css css/style.css, ```javascript js/app.js) : l'application les regroupe automatiquement dans une archive ZIP téléchargeable en un geste. Écris aussi sur une ligne seule [[zip: nom-du-projet]] pour nommer l'archive. Ne dis jamais que tu ne peux pas créer de fichier ZIP.";
 const ICONS = {
   chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   reason:'<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>',
@@ -1898,9 +1910,14 @@ function audioFmt(a){
   if (/webm/.test(t)) return 'webm';
   return 'mp3';
 }
-function userParts(m){
+function userParts(m, light){
   let txt = m.apiText || m.text || '';
   const parts = [];
+  if (light){
+    /* message ancien : le texte complet, les pièces jointes résumées (elles ont déjà été vues) */
+    for (const a of m.atts || []){ const k = kindOf(a); txt += k === 'text' ? `\n\n--- Fichier joint (déjà lu) : ${a.name} ---\n${clip(a.text || '', 3000)}` : `\n\n[Pièce jointe déjà analysée plus haut : ${a.name} (${k})]`; }
+    return [{ type:'text', text: txt.trim() || '(pièce jointe)' }];
+  }
   for (const a of m.atts || []) if (kindOf(a) === 'text') txt += `\n\n--- Fichier joint : ${a.name} ---\n${a.text}\n--- Fin de ${a.name} ---`;
   if (txt.trim()) parts.push({ type:'text', text: txt.trim() });
   for (const a of m.atts || []){
@@ -1913,13 +1930,61 @@ function userParts(m){
   if (!parts.length) parts.push({ type:'text', text:'(fichier joint)' });
   return parts;
 }
+
+/* =====================================================================
+   CONSIGNES DE BASE (communes à tous les modèles utilisés par FSM AI)
+   ===================================================================== */
+function coreSystem(conv){
+  const b = typeof brand === 'function' ? brand() : null;
+  const name = b ? b.name : 'FSM AI';
+  const plan = PLANS[S.set.plan]?.key || '';
+  const now = new Date();
+  const date = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const time = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+  const n = (conv?.messages || []).filter(m => m.role === 'user').length;
+  return `Tu es ${name}, l'assistant IA de l'application FSM AI${plan ? ' (abonnement ' + plan + ')' : ''}. Nous sommes le ${date}, il est ${time}.${n > 1 ? ` La conversation en est à son ${n}e message de l'utilisateur.` : ''}
+
+MÉTHODE, À APPLIQUER EN SILENCE AVANT CHAQUE RÉPONSE
+1. Comprendre : relis le dernier message ET tout le fil (sujet en cours, fichiers, images, vidéos, décisions prises, préférences exprimées). Les mots « ça », « celui-là », « la même », « refais », « continue », « la suite » désignent l'élément le plus récent de la conversation qui correspond : identifie-le précisément avant de répondre.
+2. Décider : si la demande est ambiguë mais qu'une interprétation est raisonnable, choisis-la et réalise-la. Ne pose une question que si une information indispensable manque ou si une erreur coûterait cher, et alors une seule question, précise.
+3. Réaliser entièrement : réponse complète, code complet, documents complets. Jamais de « … », de « à compléter », de contenu tronqué, ni de promesse pour plus tard (« je vais… », « je te l'envoie ») : fais-le maintenant, dans cette réponse.
+4. Vérifier avant d'envoyer : exactitude des faits et des calculs, cohérence avec ce qui a été dit plus tôt, respect de toutes les contraintes (longueur, format, langue, ton, public visé).
+
+COHÉRENCE DE LA DISCUSSION
+- C'est une seule conversation continue, même si plusieurs modèles se relaient en coulisse : considère toutes les réponses précédentes de l'assistant comme les tiennes, poursuis-les sans te contredire, sans te présenter de nouveau et sans répéter ce qui a déjà été dit.
+- Ce qui a été fixé reste valable (noms, chiffres, choix, style, format, contraintes) tant que l'utilisateur ne le change pas.
+- Si tu dois corriger une erreur précédente, signale-le en une phrase puis donne directement la version correcte.
+- Les images, vidéos et fichiers indiqués dans l'historique comme produits par FSM AI existent réellement et ont été montrés à l'utilisateur : ne dis jamais le contraire et ne t'en excuse pas.
+
+QUALITÉ DES RÉPONSES
+- Réponds dans la langue de l'utilisateur (français par défaut), avec un ton naturel, clair et chaleureux. Vouvoie par défaut ; tutoie si l'utilisateur te tutoie.
+- La réponse d'abord, les détails ensuite. Longueur adaptée : courte pour une question simple ; structurée (titres ##, listes, tableaux, gras sur l'essentiel) pour un sujet riche. Pas de remplissage, pas de reformulation de la question, pas de formules creuses ni d'avertissements inutiles.
+- Exactitude : n'invente jamais de faits, de chiffres, de citations, de sources ou de liens. Si tu n'es pas sûr, dis-le simplement et indique comment vérifier. Pour l'actualité, les prix, les horaires, les résultats ou tout fait récent, appuie-toi sur les résultats de recherche web fournis et cite les sources avec leurs liens.
+- Calculs : raisonne étape par étape ou utilise l'outil Python quand il est disponible ; vérifie le résultat.
+- Santé, droit, finances : informe clairement et recommande un professionnel quand l'enjeu le justifie, sans refuser d'aider.
+
+CE QUE FSM AI SAIT FAIRE (l'application s'en charge automatiquement)
+- Créer des images ; retoucher des photos ; créer des vidéos, y compris à partir d'une image ou pour prolonger une vidéo ; monter des vidéos ; analyser photos, vidéos, audios et documents ; chercher sur le web ; afficher un aperçu jouable des jeux et pages HTML ; regrouper des fichiers dans une archive ZIP.
+- Quand l'utilisateur demande l'une de ces choses, l'outil adapté s'en occupe : ne dis jamais que c'est impossible et ne renvoie jamais vers une catégorie, un menu, un autre service ou un autre modèle.
+- Si l'on te demande quel modèle tu es : tu es ${name}, le modèle de FSM AI, qui s'appuie sur les meilleurs modèles d'IA du moment, choisis automatiquement pour chaque demande.
+
+PETITS MESSAGES
+- Salutation, remerciement, compliment, simple validation (« ok », « super ») : réponds en une ou deux phrases naturelles, sans image, sans chiffres clés, sans relancer une longue réponse.`;
+}
+const FILE_HINT2 = `FICHIERS ET CODE
+- Chaque fichier va dans un bloc de code dont la ligne d'ouverture contient le langage puis le nom du fichier, par exemple \`\`\`python analyse.py. Un bloc par fichier, contenu toujours complet et directement utilisable.
+- Code : propre, commenté sobrement, sans erreur de syntaxe ; relis-le mentalement comme si tu l'exécutais. Puis explique en quelques lignes comment l'utiliser.
+- Jeu, animation ou page interactive : un seul fichier \`\`\`html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale, pas d'alert()), adapté au téléphone (commandes tactiles et clavier, mise à l'échelle de l'écran), qui démarre tout seul. Écris d'abord le HTML et le CSS, puis le JavaScript : l'utilisateur voit le jeu se construire en direct puis peut y jouer dans la conversation.
+- Projet en plusieurs fichiers : nomme chaque bloc avec son chemin (\`\`\`css css/style.css, \`\`\`javascript js/app.js) et écris sur une ligne seule [[zip: nom-du-projet]] ; l'application crée l'archive ZIP téléchargeable.`;
+
 function buildSystem(conv, catId){
   conv = conv || S.conv;
   const mem = memSystem(), pj = projSystem(conv);
-  if (S.voiceActive) return [VOICE_SYS_FN(), pj, S.set.system.trim(), mem].filter(Boolean).join('\n\n');
+  if (S.voiceActive) return [VOICE_SYS_FN(), coreSystem(conv).split('\n\nQUALITÉ DES RÉPONSES')[0], pj, S.set.system.trim(), mem].filter(Boolean).join('\n\n');
   const c = catById(catId || S.set.category);
   const ill = illusOn(c.id) ? ILLUS_HINT : '';
-  return [pj, c.sys, S.set.system.trim(), S.set.fileHints ? FILE_HINT : '', ill, EDIT_HINT, mem].filter(Boolean).join('\n\n');
+  const custom = S.set.system.trim() ? "CONSIGNES PERSONNELLES DE L'UTILISATEUR (prioritaires sur le style par défaut) :\n" + S.set.system.trim() : '';
+  return [coreSystem(conv), c.sys ? 'SPÉCIALITÉ DE CETTE DEMANDE : ' + c.sys : '', pj, custom, FILE_HINT2, ill, mem].filter(Boolean).join('\n\n');
 }
 function assistantHistText(m){
   let t = String(m.text || '').replace(ILL_RE, '').replace(KFIG_RE, '').trim();
@@ -1964,10 +2029,17 @@ async function runChat(asst, signal, conv){
   const tools = (mode === 'chat' && (!info || hasParam(info, 'tools'))) ? activeTools(conv) : [];
   const sys = [conv?.bot ? botSystem() + (S.voiceActive ? '\n\n' + VOICE_SYS_FN() : illusOn('agents') ? '\n\n' + ILLUS_HINT : '') : buildSystem(conv, asst.cat), tools.length ? connSystem(tools) : '', tools.some(t => t.name === 'run_python') ? PY_HINT : ''].filter(Boolean).join('\n\n');
   if (sys) msgs.push({ role:'system', content: sys });
-  for (const m of conv.messages){
-    if (m === asst) break;
-    if (m.role === 'user') msgs.push({ role:'user', content: userParts(m) });
-    else if (!m.error && (m.text || m.images?.length || m.videos?.length)) msgs.push({ role:'assistant', content: assistantHistText(m) });
+  { const hist = conv.messages.slice(0, Math.max(0, conv.messages.indexOf(asst)));
+    const users = hist.filter(m => m.role === 'user');
+    const keepFull = new Set(users.slice(-3).map(m => m.id));
+    const lastImg = [...users].reverse().find(m => (m.atts || []).some(a => ['image', 'video', 'pdf', 'file', 'audio'].includes(kindOf(a))));
+    if (lastImg) keepFull.add(lastImg.id);
+    const cut = Math.max(0, hist.length - 40);
+    if (cut) msgs.push({ role:'user', content:[{ type:'text', text:`[Début de la conversation résumé : ${hist.slice(0, cut).filter(m => m.role === 'user').map(m => '« ' + clip((m.text || '').replace(/\s+/g, ' '), 140) + ' »').slice(-12).join(' ; ')}]` }] }, { role:'assistant', content:"(J'ai bien en tête le début de notre conversation.)" });
+    for (const m of hist.slice(cut)){
+      if (m.role === 'user') msgs.push({ role:'user', content: userParts(m, !keepFull.has(m.id)) });
+      else if (!m.error && (m.text || m.images?.length || m.videos?.length)) msgs.push({ role:'assistant', content: assistantHistText(m) });
+    }
   }
   { const pp = projPdfParts(conv); if (pp.length){ const fu = msgs.find(x => x.role === 'user'); if (fu) fu.content = pp.concat(fu.content); } }
   asst.steps = asst.steps || [];
@@ -2145,7 +2217,10 @@ async function send(){
   if (!text && !S.pending.length) return;
   if (isXai(S.set.model) ? !S.xaiKey : !S.key){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   let cat = S.set.category, uni = null, refMode = null;
-  if (text && !S.conv?.bot && (universalOn() || ['image', 'photoedit', 'video'].includes(cat))) refMode = (await autoVideoContinuation(text)) || await autoVisualRef(text, universalOn() ? 'chat' : cat);
+  let regen = null;
+  if (text && !S.conv?.bot && universalOn()) regen = autoRegen(text);
+  if (regen) refMode = regen.cat;
+  else if (text && !S.conv?.bot && (universalOn() || ['image', 'photoedit', 'video'].includes(cat))) refMode = (await autoVideoContinuation(text)) || await autoVisualRef(text, universalOn() ? 'chat' : cat);
   if (universalOn()){
     uni = universalRoute(text, S.pending, S.conv, refMode || undefined);
     if (uni?.blocked){ toast(uni.blocked); return; }
@@ -2158,7 +2233,8 @@ async function send(){
   if (cat === 'photoedit' && !S.pending.some(a => kindOf(a) === 'image') && !(await attachLast('image'))){ toast('Joins la photo à retoucher.'); $('#file').accept = 'image/*'; $('#file').click(); setTimeout(() => $('#file').accept = '', 1500); return; }
   if (cat === 'videoedit' && !S.pending.some(a => kindOf(a) === 'video') && !(await attachLast('video'))){ toast('Joins la vidéo à retoucher.'); $('#file').accept = 'video/*'; $('#file').click(); setTimeout(() => $('#file').accept = '', 1500); return; }
   const item = { id: uid(), text, atts: S.pending.slice(), model: S.set.model, cat };
-  if (refMode){
+  if (regen){ item.apiText = regen.apiText; if (regen.cat === 'photoedit' && uni?.route) uni.route.imgAspect = 'auto'; }
+  else if (refMode){
     item.apiText = refApiText(text, item.atts, refMode === 'video' ? 'video' : 'edit');
     const ra = item.atts.find(a => a.ref);
     if (refMode === 'video' && ra?.w && ra?.h && uni?.route){ const mi = modelInfo(uni.model); uni.route.vidAspect = closestAspect(ra.w, ra.h, mi?.aspects); }
@@ -2321,23 +2397,23 @@ const CODE = new Map(); let curMid = '', curIdx = 0;
 const EXT = { python:'py', py:'py', javascript:'js', js:'js', jsx:'jsx', typescript:'ts', ts:'ts', tsx:'tsx', html:'html', css:'css', scss:'scss', json:'json', bash:'sh', sh:'sh', shell:'sh', zsh:'sh', powershell:'ps1', markdown:'md', md:'md', csv:'csv', sql:'sql', yaml:'yml', yml:'yml', toml:'toml', java:'java', c:'c', cpp:'cpp', 'c++':'cpp', csharp:'cs', cs:'cs', go:'go', rust:'rs', ruby:'rb', php:'php', swift:'swift', kotlin:'kt', xml:'xml', svg:'svg', latex:'tex', tex:'tex', r:'r', lua:'lua', dart:'dart', vue:'vue', dockerfile:'Dockerfile', ini:'ini', text:'txt', txt:'txt', plaintext:'txt' };
 const MIME = { html:'text/html', svg:'image/svg+xml', json:'application/json', csv:'text/csv', md:'text/markdown', js:'text/javascript', css:'text/css', xml:'application/xml' };
 function parseInfo(info){
-  info = (info || '').trim(); let lang = '', fname = '';
+  info = (info || '').trim(); let lang = '', fname = '', path = '';
   const m = info.match(/(?:title|file|filename|name)\s*=\s*["']?([^"'\s]+)/i);
-  if (m) fname = m[1];
+  if (m){ path = m[1]; fname = m[1].split('/').pop(); }
   const toks = info.replace(/(?:title|file|filename|name)\s*=\s*["']?[^"'\s]+["']?/ig, '').split(/[\s:]+/).filter(Boolean);
   for (const t of toks){
-    if (!fname && /^[\w./-]+\.[A-Za-z0-9]{1,8}$/.test(t)) fname = t.split('/').pop();
+    if (!fname && /^[\w./-]+\.[A-Za-z0-9]{1,8}$/.test(t)){ path = t; fname = t.split('/').pop(); }
     else if (!lang && /^[\w+#-]+$/.test(t)) lang = t.toLowerCase();
   }
   if (!lang && fname) lang = fname.split('.').pop().toLowerCase();
-  return { lang, fname };
+  return { lang, fname, path: path && path.includes('/') ? path : '' };
 }
 function codeHtml(code, info){
-  const { lang, fname } = parseInfo(info);
+  const { lang, fname, path } = parseInfo(info);
   const key = curMid + ':' + (curIdx++);
-  CODE.set(key, { code, lang, fname, named: !!fname });
+  CODE.set(key, { code, lang, fname, path, named: !!fname });
   const pv = previewKind(lang, fname, code);
-  if (pv && curStreaming) return devCardHtml(code, pv) + `<div class="pv livepv" data-lk="${esc(key)}"><div class="pv-bar"><span class="live-dot">Aperçu en direct <em>· se construit sous tes yeux</em></span></div><div class="pv-frame"></div></div>`;
+  if (pv && curStreaming) return `<span class="live-anchor" data-lk="${esc(key)}" data-pv="${pv}"></span>`;
   const head = !pv ? '' : curStreaming ? ''
     : `<div class="pv" data-k="${esc(key)}"><div class="pv-bar"><span>${pv === 'svg' ? 'Aperçu' : 'Aperçu jouable'}</span><button class="mini" data-act="pvreload" data-k="${esc(key)}">Relancer</button><button class="mini" data-act="pvfull" data-k="${esc(key)}">Plein écran</button></div><div class="pv-frame"></div><div class="pv-err" hidden></div></div>`;
   return head + `<div class="code${pv ? ' has-preview' : ''}"><div class="code-bar"><span class="code-name">${esc(fname || lang || 'code')}</span><button class="mini" data-act="copy" data-k="${esc(key)}">Copier</button><button class="mini" data-act="dl" data-k="${esc(key)}">Télécharger</button></div><pre><code>${esc(code.replace(/\n$/, ''))}</code></pre></div>`;
@@ -2390,13 +2466,46 @@ function makeFrame(doc){
   return f;
 }
 /* Aperçu en direct pendant l'écriture du code : rechargé régulièrement, sans clignotement (double tampon) */
+/* Bloc « en direct » placé juste après le message : jamais recréé pendant l'écriture, donc pas de clignotement */
+function liveWrap(el, m){
+  const anchors = el.querySelectorAll('.live-anchor');
+  if (!anchors.length){
+    if (el._lw){ const w = el._lw; el._lw = null; w.classList.add('closing'); setTimeout(() => w.remove(), 450); }
+    return;
+  }
+  const a = anchors[anchors.length - 1], c = CODE.get(a.dataset.lk); if (!c) return;
+  let w = el._lw;
+  if (!w || !w.isConnected){
+    w = document.createElement('div'); w.className = 'livewrap';
+    w.innerHTML = devCardHtml(c.code, a.dataset.pv) + `<div class="pv livepv"><div class="pv-bar"><span class="live-dot">Aperçu en direct <em>· se construit sous tes yeux</em></span></div><div class="pv-frame"></div></div>`;
+    el.after(w); el._lw = w;
+  }
+  const lines = String(c.code).split('\n').length;
+  const msg = w.querySelector('.gc-msg'); if (msg) msg.textContent = msg.textContent.replace(/\d+ lignes?$/, lines + (lines > 1 ? ' lignes' : ' ligne'));
+  const lv = w.querySelector('.livepv'); lv.dataset.lk = a.dataset.lk;
+  liveRefresh(lv);
+}
+/* Version « stable » du code en cours d'écriture : on coupe avant un script ou un style inachevé */
+function stablePartial(code){
+  let t = String(code || '');
+  for (const tag of ['script', 'style']){
+    const open = t.lastIndexOf('<' + tag), close = t.lastIndexOf('</' + tag + '>');
+    if (open > close) t = t.slice(0, open);
+  }
+  return t;
+}
 function liveRefresh(el){
   if (!el || !el.isConnected) return;
-  const now = Date.now(), wait = 1300 - (now - (el._last || 0));
+  const now = Date.now(), wait = 2200 - (now - (el._last || 0));
   if (wait > 0){ if (!el._pend){ el._pend = setTimeout(() => { el._pend = 0; liveRefresh(el); }, wait); } return; }
-  el._last = now;
+  const c = CODE.get(el.dataset.lk); if (!c) return;
+  const part = stablePartial(c.code);
+  if (part === el._part || part.length - (el._part || '').length < 60 && el._part) return;
+  el._last = now; el._part = part;
   const box = el.querySelector('.pv-frame'); if (!box) return;
-  const doc = buildDoc(el.dataset.lk); if (!doc) return;
+  const lk = el.dataset.lk + '#live';
+  CODE.set(lk, { ...c, code: part });
+  const doc = buildDoc(lk); CODE.delete(lk); if (!doc) return;
   const f = makeFrame(doc); f.style.opacity = '0';
   f.addEventListener('load', () => setTimeout(() => {
     f.style.opacity = '1';
@@ -2445,6 +2554,7 @@ function kfigHtml(body){
   return `<div class="kfig n${items.length}">${items.map((x, i) => `<div class="kf" style="--i:${i}"><b>${esc(x[0])}</b>${x[1] ? `<span>${esc(x[1])}</span>` : ''}</div>`).join('')}</div>`;
 }
 function illPre(text, figs){
+  if (/\[\[\s*zip/i.test(text)) text = text.replace(/\[\[\s*zip\s*:[^\]\n]*\]\]\s*/gi, '').replace(/\[\[\s*zip[^\]\n]*$/i, '');
   if (/\[\[\s*chiffres/i.test(text)) text = text.replace(KFIG_RE, (m0, body) => { figs.push(kfigHtml(body)); return '\n\nFSMFIG' + (figs.length - 1) + 'X\n\n'; }).replace(/\[\[\s*chiffres[^\]\n]*$/i, '');
   if (!/\[\[\s*(image|illustration)/i.test(text)) return text;
   text = text.replace(ILL_RE, (m0, q, cap, src) => { figs.push(figHtml(q, cap, src)); return '\n\nFSMFIG' + (figs.length - 1) + 'X\n\n'; });
@@ -2745,6 +2855,68 @@ function findMsgConv(mid){
   for (const c of [S.conv, ...(S.live ? S.live.values() : [])]) { if (!c) continue; const m = c.messages.find(x => x.id === mid); if (m) return { m, c }; }
   return null;
 }
+
+/* ----- Archives ZIP : les fichiers produits par le modèle, regroupés en un seul téléchargement ----- */
+const ZIP_RE = /\[\[\s*zip\s*:\s*([^\]\n]{1,80}?)\s*\]\]/i;
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function deflateRaw(u8){
+  if (typeof CompressionStream === 'undefined') return null;
+  try{ return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()); }catch(e){ return null; }
+}
+async function makeZip(files){
+  const te = new TextEncoder(), parts = [], central = []; let offset = 0;
+  const d = new Date(), dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for (const f of files){
+    const name = te.encode(f.path), raw = f.data, crc = crc32(raw);
+    let comp = await deflateRaw(raw), method = 8;
+    if (!comp || comp.length >= raw.length){ comp = raw; method = 0; }
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, method, true);
+    lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true); lh.setUint32(14, crc, true); lh.setUint32(18, comp.length, true); lh.setUint32(22, raw.length, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, comp);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, method, true);
+    ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true); ch.setUint32(16, crc, true); ch.setUint32(20, comp.length, true); ch.setUint32(24, raw.length, true);
+    ch.setUint16(28, name.length, true); ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + comp.length;
+  }
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+}
+const slugify = s => fold(s).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'fichiers';
+/* Liste des fichiers produits dans une réponse : blocs de code nommés, fichiers Python, images générées */
+function msgFiles(m){
+  const out = [], used = new Set();
+  const add = (path, get) => { let p = path.replace(/^\/+/, '').replace(/\.\.\//g, ''), n = 2; while (used.has(p)){ p = path.replace(/(\.[^.\/]+)?$/, '-' + n++ + '$1'); } used.add(p); out.push({ path: p, get }); };
+  let i = 0;
+  for (const [k, c] of CODE){
+    if (!k.startsWith(m.id + ':')) continue;
+    i++;
+    if (!c.named && !c.path) continue;
+    add(c.path || c.fname || dlName(k), async () => new TextEncoder().encode(c.code));
+  }
+  (m.files || []).forEach(f => add(f.name, async () => new Uint8Array(await (await dataUrlToBlob(f.data)).arrayBuffer())));
+  (m.images || []).forEach((im, j) => add(`images/image-${j + 1}.${extFromMime((String(im.url).match(/^data:([^;,]+)/) || [])[1] || 'image/png')}`, async () => new Uint8Array(await (await fetch(im.url)).arrayBuffer())));
+  return out;
+}
+function zipName(m, conv){
+  const t = String(m.text || '').match(ZIP_RE);
+  return slugify(t ? t[1] : (conv?.title || 'fichiers-fsm-ai'));
+}
+async function zipMessage(m, conv){
+  const list = msgFiles(m); if (!list.length) return toast('Aucun fichier à regrouper.');
+  toast('Préparation de l\'archive…');
+  const files = [];
+  for (const f of list){ try{ files.push({ path: f.path, data: await f.get() }); }catch(e){} }
+  const blob = await makeZip(files);
+  await saveBlob(blob, zipName(m, conv) + '.zip');
+}
+
 function mdHtml(text, mid){
   curMid = mid; curIdx = 0;
   let html; const figs = [];
@@ -2856,7 +3028,7 @@ function msgHtml(m){
   if (m.confirm) h += `<div class="cfm"><b>${esc(m.confirm.title)}</b>${m.confirm.rows.map(r => `<div class="cf-row"><span>${esc(r[0])}</span><div>${esc(r[1])}</div></div>`).join('')}<div class="cf-acts"><button class="btn" data-act="cfm" data-cid="${m.confirm.id}">Confirmer</button><button class="btn ghost" data-act="cfx" data-cid="${m.confirm.id}">Annuler</button></div></div>`;
   if (m.needTap) h += `<button class="btn" data-act="edtap">Lancer le montage</button>`;
   const gk = genKind(m);
-  if (gk){ h += genCardHtml(m, gk); setTimeout(genClock, 0); }
+  if (gk){ h += '<!--gc-->' + genCardHtml(m, gk) + '<!--/gc-->'; setTimeout(genClock, 0); }
   else if (m.status){
     h += `<div class="status"><span class="dots"><i></i><i></i><i></i></span><span>${esc(m.status)}</span></div>`;
   }
@@ -2866,6 +3038,10 @@ function msgHtml(m){
   if (m.videos?.length) h += m.videos.map((v, i) => `<div class="vidcard"><video${m._fresh ? ' class="reveal"' : ''} controls playsinline preload="metadata" src="${esc(vidSrc(v))}"></video><div class="vacts"><button class="mini" data-act="save" data-mid="${m.id}" data-i="${n + i}">Enregistrer</button><button class="mini" data-act="view" data-mid="${m.id}" data-i="${n + i}">Plein écran</button></div>${v.expires ? `<div class="note">Lien temporaire : enregistre la vidéo pour la garder.</div>` : ''}</div>`).join('');
   const named = [...CODE.entries()].filter(([k, c]) => k.startsWith(m.id + ':') && c.named);
   if (named.length && !m.status) h += `<div class="files">${named.map(([k, c]) => `<div class="file-row">${IC.file}<span class="fname">${esc(c.fname)}</span><span class="fs">${fmtSize(new Blob([c.code]).size)}</span><button class="act" data-act="dl" data-k="${esc(k)}" aria-label="Télécharger ${esc(c.fname)}">${IC.dl}</button></div>`).join('')}</div>`;
+  if (!m.status && !m._live && !m.error){
+    const zf = msgFiles(m);
+    if (zf.length >= 2 || (zf.length && ZIP_RE.test(m.text || ''))) h += `<div class="zipbar"><button class="zipbtn" data-act="zip" data-mid="${m.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg><span><b>Tout télécharger en .zip</b><small>${zf.length} fichier${zf.length > 1 ? 's' : ''} · ${esc(zipName(m, m._conv || S.conv))}.zip</small></span></button></div>`;
+  }
   if (m.files?.length && !m.status) h += `<div class="files">${m.files.map((fl, i) => `<div class="file-row">${IC.file}<span class="fname">${esc(fl.name)}</span><span class="fs">${fmtSize(fl.size || 0)}</span><button class="act" data-act="dlfile" data-mid="${m.id}" data-i="${i}" aria-label="Télécharger ${esc(fl.name)}">${IC.dl}</button></div>`).join('')}</div>`;
   if (m.sources?.length) h += `<div class="sources">${m.sources.map((s, i) => { let host = s.url; try{ host = new URL(s.url).hostname.replace(/^www\./, ''); }catch(e){} return `<a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.title)}"><b>${i + 1}</b>${esc(host)}</a>`; }).join('')}</div>`;
   if (m.stopped) h += `<div class="note">Réponse arrêtée.</div>`;
@@ -2892,12 +3068,23 @@ function enhanceMedia(el){
 function paint(m){
   const el = els.get(m.id); if (!el) return;
   const near = nearBottom();
-  const oldCard = el.querySelector('.gencard'), oldLive = el.querySelector('.livepv');
-  el.innerHTML = msgHtml(m); enhanceMedia(el);
-  if (oldLive){
-    const nl = el.querySelector('.livepv');
-    if (nl){ oldLive.dataset.lk = nl.dataset.lk; nl.replaceWith(oldLive); liveRefresh(oldLive); }
+  const oldCard = el.querySelector('.gencard');
+  const html = msgHtml(m), sig = html.replace(/<!--gc-->[\s\S]*?<!--\/gc-->/, '');
+  /* seule la carte de génération change : on met à jour ses textes sans toucher au reste (aucun clignotement) */
+  if (oldCard && el._sig === sig && /<!--gc-->/.test(html)){
+    const t = document.createElement('div'); t.innerHTML = html.match(/<!--gc-->([\s\S]*?)<!--\/gc-->/)[1];
+    const nw = t.querySelector('.gencard');
+    if (nw && nw.dataset.kind === oldCard.dataset.kind){
+      const ob = oldCard.querySelector('.gc-bar'), nb = nw.querySelector('.gc-bar');
+      if (ob && nb){ ob.className = nb.className; ob.setAttribute('style', nb.getAttribute('style') || ''); }
+      const os = oldCard.querySelector('.gc-msg'), ns = nw.querySelector('.gc-msg');
+      if (os && ns && os.textContent !== ns.textContent) os.textContent = ns.textContent;
+      if (near) scrollEnd();
+      return;
+    }
   }
+  el._sig = sig;
+  el.innerHTML = html; enhanceMedia(el); liveWrap(el, m);
   if (oldCard){
     // garde la même carte animée d'une mise à jour à l'autre, pour que l'animation ne redémarre pas
     const nw = el.querySelector('.gencard');
@@ -3017,7 +3204,7 @@ $('#col').addEventListener('click', async e => {
   if (!m) return;
   if (act === 'view') return openViewer(mediaOf(m), +b.dataset.i);
   if (act === 'save') return saveMedia(mediaOf(m)[+b.dataset.i]);
-  if (act === 'copyall'){ if (await copyText(String(m.text).replace(ILL_RE, '').replace(GILL_RE, '').replace(KFIG_RE, (m0, b) => b.split(/\s*;\s*/).map(x => x.split('|').map(y => y.trim()).join(' : ')).join(' · ')).replace(/\n{3,}/g, '\n\n'))) toast('Réponse copiée.'); else selectNode(b.closest('.msg')?.querySelector('.md')); return; }
+  if (act === 'copyall'){ if (await copyText(String(m.text).replace(ILL_RE, '').replace(GILL_RE, '').replace(/\[\[\s*zip\s*:[^\]\n]*\]\]/gi, '').replace(KFIG_RE, (m0, b) => b.split(/\s*;\s*/).map(x => x.split('|').map(y => y.trim()).join(' : ')).join(' · ')).replace(/\n{3,}/g, '\n\n'))) toast('Réponse copiée.'); else selectNode(b.closest('.msg')?.querySelector('.md')); return; }
   if (act === 'retry'){
     if (S.busy) return;
     const i = S.conv.messages.indexOf(m);
@@ -3040,6 +3227,7 @@ $('#col').addEventListener('click', async e => {
     els.get(m.id)?.remove(); els.delete(m.id); S.conv.messages.splice(i, 1);
     run(user, S.conv, r.model, c, { ...r, cat: c, label: m.route?.label, universal: m.route?.universal, web: m.route?.web, reason: m.route?.reason });
   }
+  if (act === 'zip'){ return zipMessage(m, S.conv); }
   if (act === 'dlfile'){ const fl = m.files?.[+b.dataset.i]; if (fl) saveBlob(await dataUrlToBlob(fl.data), fl.name); return; }
 });
 async function copyText(t){ try{ await navigator.clipboard.writeText(t); return true; }catch(e){ return false; } }
@@ -3654,7 +3842,7 @@ function speechPipe(){
 
 /* ----- Synthèse vocale ----- */
 function speakable(t){
-  return String(t || '').replace(/\[\[\s*(?:image|illustration|chiffres)[^\]]*\]\]?/gi, ' ').replace(/```[\s\S]*?(```|$)/g, ' (voir le code à l\'écran) ').replace(/`([^`]+)`/g, '$1')
+  return String(t || '').replace(/\[\[\s*(?:image|illustration|chiffres|zip)[^\]]*\]\]?/gi, ' ').replace(/```[\s\S]*?(```|$)/g, ' (voir le code à l\'écran) ').replace(/`([^`]+)`/g, '$1')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, '')
     .replace(/[#*_>|~]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -5366,6 +5554,14 @@ function universalRoute(text, atts, conv, forceCat){
   } else {
     model = model.id;
   }
+  /* continuité : une relance courte sur le même sujet garde le modèle de la réponse précédente */
+  if (r && !['image', 'video', 'photoedit', 'videoedit'].includes(cat) && !SMALLTALK_RE.test(text || '') && String(text || '').length < 260){
+    const prev = [...(conv?.messages || [])].reverse().find(x => x.role === 'assistant' && !x.error && x.mode === 'chat' && x.text);
+    const pt = prev?.route?.tier, pm = prev && modelInfo(prev.model);
+    if (pt && pm && !isXai(prev.model) && TIERS.indexOf(pt) > TIERS.indexOf(r.tier) && capable(pm, needsOf(atts, conv)) && priceOkForPlan(pm) && ['chat', 'reason', 'code', 'search', 'vision'].includes(prev.route.cat || prev.cat)){
+      r.model = prev.model; r.tier = pt; r.why = (r.why ? r.why + ' · ' : '') + 'continuité de la discussion'; model = r.model;
+    }
+  }
   const pol = planPolicy();
   const route = { model, tier: r?.tier, why: r?.why || INTENT_FR[cat], cat, label: cat === 'chat' ? '' : INTENT_FR[cat], universal: true, plan: S.set.plan || '' };
   if (cat === 'search') route.web = true;
@@ -5856,7 +6052,8 @@ function variantRowsHtml(){
   const list = variantsFor(S.set.plan); if (!list.length) return '';
   const cur = curVariant();
   const fams = [...new Set(list.map(v => v.fam))].reverse();
-  return fams.map(f => {
+  const pl = PLANS[S.set.plan]?.key;
+  return (pl ? `<div class="vinc">Inclus dans votre abonnement ${esc(pl)} :</div>` : '') + fams.map(f => {
     const vs = list.filter(v => v.fam === f);
     const own = vs[0].plan === S.set.plan;
     return `<div class="vfam"><div class="vfam-h">Gamme ${esc(f)}${own ? '' : ` <span>· incluse avec ton abonnement</span>`}</div>`
@@ -6004,6 +6201,29 @@ function lastFrame(src){
     setTimeout(() => fin(null), 9000);
     v.src = src;
   });
+}
+var REGEN_RE = /(?:^|[^\p{L}])(refais|refaire|refait|recommence|recommencer|régénère|regenere|régénérer|regenerer|réessaie|reessaie|retente|une autre (?:version|variante|proposition|image|photo|vidéo|video)|encore une (?:fois|autre|version)|un autre essai|nouvelle version|autre version)(?![\p{L}])/iu;
+/* « Refais le résumé », « refais le code » : la demande porte sur autre chose qu'une image ou une vidéo */
+var REGEN_OTHER_RE = /(?:^|[^\p{L}])(résumé|resume|texte|code|script|tableau|liste|calcul|plan|lettre|mail|e-mail|email|message|réponse|reponse|explication|traduction|histoire|poème|poeme|article|paragraphe|phrase|exercice|jeu|programme|fichier|document|cv|devis|rapport|analyse)(?![\p{L}])/iu;
+/* « Refais-la », « une autre version », « régénère » : relance la dernière création à partir de sa demande et de sa source d'origine */
+function autoRegen(text){
+  if (!text || !REGEN_RE.test(text) || S.pending.length) return null;
+  if (ASK_RE.test(text) || HOWTO_RE.test(text) || REGEN_OTHER_RE.test(text)) return null;
+  const c = S.conv; if (!c) return null;
+  let back = 0;
+  for (let i = c.messages.length - 1; i >= 0 && back < 6; i--, back++){
+    const m = c.messages[i];
+    if (m.role !== 'assistant') continue;
+    if (!(m.images?.length || m.videos?.length) || !['image', 'photoedit', 'video'].includes(m.cat)) return null;
+    const u = c.messages.slice(0, i).reverse().find(x => x.role === 'user'); if (!u) return null;
+    const base = (u.apiText || u.text || '').trim();
+    const extra = text.replace(REGEN_RE, ' ').replace(/^[\s,.!-]+|[\s,.!-]+$/g, '').replace(/^(la|le|les|-la|-le|-les|stp|s'il te plaît|s'il vous plaît|svp)\b\s*/i, '').trim();
+    for (const a of u.atts || []) S.pending.push({ ...a, id: uid() });
+    if (S.pending.length) renderPending();
+    const apiText = base + (extra.length > 3 ? `\n\nNouvelle version demandée par l'utilisateur, avec ces corrections : ${extra}` : "\n\nPropose une nouvelle version différente de la précédente, en respectant la même demande.");
+    return { cat: m.cat, apiText };
+  }
+  return null;
 }
 async function autoVideoContinuation(text){
   if (!text || S.pending.some(a => ['image', 'video'].includes(kindOf(a)))) return null;
