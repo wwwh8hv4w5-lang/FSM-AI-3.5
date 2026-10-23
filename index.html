@@ -492,6 +492,19 @@ input[type=range]{accent-color:var(--ink);width:100%}
 #btnDrawer.has-bg::after{content:"";position:absolute;top:10px;right:9px;width:8px;height:8px;border-radius:50%;background:#93c5fd;box-shadow:0 0 0 2px var(--bg)}
 #btnSpend,#spendPop{display:none!important}
 .balpill[hidden]{display:none!important}
+.balpill{padding:0 10px 0 8px;font:600 12.5px var(--f-display);letter-spacing:-.01em;display:inline-flex;align-items:center;gap:5px;color:var(--ink)}
+.balpill .conn{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:rgba(110,231,168,.16);color:#6EE7A8;transition:background .3s,color .3s}
+.balpill .conn svg{width:10px;height:10px}
+.top>.icon-btn{width:38px;flex-basis:38px}
+.top{gap:2px}
+.balpill{padding:0 9px 0 6px;gap:4px;font-size:12px}
+.balpill .conn{width:15px;height:15px}
+.balpill[data-conn="wait"] .conn{background:rgba(246,194,122,.16);color:#F6C27A;animation:pulse 1.1s infinite ease-in-out}
+.balpill[data-conn="bad"] .conn,.balpill[data-conn="off"] .conn{background:rgba(242,139,130,.16);color:#F28B82}
+.balpill.warn,.balpill.over{color:var(--ink)}
+.top .model-btn{padding:8px 4px;gap:2px}
+@media (max-width:380px){.top .model-btn{font-size:16px}}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .sel:disabled{opacity:.75}
 .welcome.solo{margin:auto;gap:clamp(18px,3.5vh,30px)}
 .greet-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
@@ -657,7 +670,7 @@ figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
     <button class="icon-btn" id="btnBot" aria-label="FSM BOT"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg></button>
     <button class="model-btn" id="btnModel" aria-label="Choisir le modèle"><span class="name" id="hdrModel">FSM AI 5.0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
     <button class="spend" id="btnSpend" aria-label="Dépenses de la session" hidden><span id="spendAmt">$0.00</span></button>
-    <button class="spend balpill" id="btnBal" aria-label="Solde restant" hidden><span id="balAmt"></span></button>
+    <button class="spend balpill" id="btnBal" aria-label="Abonnement" hidden><span class="conn" id="balConn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span id="balAmt"></span></button>
     <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Solde restant"><div class="bal" id="balBody"></div><p class="note">Solde de ta clé FSM AI, tous appareils confondus.</p></div>
     <button class="icon-btn" id="btnNew" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-4 1 1-4Z"/></svg></button>
     <div class="spend-pop" id="spendPop" hidden role="dialog" aria-label="Dépenses de la session">
@@ -760,6 +773,17 @@ figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
         <div class="row2"><div class="field"><label for="bgDay">Par jour ($)</label><input id="bgDay" type="text" inputmode="decimal" placeholder="aucun"></div><div class="field"><label for="bgMonth">Par mois ($)</label><input id="bgMonth" type="text" inputmode="decimal" placeholder="aucun"></div></div>
         <div class="field"><label for="bgConfirm">Confirmation au-delà de ($ par demande)</label><input id="bgConfirm" type="text" inputmode="decimal" placeholder="0,50"><small>Alerte à 80 % du budget, confirmation au-delà. Les veilles se mettent en pause quand le budget est atteint. Mets 0 pour ne jamais demander.</small></div>
       </div>
+      <div class="st-sec" id="gmSec" hidden><h3>Grok Bot de gestion</h3>
+        <p class="note" style="margin:0">Réservé au statut Illimité. Confie à Grok Bot ta clé API de gestion OpenRouter : il crée, suit, suspend et renouvelle les clés de tes clients, et t'envoie un rapport chaque jour.</p>
+        <div class="field"><label for="gmKey">Clé API de gestion (OpenRouter)</label>
+          <div class="row"><input id="gmKey" type="password" placeholder="Colle ta Management key OpenRouter" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button class="btn ghost" id="gmShow" type="button">Afficher</button></div>
+          <div class="keystat" id="gmStat" hidden></div>
+          <small>À créer sur openrouter.ai, rubrique Settings → Management keys. Elle reste sur cet appareil jusqu'à ce que tu la copies pour Grok Bot.</small></div>
+        <div class="row"><button class="btn" id="gmCopy" type="button">Copier pour Grok Bot</button><a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir Grok Bot</a></div>
+        <button class="btn ghost" id="gmCopyNoKey" type="button">Copier les instructions sans la clé</button>
+        <textarea id="gmOut" hidden readonly style="min-height:160px;border:0;background:var(--raised);border-radius:12px;padding:11px 14px;font-size:13px"></textarea>
+        <p class="note" style="margin:0">Colle le texte dans l'app Grok Bot (iPhone, Mac ou Windows), jamais en mentionnant @bot sur X : les publications sur X sont publiques.</p>
+      </div>
       <div class="st-sec" id="backupSec"><h3>Sauvegarde</h3>
         <p class="note" id="bkInfo" style="margin:0"></p>
         <p class="note warn-t" id="bkIos" hidden style="margin:0">Sur iPhone, Safari efface les données d'un site non ouvert pendant 7 jours. Ajoute l'app à l'écran d'accueil (Partager → Sur l'écran d'accueil) et sauvegarde régulièrement.</p>
@@ -808,6 +832,7 @@ figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
       </div>
       <p class="note">Grok Bot n'a pas d'API publique : les tâches passent par son application (iPhone, Mac, Windows) ou par une mention @bot sur X (compte X relié à Grok, pas encore disponible partout). Il faut un abonnement SuperGrok ou Cursor.</p>
       <button class="btn ghost" id="botGrokApi" type="button">Utiliser les modèles Grok via l'API xAI</button>
+      <button class="btn ghost" id="botGm" type="button" hidden>Connecter Grok Bot à la gestion FSM AI</button>
     </div>
   </div>
 </div>
@@ -1456,7 +1481,8 @@ function openSettings(focusKey, which){
   $('#stRouter').checked = S.set.router !== false; $('#stPython').checked = S.set.python !== false; $('#stMemory').checked = S.set.memory !== false;
   $('#bgDay').value = S.set.budgetDay || ''; $('#bgMonth').value = S.set.budgetMonth || ''; $('#bgConfirm').value = S.set.confirmAbove == null ? '0,50' : String(S.set.confirmAbove).replace('.', ',');
   renderBackupInfo();
-  if (which === 'budget' || which === 'backup') setTimeout(() => $('#' + which + 'Sec')?.scrollIntoView({ block:'start', behavior:'smooth' }), 80);
+  try{ renderGm(); if (gmKey() && !GM.info) gmVerify(); }catch(e){}
+  if (which === 'budget' || which === 'backup' || which === 'gm') setTimeout(() => $('#' + which + 'Sec')?.scrollIntoView({ block:'start', behavior:'smooth' }), 80);
 }
 $('#xaiKey').addEventListener('input', e => { S.xaiKey = e.target.value.trim(); LS.set('relais.xaikey', S.xaiKey); mergeXai(); refreshModelUI(); });
 const PLANS = {
@@ -4079,7 +4105,7 @@ function botWelcomeHtml(){
   return `<div class="welcome"><div class="greet"><span class="logo txt">BOT</span><h1>FSM BOT</h1><p class="note" style="margin:0;max-width:44ch">Veilles automatiques, tâches, mémoire et commandes préparées. Dis-moi ce dont tu as besoin.</p></div><div class="exs">${ex.map(x => `<button class="ex" data-act="ex" data-text="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`;
 }
 $('#fbChat').addEventListener('click', startBot);
-$('#fbGrok').addEventListener('click', () => { closeSheets(); updateBotLinks(); $('#botSheet').hidden = false; });
+$('#fbGrok').addEventListener('click', () => { closeSheets(); updateBotLinks(); try{ renderGm(); }catch(e){} $('#botSheet').hidden = false; });
 setTimeout(checkWatches, 4000);
 
 $('#btnBot').addEventListener('click', openBot);
@@ -4924,7 +4950,7 @@ function fetchKeyInfo(force){
       LS.set('fsm.keyinfo', S.keyInfo);
       keyInfoAt = Date.now();
       S.keyState = 'ok';
-      applyKeyPlan(); renderKeyStat();
+      applyKeyPlan(); renderKeyStat(); try{ renderGm(); }catch(e){}
       return S.keyInfo;
     }catch(e){ if (k === S.key){ S.keyState = 'err'; renderKeyStat(); } return S.keyInfo; }
     finally{ keyInfoP = null; }
@@ -4953,6 +4979,7 @@ function applyKeyPlan(){
   if (keyExhausted() && !S._exhaustToast){ S._exhaustToast = 1; toast(limitMsg(true)); }
 }
 function renderKeyStat(){
+  try{ renderBalance(); }catch(e){}
   const el = document.getElementById('keyStat'); if (!el) return;
   const st = S.key ? S.keyState : '', ki = S.keyInfo, p = PLANS[S.set.plan];
   let cls = '', h = '';
@@ -5005,20 +5032,107 @@ function renderBalance(){
   if (el){ el.hidden = !h; el.innerHTML = h; }
   const pill = document.getElementById('btnBal'); if (!pill) return;
   const ki = S.keyInfo, has = !!(S.key && ki && ki.k === keyTag(S.key));
-  if (has && ki.limit > 0 && ki.remaining != null){
-    const r = ki.used / ki.limit;
-    pill.hidden = false; $('#balAmt').textContent = fmtUsd(Math.max(0, ki.remaining));
-    pill.classList.toggle('warn', r >= 0.8 && r < 1); pill.classList.toggle('over', r >= 1);
-    pill.setAttribute('aria-label', 'Solde restant : ' + fmtUsd(Math.max(0, ki.remaining)));
-  } else if (has && S.set.plan === 'free'){
-    pill.hidden = false; $('#balAmt').textContent = 'Gratuit'; pill.classList.remove('warn', 'over');
-  } else if (has && S.set.plan === 'unlimited'){
-    pill.hidden = false; $('#balAmt').textContent = 'Illimité'; pill.classList.remove('warn', 'over'); pill.setAttribute('aria-label', 'Statut illimité');
-  } else { pill.hidden = true; $('#balPop').hidden = true; }
+  const st = !S.key ? '' : S.keyState === 'wait' ? 'wait' : S.keyState === 'bad' ? 'bad' : S.keyState === 'err' ? (has ? 'off' : 'bad') : has ? 'ok' : 'wait';
+  if (!st){ pill.hidden = true; $('#balPop').hidden = true; }
+  else {
+    const p = PLANS[S.set.plan];
+    const name = st === 'bad' ? 'Clé invalide' : p ? p.key : st === 'wait' ? 'Connexion…' : 'Connecté';
+    pill.hidden = false; $('#balAmt').textContent = name;
+    pill.dataset.conn = st;
+    const r = has && ki.limit > 0 ? ki.used / ki.limit : 0;
+    pill.classList.remove('warn', 'over');
+    pill.setAttribute('aria-label', (p ? 'Abonnement ' + p.key : 'Abonnement') + (st === 'ok' ? ', clé connectée' : st === 'wait' ? ', connexion en cours' : st === 'off' ? ', hors ligne' : ', clé refusée'));
+  }
   $('#balBody').innerHTML = h;
 }
-$('#btnBal').addEventListener('click', e => { e.stopPropagation(); renderBalance(); $('#balPop').hidden = !$('#balPop').hidden; if (!$('#balPop').hidden) fetchKeyInfo(); });
+$('#btnBal').addEventListener('click', e => { e.stopPropagation(); if ($('#btnBal').dataset.conn === 'bad'){ openSettings(true); return; } renderBalance(); if (!$('#balBody').innerHTML.trim()) $('#balBody').innerHTML = '<div class="bal-top"><span>Clé du compte</span><b>Connectée</b></div>'; $('#balPop').hidden = !$('#balPop').hidden; if (!$('#balPop').hidden) fetchKeyInfo(); });
 document.addEventListener('click', e => { if (!$('#balPop').hidden && !e.target.closest('#balPop')) $('#balPop').hidden = true; });
+
+
+/* =====================================================================
+   8. GROK BOT DE GESTION : la clé API de gestion (OpenRouter Management key)
+      est confiée à Grok Bot, qui gère les clés clients de FSM AI depuis son ordinateur.
+      Grok Bot n'a pas d'API entrante : on lui transmet un brief prêt à coller dans son app.
+   ===================================================================== */
+const GM = { info: null };
+function gmKey(){ return LS.get('fsm.mgmtkey', ''); }
+function appLink(){ return /^https?:/.test(location.href) ? location.href.split('#')[0].split('?')[0] : 'l\'adresse GitHub Pages de l\'app FSM AI HUB'; }
+async function gmVerify(){
+  const k = gmKey(); if (!k) return null;
+  $('#gmStat').className = 'keystat wait'; $('#gmStat').innerHTML = '<i></i><span>Vérification de la clé de gestion…</span>'; $('#gmStat').hidden = false;
+  try{
+    const r = await fetch(API + '/keys', { headers: { 'Authorization': 'Bearer ' + k } });
+    if (!r.ok){ GM.info = { ok:false, status:r.status }; }
+    else {
+      const j = await r.json(); const list = j.data || [];
+      const near = list.filter(x => x.limit > 0 && (x.usage || 0) / x.limit >= 0.8 && !x.disabled).length;
+      GM.info = { ok:true, n: list.length, active: list.filter(x => !x.disabled).length, near };
+    }
+  }catch(e){ GM.info = { ok:false, status:0 }; }
+  renderGm(); return GM.info;
+}
+function renderGm(){
+  const sec = document.getElementById('gmSec'); if (!sec) return;
+  const show = S.set.plan === 'unlimited';
+  sec.hidden = !show;
+  const gb = document.getElementById('botGm'); if (gb) gb.hidden = !show;
+  if (!show) return;
+  if (document.activeElement !== $('#gmKey')) $('#gmKey').value = gmKey();
+  const st = $('#gmStat'), i = GM.info;
+  if (!gmKey()){ st.hidden = true; return; }
+  if (!i) return;
+  st.hidden = false;
+  if (i.ok){ st.className = 'keystat ok'; st.innerHTML = `<i></i><span>Clé de gestion valide · <b>${i.active}</b> clé${i.active > 1 ? 's' : ''} client active${i.active > 1 ? 's' : ''}${i.near ? ` · <b>${i.near}</b> à plus de 80 %` : ''}</span>`; }
+  else { st.className = 'keystat bad'; st.innerHTML = `<i></i><span>${i.status === 401 || i.status === 403 ? 'Clé refusée : il faut une clé de gestion (Management key) OpenRouter.' : 'Vérification impossible pour le moment (connexion).'}</span>`; }
+}
+function gmBrief(withKey){
+  const k = gmKey();
+  const plans = Object.entries(PLANS).filter(([, p]) => !p.auto).map(([id, p]) => `- ${p.key} : ${p.limit ? 'plafond ' + p.limit + ' $ par mois' : 'clé Free (modèles gratuits uniquement), même réglage que les clés Free existantes'}`).join('\n');
+  return `Tu es le bot de gestion de FSM AI HUB, l'application d'IA que je vends par abonnement (FSM AI 5.0). Chaque client utilise sa propre clé API OpenRouter, avec un plafond qui correspond à son abonnement. Ton rôle : gérer ces clés clients pour moi.
+
+CLÉ API DE GESTION
+${withKey && k ? `Voici la clé de gestion OpenRouter (Management key) : ${k}` : 'Je te transmets la clé de gestion OpenRouter (Management key) séparément.'}
+- Enregistre-la sur ton ordinateur dans ~/.fsm/openrouter_management_key (droits 600), puis supprime-la de nos messages si possible.
+- Ne l'affiche jamais en entier, ne la publie jamais (ni sur X, ni dans un fichier partagé), ne l'envoie à personne d'autre que moi.
+- Elle sert uniquement à gérer les clés. Elle ne permet pas d'utiliser les modèles.
+
+API OPENROUTER (en-tête : Authorization: Bearer <clé de gestion>)
+- Lister les clés : GET https://openrouter.ai/api/v1/keys (100 par page, paramètre offset pour la suite)
+- Créer une clé : POST https://openrouter.ai/api/v1/keys avec {"name": "...", "limit": <plafond en $>}
+- Détail d'une clé : GET https://openrouter.ai/api/v1/keys/{hash}
+- Modifier une clé : PATCH https://openrouter.ai/api/v1/keys/{hash} avec par exemple {"disabled": true} ou {"limit_reset": "monthly"}
+- Supprimer une clé : DELETE https://openrouter.ai/api/v1/keys/{hash}
+La clé complète d'un client n'est visible qu'une fois, dans la réponse de création.
+
+ABONNEMENTS FSM AI 5.0
+${plans}
+L'application reconnaît automatiquement l'abonnement grâce au plafond de la clé. Une clé sans plafond est vue comme « Illimité » : n'en crée jamais pour un client.
+
+CE QUE JE PEUX TE DEMANDER
+1. Nouveau client : crée une clé nommée « FSM · <Nom du client> · <Abonnement> », avec le plafond de l'abonnement, puis applique {"limit_reset": "monthly"} pour qu'elle se renouvelle chaque mois. Envoie-moi la clé en privé avec ce message prêt à transmettre au client : « Ouvre ${appLink()}, va dans Réglages, colle ta clé FSM AI : ton abonnement est reconnu automatiquement. »
+2. Changement d'abonnement : si le plafond d'une clé ne peut pas être modifié, crée une nouvelle clé au bon plafond et désactive l'ancienne seulement quand je te le confirme.
+3. Suspension ou réactivation : {"disabled": true} ou {"disabled": false}.
+4. Rapport : pour chaque clé client, consommation, plafond, reste et pourcentage. Signale celles à plus de 80 % et celles à la limite.
+5. Suppression : uniquement après ma confirmation explicite.
+
+ROUTINE À ENREGISTRER
+Chaque jour à 9 h (heure de Paris) : rapport court des clés à plus de 80 % ou à la limite, et des clés désactivées. Le 1er de chaque mois : bilan du mois précédent (nombre de clients par abonnement, consommation totale).
+
+RÈGLES
+- Demande-moi confirmation avant toute suppression, désactivation ou création de plus de 3 clés à la fois.
+- Ne communique jamais une clé client publiquement, uniquement à moi en privé.`;
+}
+document.getElementById('gmKey')?.addEventListener('input', e => { LS.set('fsm.mgmtkey', e.target.value.trim()); GM.info = null; renderGm(); clearTimeout(GM.t); if (e.target.value.trim().length >= 20) GM.t = setTimeout(gmVerify, 450); });
+document.getElementById('gmShow')?.addEventListener('click', e => { const i = $('#gmKey'); const s = i.type === 'password'; i.type = s ? 'text' : 'password'; e.target.textContent = s ? 'Masquer' : 'Afficher'; });
+document.getElementById('gmCopy')?.addEventListener('click', async () => {
+  if (!gmKey()) return toast('Colle d\'abord ta clé de gestion OpenRouter.');
+  if (await copyText(gmBrief(true))) toast('Connexion copiée : colle-la dans l\'app Grok Bot.');
+  else { $('#gmOut').hidden = false; $('#gmOut').value = gmBrief(true); $('#gmOut').select(); }
+});
+document.getElementById('gmCopyNoKey')?.addEventListener('click', async () => {
+  if (await copyText(gmBrief(false))) toast('Instructions copiées, sans la clé.');
+});
+document.getElementById('botGm')?.addEventListener('click', () => { closeSheets(); openSettings(false, 'gm'); });
 
 (function init(){
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
