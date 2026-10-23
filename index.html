@@ -490,7 +490,8 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .cv-new{background:#6EE7A8}
 #btnDrawer{position:relative}
 #btnDrawer.has-bg::after{content:"";position:absolute;top:10px;right:9px;width:8px;height:8px;border-radius:50%;background:#93c5fd;box-shadow:0 0 0 2px var(--bg)}
-.spend,#spendPop{display:none!important}
+#btnSpend,#spendPop{display:none!important}
+.balpill[hidden]{display:none!important}
 .sel:disabled{opacity:.75}
 .welcome.solo{margin:auto;gap:clamp(18px,3.5vh,30px)}
 .greet-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
@@ -597,6 +598,56 @@ html,body{overflow-x:hidden;max-width:100%}
 .sheet-b>*,.field>*{max-width:100%;min-width:0}
 .sel{min-width:0;max-width:100%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
 @supports (-webkit-touch-callout: none){ input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select{font-size:max(16px, 1em)} .chip select{font-size:16px} }
+
+.keystat{display:flex;align-items:center;gap:8px;font-size:13.5px;line-height:1.35;border-radius:10px;padding:8px 10px;background:var(--raised);color:var(--muted);animation:fsmRise .3s var(--e-out,ease) both}
+.keystat b{color:var(--ink);font-weight:600}
+.keystat i{flex:0 0 8px;height:8px;border-radius:50%;background:var(--faint)}
+.keystat.ok i{background:#6EE7A8}.keystat.bad i{background:#F28B82}
+.keystat.wait i{background:#F6C27A;animation:pulse 1s infinite ease-in-out}
+/* ---------- Animations fluides ---------- */
+:root{--e-out:cubic-bezier(.22,1,.36,1);--e-sheet:cubic-bezier(.32,.72,0,1);--e-in:cubic-bezier(.4,0,.9,.6)}
+@keyframes fsmFadeIn{from{opacity:0}}
+@keyframes fsmFadeOut{to{opacity:0}}
+@keyframes fsmSheetIn{from{transform:translate3d(0,100%,0)}}
+@keyframes fsmSheetOut{to{transform:translate3d(0,100%,0)}}
+@keyframes fsmDrawerIn{from{transform:translate3d(-100%,0,0)}}
+@keyframes fsmDrawerOut{to{transform:translate3d(-100%,0,0)}}
+@keyframes fsmPopIn{from{opacity:0;transform:translate3d(0,-6px,0) scale(.96)}}
+@keyframes fsmPopOut{to{opacity:0;transform:translate3d(0,-4px,0) scale(.97)}}
+@keyframes fsmToastIn{from{opacity:0;transform:translate3d(-50%,-12px,0) scale(.97)}}
+@keyframes fsmToastOut{to{opacity:0;transform:translate3d(-50%,-8px,0) scale(.98)}}
+@keyframes fsmZoomIn{from{opacity:0;transform:scale(.97)}}
+@keyframes fsmZoomOut{to{opacity:0;transform:scale(.985)}}
+@keyframes fsmRise{from{opacity:0;transform:translate3d(0,8px,0)}}
+.scrim,.drawer-scrim{animation:fsmFadeIn .28s var(--e-out) both}
+.scrim>.sheet{animation:fsmSheetIn .46s var(--e-sheet) both;will-change:transform}
+.drawer-scrim>.drawer{animation:fsmDrawerIn .42s var(--e-sheet) both;will-change:transform}
+.scrim.leaving,.drawer-scrim.leaving{animation:fsmFadeOut .26s var(--e-in) both;pointer-events:none}
+.scrim.leaving>.sheet{animation:fsmSheetOut .26s var(--e-in) both}
+.drawer-scrim.leaving>.drawer{animation:fsmDrawerOut .26s var(--e-in) both}
+.viewer{animation:fsmZoomIn .28s var(--e-out) both}
+.viewer.leaving{animation:fsmZoomOut .2s var(--e-in) both;pointer-events:none}
+.voice{animation:fsmFadeIn .34s var(--e-out) both}
+.voice.leaving{animation:fsmFadeOut .26s var(--e-in) both;pointer-events:none}
+.toast{animation:fsmToastIn .38s var(--e-sheet) both}
+.toast.leaving{animation:fsmToastOut .22s var(--e-in) both}
+.spend-pop{transform-origin:top right;animation:fsmPopIn .24s var(--e-out) both}
+.spend-pop.leaving{animation:fsmPopOut .16s var(--e-in) both;pointer-events:none}
+.queue,.pending{animation:fsmRise .3s var(--e-out) both}
+.queue.leaving,.pending.leaving{animation:fsmFadeOut .18s var(--e-in) both}
+.welcome{animation:fsmRise .5s var(--e-out) both}
+figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
+.ill-sk{transition:opacity .3s}
+:is(.icon-btn,.btn,.chip,.act,.plb,.keyline,.send,.mini,.qx,.spend,.mrow,.dlink,.sg){transition:transform .18s var(--e-out),background-color .2s ease,border-color .2s ease,color .2s ease,opacity .2s ease}
+:is(.icon-btn,.btn,.chip,.act,.plb,.keyline,.send,.mini,.qx,.spend,.sg):active{transform:scale(.94)}
+:is(.mrow,.dlink):active{transform:scale(.985)}
+.box{transition:border-color .2s ease,box-shadow .25s ease}
+.thread{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+@media (prefers-reduced-motion: reduce){
+  .scrim,.drawer-scrim,.scrim>.sheet,.drawer-scrim>.drawer,.viewer,.voice,.toast,.spend-pop,.queue,.pending,.welcome,figure.ill.fresh,
+  .scrim.leaving,.drawer-scrim.leaving,.scrim.leaving>.sheet,.drawer-scrim.leaving>.drawer,.viewer.leaving,.voice.leaving,.toast.leaving,.spend-pop.leaving{animation:none!important}
+  :is(.icon-btn,.btn,.chip,.act,.plb,.keyline,.send,.mini,.qx,.spend,.mrow,.dlink,.sg):active{transform:none}
+}
 </style>
 </head>
 <body>
@@ -606,6 +657,8 @@ html,body{overflow-x:hidden;max-width:100%}
     <button class="icon-btn" id="btnBot" aria-label="FSM BOT"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg></button>
     <button class="model-btn" id="btnModel" aria-label="Choisir le modèle"><span class="name" id="hdrModel">FSM AI 5.0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
     <button class="spend" id="btnSpend" aria-label="Dépenses de la session" hidden><span id="spendAmt">$0.00</span></button>
+    <button class="spend balpill" id="btnBal" aria-label="Solde restant" hidden><span id="balAmt"></span></button>
+    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Solde restant"><div class="bal" id="balBody"></div><p class="note">Solde de ta clé FSM AI, tous appareils confondus.</p></div>
     <button class="icon-btn" id="btnNew" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-4 1 1-4Z"/></svg></button>
     <div class="spend-pop" id="spendPop" hidden role="dialog" aria-label="Dépenses de la session">
       <div class="sp-total"><span>Dépensé cette session</span><b id="spendTotal"></b></div>
@@ -664,6 +717,7 @@ html,body{overflow-x:hidden;max-width:100%}
       <div class="field">
         <label for="apiKey">Clé API FSM AI</label>
         <div class="row"><input id="apiKey" type="password" placeholder="Colle ta clé FSM AI" autocomplete="off" spellcheck="false"><button class="btn ghost" id="btnShowKey" type="button">Afficher</button></div>
+        <div class="keystat" id="keyStat" hidden></div>
         <small>Une clé API FSM AI est nécessaire pour utiliser l'application. Elle t'est fournie avec ton abonnement FSM AI 5.0 (Free, Entreprise, Compétence ou Élite) : choisis-le ci-dessous puis colle ta clé ici. Elle reste enregistrée sur cet appareil.</small>
       </div>
       <div class="field">
@@ -673,6 +727,7 @@ html,body{overflow-x:hidden;max-width:100%}
           <option value="free">Abonnement FSM AI 5.0 Free (clé Free requise)</option>
           <option value="entreprise">Abonnement FSM AI 5.0 Entreprise (clé Entreprise requise)</option>
           <option value="competence">Abonnement FSM AI 5.0 Compétence (clé Compétence requise)</option>
+          <option value="unlimited" disabled>Illimité (clé sans plafond, reconnue automatiquement)</option>
           <option value="elite">Abonnement FSM AI 5.0 Élite (clé Élite requise)</option>
         </select>
         <div class="plan-info" id="planInfo" hidden></div>
@@ -1390,7 +1445,7 @@ $('#customId').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prev
 /* ---------- Réglages ---------- */
 function openSettings(focusKey, which){
   $('#planSel').value = S.set.plan || ''; renderPlan();
-  fetchKeyInfo(true).then(() => { $('#planSel').value = S.set.plan || ''; renderPlan(); });
+  renderKeyStat(); fetchKeyInfo(true).then(() => { $('#planSel').value = S.set.plan || ''; renderPlan(); renderKeyStat(); });
   $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; $('#sysPrompt').value = S.set.system;
   $('#temp').value = S.set.temperature; $('#tempVal').textContent = (+S.set.temperature).toFixed(1);
   $('#fileHints').checked = !!S.set.fileHints;
@@ -1408,7 +1463,8 @@ const PLANS = {
   free:{ name:'FSM AI 5.0 Free', key:'Free', limit:0 },
   entreprise:{ name:'FSM AI 5.0 Entreprise', key:'Entreprise', limit:18 },
   competence:{ name:'FSM AI 5.0 Compétence', key:'Compétence', limit:50 },
-  elite:{ name:'FSM AI 5.0 Élite', key:'Élite', limit:200 }
+  elite:{ name:'FSM AI 5.0 Élite', key:'Élite', limit:200 },
+  unlimited:{ name:'FSM AI 5.0 Illimité', key:'Illimité', limit:null, auto:true }
 };
 function renderPlan(){
   const p = PLANS[S.set.plan], el = $('#planInfo');
@@ -1416,18 +1472,21 @@ function renderPlan(){
   if (!p){ el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
   const pol = typeof PLAN_POL !== 'undefined' ? PLAN_POL[S.set.plan] : null;
-  const lim = p.limit ? `<b>${p.limit} $/mois</b> · Accès à tous les modèles` : `<b>Gratuit</b> · Modèles gratuits uniquement · 1 modèle de génération d'images (le moins cher) · Pas de génération de vidéos`;
+  const lim = S.set.plan === 'unlimited' ? `<b>Illimité</b> · Aucun plafond · Accès à tous les modèles` : p.limit ? `<b>${p.limit} $/mois</b> · Accès à tous les modèles` : `<b>Gratuit</b> · Modèles gratuits uniquement · 1 modèle de génération d'images (le moins cher) · Pas de génération de vidéos`;
   const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
   const spent = ki ? ki.used : spentMonth(), cap = ki ? ki.limit : p.limit;
   const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${fmtUsd(spent)} sur ${cap} $${ki && ki.remaining != null ? ' · reste ' + fmtUsd(Math.max(0, ki.remaining)) : ''}${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
-  const balBlock = ki ? `<div class="bal">${balanceHtml()}</div>` : '';
+  const balBlock = (ki || S.set.plan === 'unlimited') && balanceHtml() ? `<div class="bal">${balanceHtml()}</div>` : '';
   const auto = S.set.planAuto ? `<div class="pl-row"><span>Détection</span><span>Reconnu automatiquement grâce à ta clé</span></div>` : '';
-  el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div><div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèles utilisés</span><span>${esc(pol.label)}</span></div>` : ''}${used}`;
+  el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}${p.auto ? '' : `<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div>`}<div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèles utilisés</span><span>${esc(pol.label)}</span></div>` : ''}${used}`;
 }
 $('#planSel').addEventListener('change', e => { if (e.target.value) setPlan(e.target.value); else { S.set.plan = ''; saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); } });
 let keyDeb = 0;
 $('#apiKey').addEventListener('input', e => { S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
-  S.keyInfo = null; S._exhaustToast = 0; clearTimeout(keyDeb); keyDeb = setTimeout(() => fetchKeyInfo(true), 700); });
+  S.keyInfo = null; S._exhaustToast = 0; renderBalance(); clearTimeout(keyDeb);
+  if (S.set.planAuto){ S.set.plan = ''; S.set.planAuto = false; saveSettings(); renderPlan(); }
+  S.keyState = S.key && S.key.length >= 20 ? 'wait' : ''; renderKeyStat();
+  if (S.key.length >= 20) keyDeb = setTimeout(() => fetchKeyInfo(true), 350); });
 $('#btnShowKey').addEventListener('click', e => { const i = $('#apiKey'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; e.target.textContent = show ? 'Masquer' : 'Afficher'; });
 $('#sysPrompt').addEventListener('input', e => { S.set.system = e.target.value; saveSettings(); });
 $('#temp').addEventListener('input', e => { S.set.temperature = +e.target.value; $('#tempVal').textContent = (+e.target.value).toFixed(1); saveSettings(); });
@@ -2161,6 +2220,7 @@ function mountIll(el){
       const nf = t.firstElementChild; if (!nf || nf.classList.contains('wait')) return fig.remove();
       nf.querySelector('img').dataset.act = 'viewsrc';
       nf.querySelector('img').onerror = () => nf.remove();
+      nf.classList.add('fresh'); setTimeout(() => nf.classList.remove('fresh'), 700);
       fig.replaceWith(nf);
     });
   });
@@ -2361,10 +2421,19 @@ function syncThread(){
     if (els.has(m.id)) continue;
     const el = document.createElement('div'); el.className = 'msg ' + m.role;
     els.set(m.id, el); el.innerHTML = msgHtml(m); enhanceMedia(el); $('#col').appendChild(el);
+    enterAnim(el);
   }
 }
 function newConvIn(pid){ newConv(); S.conv.project = pid; renderThread(); }
 function renderThread(){
+  const fsmWasHome = $('#thread').classList.contains('home'), fsmPrevConv = renderThread._conv;
+  renderThread._conv = S.conv?.id;
+  queueMicrotask(() => {
+    if ($('#thread').classList.contains('home')) return;
+    const msgs = [...document.querySelectorAll('#col > .msg')];
+    if (fsmWasHome) msgs.slice(-2).forEach((m, i) => enterAnim(m, i * 60));
+    else if (fsmPrevConv !== S.conv?.id && !RMOTION.matches && $('#col').animate) $('#col').animate([{ opacity:0 }, { opacity:1 }], { duration:260, easing: EASE_OUT });
+  });
   setTimeout(updateBusyUI, 0);
   const col = $('#col'); els.clear();
   const home = !S.conv || !S.conv.messages.length;
@@ -2487,7 +2556,7 @@ function showV(){
   $('#vPrev').hidden = $('#vNext').hidden = V.items.length < 2;
 }
 function stepV(d){ if (V.items.length < 2) return; V.i = (V.i + d + V.items.length) % V.items.length; showV(); }
-function closeViewer(){ $('#vStage').innerHTML = ''; $('#viewer').hidden = true; }
+function closeViewer(){ $('#vStage').querySelectorAll('video,audio').forEach(m => { try{ m.pause(); }catch(e){} }); $('#viewer').hidden = true; setTimeout(() => { if ($('#viewer').hidden) $('#vStage').innerHTML = ''; }, 230); }
 $('#vClose').addEventListener('click', closeViewer);
 $('#vPrev').addEventListener('click', () => stepV(-1));
 $('#vNext').addEventListener('click', () => stepV(1));
@@ -2553,6 +2622,36 @@ fitViewport();
 
 /* ---------- Divers ---------- */
 let toastT = 0;
+
+/* ---------- Animations fluides : sortie animée des panneaux, apparition des messages ---------- */
+const RMOTION = matchMedia('(prefers-reduced-motion: reduce)');
+const EASE_OUT = 'cubic-bezier(.22,1,.36,1)';
+(function(){
+  const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidden');
+  const OUT = [['.scrim', 270], ['.drawer-scrim', 270], ['.viewer', 210], ['.voice', 270], ['.toast', 230], ['.spend-pop', 170], ['.queue', 190], ['.pending', 190]];
+  function wire(el, ms){
+    if (el._fsmAnim) return; el._fsmAnim = true;
+    Object.defineProperty(el, 'hidden', {
+      configurable: true,
+      get(){ return el._fsmH != null ? el._fsmH : desc.get.call(el); },
+      set(v){
+        v = !!v; clearTimeout(el._fsmT);
+        const shown = !desc.get.call(el);
+        el._fsmH = v;
+        if (!v){ el.classList.remove('leaving'); desc.set.call(el, false); return; }
+        if (!shown || RMOTION.matches || !el.isConnected){ el.classList.remove('leaving'); desc.set.call(el, true); return; }
+        el.classList.add('leaving');
+        el._fsmT = setTimeout(() => { if (el._fsmH){ el.classList.remove('leaving'); desc.set.call(el, true); } }, ms);
+      }
+    });
+  }
+  for (const [sel, ms] of OUT) document.querySelectorAll(sel).forEach(el => wire(el, ms));
+})();
+function enterAnim(el, delay){
+  if (RMOTION.matches || !el.animate) return;
+  try{ el.animate([{ opacity:0, transform:'translate3d(0,10px,0)' }, { opacity:1, transform:'none' }], { duration:360, delay: delay || 0, easing: EASE_OUT, fill:'backwards' }); }catch(e){}
+}
+
 function toast(t){ const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3200); }
 
 
@@ -4638,6 +4737,7 @@ var PLAN_POL = {
   free:{ cap:'max', bias:0, maxOut:0, media:'one', free:true, label:"Gratuit : uniquement des modèles gratuits, un seul modèle d'images (le moins cher) et pas de génération de vidéos." },
   entreprise:{ cap:'standard', bias:-1, maxOut:16, media:'cheap', label:'Économe : modèles rapides et abordables, un modèle plus puissant seulement quand la demande le demande vraiment.' },
   competence:{ cap:'max', bias:0, maxOut:40, media:'best', label:'Équilibré : modèle standard au quotidien, modèle le plus puissant pour les demandes exigeantes.' },
+  unlimited:{ cap:'max', bias:1, maxOut:Infinity, media:'best', label:'Performance : tous les modèles, les plus puissants dès que la demande le justifie, sans plafond de dépense.' },
   elite:{ cap:'max', bias:1, maxOut:Infinity, media:'best', label:'Performance : les modèles les plus puissants dès que la demande le justifie.' }
 };
 function planPolicy(){
@@ -4773,7 +4873,7 @@ function freeRoute(text, atts, conv, cat, forceTier){
 function planRowHtml(){
   const cur = S.set.plan;
   if (cur && PLANS[cur] && !S.planEdit) return '';
-  const btns = Object.entries(PLANS).map(([k, p]) => `<button class="plb${cur === k ? ' on' : ''}" data-act="plan" data-plan="${k}" aria-pressed="${cur === k}"><b>${esc(p.key)}</b><span>${p.limit ? p.limit + ' $/mois' : 'gratuit'}</span></button>`).join('');
+  const btns = Object.entries(PLANS).filter(([, p]) => !p.auto).map(([k, p]) => `<button class="plb${cur === k ? ' on' : ''}" data-act="plan" data-plan="${k}" aria-pressed="${cur === k}"><b>${esc(p.key)}</b><span>${p.limit ? p.limit + ' $/mois' : 'gratuit'}</span></button>`).join('');
   return `<div class="planq ask"><div class="plq-t">Quel est ton abonnement FSM AI 5.0 ?</div><div class="plq-b">${btns}</div></div>`;
 }
 function setPlan(k){
@@ -4788,7 +4888,7 @@ function setPlan(k){
 async function askPlan(){
   const v = await ask({ title:'Ton abonnement FSM AI 5.0',
     body:'<p>Avant de commencer : quel est ton abonnement ? Les modèles utilisés seront choisis en fonction de tes limites d\'usage.</p>',
-    buttons: Object.entries(PLANS).map(([k, p]) => ({ label:`${p.key} · ${p.limit ? p.limit + ' $/mois' : 'gratuit'}`, value:k })).concat([{ label:'Plus tard', value:'later', ghost:true }]) });
+    buttons: Object.entries(PLANS).filter(([, p]) => !p.auto).map(([k, p]) => ({ label:`${p.key} · ${p.limit ? p.limit + ' $/mois' : 'gratuit'}`, value:k })).concat([{ label:'Plus tard', value:'later', ghost:true }]) });
   if (v && v !== 'later') setPlan(v);
   else try{ sessionStorage.setItem('fsm.planLater', '1'); }catch(e){}
   return v;
@@ -4810,8 +4910,9 @@ function fetchKeyInfo(force){
   const k = S.key;
   keyInfoP = (async () => {
     try{
+      S.keyState = 'wait'; renderKeyStat();
       const r = await fetch(API + '/key', { headers: { 'Authorization': 'Bearer ' + k } });
-      if (!r.ok) return S.keyInfo;
+      if (!r.ok){ if (k === S.key){ S.keyState = (r.status === 401 || r.status === 403) ? 'bad' : 'err'; renderKeyStat(); } return S.keyInfo; }
       const d = (await r.json()).data || {};
       if (k !== S.key) return S.keyInfo;
       const eb = d.effective_budget || null;
@@ -4822,15 +4923,16 @@ function fetchKeyInfo(force){
       S.keyInfo = { k: keyTag(k), limit, remaining, used, reset: d.limit_reset || null, monthly: +(d.usage_monthly || 0), t: Date.now() };
       LS.set('fsm.keyinfo', S.keyInfo);
       keyInfoAt = Date.now();
-      applyKeyPlan();
+      S.keyState = 'ok';
+      applyKeyPlan(); renderKeyStat();
       return S.keyInfo;
-    }catch(e){ return S.keyInfo; }
+    }catch(e){ if (k === S.key){ S.keyState = 'err'; renderKeyStat(); } return S.keyInfo; }
     finally{ keyInfoP = null; }
   })();
   return keyInfoP;
 }
 function planFromLimit(limit){
-  if (limit == null) return '';
+  if (limit == null) return 'unlimited';
   if (limit <= 0.5) return 'free';
   let best = '', diff = Infinity;
   for (const [id, p] of Object.entries(PLANS)){ if (!p.limit) continue; const d = Math.abs(p.limit - limit) / p.limit; if (d < diff){ diff = d; best = id; } }
@@ -4849,6 +4951,20 @@ function applyKeyPlan(){
   renderBalance();
   if (!S.conv?.messages?.length) try{ renderThread(); }catch(e){}
   if (keyExhausted() && !S._exhaustToast){ S._exhaustToast = 1; toast(limitMsg(true)); }
+}
+function renderKeyStat(){
+  const el = document.getElementById('keyStat'); if (!el) return;
+  const st = S.key ? S.keyState : '', ki = S.keyInfo, p = PLANS[S.set.plan];
+  let cls = '', h = '';
+  if (st === 'wait'){ cls = 'wait'; h = 'Vérification de la clé…'; }
+  else if (st === 'bad'){ cls = 'bad'; h = 'Clé refusée : vérifie qu\'elle est complète et active.'; }
+  else if (st === 'err'){ cls = 'bad'; h = 'Impossible de vérifier la clé pour le moment (connexion).'; }
+  else if (st === 'ok' && ki){
+    cls = 'ok';
+    if (S.set.planAuto && p) h = `Clé reconnue · statut <b>${esc(p.key)}</b> sélectionné automatiquement` + (ki.limit > 0 && ki.remaining != null ? ` · solde <b>${fmtUsd(Math.max(0, ki.remaining))}</b>` : '');
+    else h = 'Clé valide · choisis ton statut ci-dessous';
+  }
+  el.className = 'keystat ' + cls; el.innerHTML = h ? '<i></i><span>' + h + '</span>' : ''; el.hidden = !h;
 }
 function keyExhausted(){ const ki = S.keyInfo; return !!(ki && ki.limit != null && ki.limit > 0 && ki.remaining != null && ki.remaining <= 0.005); }
 function keyUsedRatio(){ const ki = S.keyInfo; return ki && ki.limit > 0 ? Math.min(2, ki.used / ki.limit) : null; }
@@ -4880,20 +4996,36 @@ function balanceHtml(compact){
     return `<div class="bal-top"><span>Solde restant</span><b>${fmtUsd(rem)}</b></div>${budgetBar(ki.used, ki.limit)}<div class="bal-sub">${fmtUsd(ki.used)} utilisés sur ${ki.limit} $${p ? ' · ' + esc(p.key) : ''}${resetShort() ? ' · ' + resetShort() : ''}</div>`;
   }
   if (S.set.plan === 'free') return `<div class="bal-top"><span>Abonnement Free</span><b>Gratuit</b></div><div class="bal-sub">Modèles gratuits uniquement</div>`;
+  if (S.set.plan === 'unlimited' && ki) return `<div class="bal-top"><span>Statut</span><b>Illimité</b></div><div class="bal-sub">Clé sans plafond · ${fmtUsd(ki.monthly || 0)} utilisés ce mois-ci</div>`;
   return '';
 }
 function renderBalance(){
-  const el = document.getElementById('dBal'); if (!el) return;
+  const el = document.getElementById('dBal');
   const h = S.key ? balanceHtml(true) : '';
-  el.hidden = !h; el.innerHTML = h;
+  if (el){ el.hidden = !h; el.innerHTML = h; }
+  const pill = document.getElementById('btnBal'); if (!pill) return;
+  const ki = S.keyInfo, has = !!(S.key && ki && ki.k === keyTag(S.key));
+  if (has && ki.limit > 0 && ki.remaining != null){
+    const r = ki.used / ki.limit;
+    pill.hidden = false; $('#balAmt').textContent = fmtUsd(Math.max(0, ki.remaining));
+    pill.classList.toggle('warn', r >= 0.8 && r < 1); pill.classList.toggle('over', r >= 1);
+    pill.setAttribute('aria-label', 'Solde restant : ' + fmtUsd(Math.max(0, ki.remaining)));
+  } else if (has && S.set.plan === 'free'){
+    pill.hidden = false; $('#balAmt').textContent = 'Gratuit'; pill.classList.remove('warn', 'over');
+  } else if (has && S.set.plan === 'unlimited'){
+    pill.hidden = false; $('#balAmt').textContent = 'Illimité'; pill.classList.remove('warn', 'over'); pill.setAttribute('aria-label', 'Statut illimité');
+  } else { pill.hidden = true; $('#balPop').hidden = true; }
+  $('#balBody').innerHTML = h;
 }
+$('#btnBal').addEventListener('click', e => { e.stopPropagation(); renderBalance(); $('#balPop').hidden = !$('#balPop').hidden; if (!$('#balPop').hidden) fetchKeyInfo(); });
+document.addEventListener('click', e => { if (!$('#balPop').hidden && !e.target.closest('#balPop')) $('#balPop').hidden = true; });
 
 (function init(){
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
   mergeXai(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
-  fetchKeyInfo(true);
+  renderBalance(); fetchKeyInfo(true);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') fetchKeyInfo(); });
 })();
 </script>
