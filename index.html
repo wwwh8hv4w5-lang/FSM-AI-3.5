@@ -818,6 +818,17 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .vfam-h{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 4px}
 .vfam-h span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
 .vrow em{font-style:normal;color:var(--faint)}
+
+.devcard{width:min(100%,520px);margin:4px 0 12px}
+.devcard .gc-emblem{width:min(26cqw,46cqh,96px)}
+
+.livepv{margin-top:-4px}
+.livepv .pv-frame{position:relative;height:min(58vh,440px);background:#fff}
+.livepv .pv-frame iframe{position:absolute;inset:0;height:100%;transition:opacity .3s ease}
+.livepv .pv-bar{gap:8px}
+.livepv .pv-bar{padding:9px 14px}
+.livepv .live-dot::before{background:#F28B82;box-shadow:0 0 0 3px rgba(242,139,130,.18);animation:pulse 1.2s infinite}
+.livepv .live-dot em{font-style:normal;font-weight:500;color:var(--faint)}
 </style>
 </head>
 <body>
@@ -1526,7 +1537,7 @@ function chooseModel(id, catId){
 }
 
 function renderOpts(){
-  const mode = modeFor(S.set.model), m = modelInfo(S.set.model), c = catById(S.set.category);
+  const mode = (typeof universalOn === 'function' && universalOn()) ? 'chat' : modeFor(S.set.model), m = modelInfo(S.set.model), c = catById(S.set.category);
   const el = $('#opts');
   let h = `<button class="chip cat" data-opencat="${c.id}" aria-label="Catégorie : ${esc(c.label)}">${svgI(c.id)}${esc(c.short)}</button>`;
   const sel = (key, label, vals) => `<label class="chip">${label}<select data-set="${key}" aria-label="${label}">${vals.map(v => `<option value="${v[0]}"${String(S.set[key]) === String(v[0]) ? ' selected' : ''}>${v[1]}</option>`).join('')}</select></label>`;
@@ -2041,19 +2052,27 @@ async function runVideo(asst, user, signal){
   if (asst.vidAspect || S.set.vidAspect) body.aspect_ratio = asst.vidAspect || S.set.vidAspect;
   const img = (user.atts || []).find(a => kindOf(a) === 'image');
   if (img) body.frame_images = [{ type:'image_url', image_url:{ url: img.data }, frame_type:'first_frame' }];
-  asst.status = 'Envoi de la demande…'; paint(asst);
-  const res = await fetch(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal });
-  if (!res.ok) throw await apiError(res);
-  let job = await res.json();
-  const pollUrl = job.polling_url ? (job.polling_url.startsWith('http') ? job.polling_url : 'https://openrouter.ai' + job.polling_url) : API + '/videos/' + job.id;
-  const t0 = Date.now(); const FR = { pending:"En file d'attente", in_progress:'Génération en cours' };
+  let job, pollUrl, t0;
+  if (asst._job){ job = { status:'pending' }; pollUrl = asst._job.url; t0 = asst._job.t0; }
+  else {
+    asst.status = 'Envoi de la demande…'; paint(asst);
+    const res = await fetch(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal });
+    if (!res.ok) throw await apiError(res);
+    job = await res.json();
+    pollUrl = job.polling_url ? (job.polling_url.startsWith('http') ? job.polling_url : 'https://openrouter.ai' + job.polling_url) : API + '/videos/' + job.id;
+    t0 = Date.now();
+    Object.defineProperty(asst, '_job', { value: { url: pollUrl, t0 }, writable: true, enumerable: false, configurable: true });
+  }
+  const FR = { pending:"En file d'attente", in_progress:'Génération en cours' };
   while (job.status !== 'completed'){
     if (['failed', 'cancelled', 'expired'].includes(job.status)) throw new Error('La génération a échoué' + (job.error ? ' : ' + job.error : '.'));
     if (Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
     const s = Math.round((Date.now() - t0) / 1000);
     asst.status = `${FR[job.status] || 'Génération'} · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
     await sleep(5000, signal);
-    const r = await fetch(pollUrl, { headers: hdr(), signal });
+    let r;
+    try{ r = await fetch(pollUrl, { headers: hdr(), signal }); }
+    catch(err){ if (!isNetErr(err)) throw err; asst.status = NET_MSG; paint(asst); await waitOnline(signal, 8000); continue; }
     if (!r.ok) throw await apiError(r);
     job = await r.json();
   }
@@ -2201,6 +2220,19 @@ function drainQueue(conv){
   const item = q.shift(); if (conv === S.conv) renderQueue();
   setTimeout(() => dispatch(item, conv), 250);
 }
+const NET_MSG = "Votre connexion internet est instable, FSM AI continue de réfléchir en attendant qu'elle se rétablisse…";
+function isNetErr(e){ return e instanceof TypeError && /fetch|network|load|failed|internet|offline|connection/i.test(e.message || ''); }
+function waitOnline(signal, ms){
+  return new Promise((res, rej) => {
+    let done = false;
+    const fin = () => { if (done) return; done = true; clearTimeout(t); window.removeEventListener('online', on); res(); };
+    const on = () => setTimeout(fin, 600);
+    const t = setTimeout(() => { if (navigator.onLine === false){ clearTimeout(t); return; } fin(); }, ms);
+    window.addEventListener('online', on);
+    signal?.addEventListener('abort', () => { if (!done){ done = true; clearTimeout(t); window.removeEventListener('online', on); rej(new DOMException('Arrêté', 'AbortError')); } }, { once:true });
+    if (navigator.onLine === false) setTimeout(() => { if (!done && navigator.onLine !== false) fin(); }, ms);
+  });
+}
 async function run(user, conv, model, cat, route){
   conv = conv || S.conv; S.live.set(conv.id, conv);
   const mdl = (S.voiceActive && S.voiceModel) || (model && modelInfo(model) ? model : null) || S.set.model;
@@ -2219,8 +2251,8 @@ async function run(user, conv, model, cat, route){
   const ctrl = new AbortController(); conv._abort = ctrl; conv._busy = true; updateBusyUI();
   saveConv(conv);
   try{
-    const tried = [];
-    for (let attempt = 0; ; attempt++){
+    const tried = []; let attempt = 0, net = 0;
+    for (;;){
       try{
         const x = isXai(asst.model);
         if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
@@ -2230,7 +2262,18 @@ async function run(user, conv, model, cat, route){
         if (!asst.text.trim() && !asst.images.length && !asst.videos.length) throw Object.assign(new Error('Réponse vide. Réessaie dans un instant.'), { empty: true });
         break;
       }catch(e){
-        if (e?.name === 'AbortError' || ctrl.signal.aborted || !canFallback(e, asst, attempt)) throw e;
+        if (e?.name === 'AbortError' || ctrl.signal.aborted) throw e;
+        /* connexion instable : on patiente et on se reconnecte tout seul */
+        if (isNetErr(e) && net < 60){
+          net++;
+          asst.status = NET_MSG; paint(asst);
+          await waitOnline(ctrl.signal, Math.min(30000, 1500 * 2 ** Math.min(net, 4)));
+          if (asst.mode !== 'video'){ asst.text = ''; asst.images = []; asst.sources = []; asst.steps = []; asst.reasoning = ''; }
+          asst.status = 'Reconnexion…'; paint(asst);
+          continue;
+        }
+        if (!canFallback(e, asst, attempt)) throw e;
+        attempt++;
         tried.push(asst.model);
         const alt = altModel(asst, user, conv, tried);
         if (!alt) throw e;
@@ -2243,7 +2286,7 @@ async function run(user, conv, model, cat, route){
     }
   }catch(e){
     if (e?.name === 'AbortError') asst.stopped = true;
-    else if (e instanceof TypeError && /fetch|network|load/i.test(e.message)) asst.error = "Connexion à OpenRouter impossible. Vérifie ta connexion internet. Sur téléphone, ouvre ce fichier dans un vrai navigateur (pas dans l'aperçu de l'app Fichiers).";
+    else if (isNetErr(e)) asst.error = "Connexion internet perdue depuis trop longtemps. Touche Réessayer quand elle sera rétablie.";
     else asst.error = e?.message || String(e);
   }finally{
     asst.status = ''; conv._abort = null; conv._busy = false;
@@ -2294,11 +2337,25 @@ function codeHtml(code, info){
   const key = curMid + ':' + (curIdx++);
   CODE.set(key, { code, lang, fname, named: !!fname });
   const pv = previewKind(lang, fname, code);
-  const head = !pv ? '' : curStreaming ? `<div class="pv-wait">${pv === 'svg' ? 'Aperçu' : 'Aperçu jouable'} à la fin de la réponse…</div>`
+  if (pv && curStreaming) return devCardHtml(code, pv) + `<div class="pv livepv" data-lk="${esc(key)}"><div class="pv-bar"><span class="live-dot">Aperçu en direct <em>· se construit sous tes yeux</em></span></div><div class="pv-frame"></div></div>`;
+  const head = !pv ? '' : curStreaming ? ''
     : `<div class="pv" data-k="${esc(key)}"><div class="pv-bar"><span>${pv === 'svg' ? 'Aperçu' : 'Aperçu jouable'}</span><button class="mini" data-act="pvreload" data-k="${esc(key)}">Relancer</button><button class="mini" data-act="pvfull" data-k="${esc(key)}">Plein écran</button></div><div class="pv-frame"></div><div class="pv-err" hidden></div></div>`;
   return head + `<div class="code${pv ? ' has-preview' : ''}"><div class="code-bar"><span class="code-name">${esc(fname || lang || 'code')}</span><button class="mini" data-act="copy" data-k="${esc(key)}">Copier</button><button class="mini" data-act="dl" data-k="${esc(key)}">Télécharger</button></div><pre><code>${esc(code.replace(/\n$/, ''))}</code></pre></div>`;
 }
 let curStreaming = false;
+/* Carte « développement en cours » pendant que FSM AI écrit un jeu ou une page */
+function devCardHtml(code, pv){
+  const lines = String(code || '').split('\n').length;
+  const game = /canvas|requestAnimationFrame|game|jeu|score|player|joueur|level|niveau|sprite|keydown|touchstart/i.test(code);
+  const what = pv === 'svg' ? "FSM AI dessine l'illustration" : game ? 'FSM AI est en train de coder le jeu' : 'FSM AI est en train de coder la page';
+  setTimeout(() => { try{ genClock(); }catch(e){} }, 0);
+  return `<div class="gencard devcard" style="--ar:16/8" data-kind="code" data-t0="${Date.now()}" role="status" aria-label="Développement en cours">
+    <div class="gc-mesh"></div><div class="gc-grid"></div><div class="gc-scan"></div><div class="gc-noise"></div>
+    <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div></div>
+    <div class="gc-foot"><div class="gc-row"><span class="gc-title">Développement en cours</span><span class="gc-time">0:00</span></div>
+      <div class="gc-bar"><i></i></div>
+      <div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg"> · ${esc(what)} · ${lines} ligne${lines > 1 ? 's' : ''}</span></div></div></div>`;
+}
 function previewKind(lang, fname, code){
   if (/^(html|htm|xhtml)$/i.test(lang) || /\.html?$/i.test(fname || '') || /^\s*<(!doctype html|html)/i.test(code)) return 'html';
   if (lang === 'svg' || /\.svg$/i.test(fname || '') || (/^\s*<svg[\s>]/i.test(code) && /<\/svg>\s*$/i.test(code))) return 'svg';
@@ -2332,12 +2389,28 @@ function makeFrame(doc){
   f.srcdoc = doc;
   return f;
 }
+/* Aperçu en direct pendant l'écriture du code : rechargé régulièrement, sans clignotement (double tampon) */
+function liveRefresh(el){
+  if (!el || !el.isConnected) return;
+  const now = Date.now(), wait = 1300 - (now - (el._last || 0));
+  if (wait > 0){ if (!el._pend){ el._pend = setTimeout(() => { el._pend = 0; liveRefresh(el); }, wait); } return; }
+  el._last = now;
+  const box = el.querySelector('.pv-frame'); if (!box) return;
+  const doc = buildDoc(el.dataset.lk); if (!doc) return;
+  const f = makeFrame(doc); f.style.opacity = '0';
+  f.addEventListener('load', () => setTimeout(() => {
+    f.style.opacity = '1';
+    [...box.querySelectorAll('iframe')].forEach(x => { if (x !== f) setTimeout(() => x.remove(), 260); });
+  }, 180), { once:true });
+  box.appendChild(f);
+  const all = box.querySelectorAll('iframe'); if (all.length > 3) all[0].remove();
+}
 function loadPv(pv){
   const box = pv.querySelector('.pv-frame'); if (!box) return;
   box.innerHTML = ''; box.appendChild(makeFrame(buildDoc(pv.dataset.k)));
   const er = pv.querySelector('.pv-err'); if (er){ er.hidden = true; er.innerHTML = ''; }
 }
-function mountPreviews(root){ root.querySelectorAll('.pv[data-k]').forEach(pv => { if (pv.dataset.on) return; pv.dataset.on = '1'; loadPv(pv); }); }
+function mountPreviews(root){ root.querySelectorAll('.pv[data-k]').forEach(pv => { if (pv.dataset.on) return; pv.dataset.on = '1'; loadPv(pv); }); root.querySelectorAll('.livepv').forEach(el => { if (!el.querySelector('iframe')) liveRefresh(el); }); }
 window.addEventListener('message', e => {
   const d = e.data; if (!d || typeof d !== 'object' || !d.fsmPv) return;
   document.querySelectorAll('.pv[data-k]').forEach(pv => {
@@ -2715,6 +2788,7 @@ const GEN_STAGES = {
   image: ['Composition', 'Formes', 'Lumière', 'Couleurs', 'Détails', 'Finitions'],
   edit: ['Analyse de la photo', 'Masques', 'Retouche', 'Harmonisation', 'Finitions'],
   video: ['Scénario', 'Plans', 'Mouvement', 'Lumière', 'Rendu des images', 'Encodage'],
+  code: ['Architecture', 'Interface', 'Logique', 'Graphismes', 'Contrôles', 'Vérifications'],
   montage: ['Découpe', 'Cadrage', 'Couleurs', 'Son', 'Encodage']
 };
 function genKind(m){
@@ -2758,6 +2832,7 @@ function genClock(){
       const list = GEN_STAGES[c.dataset.kind] || GEN_STAGES.image;
       let st;
       if (c.dataset.kind === 'video'){ const k = Math.floor(s / 12); st = k === 0 ? list[0] : list[1 + (k - 1) % (list.length - 2)]; }
+      else if (c.dataset.kind === 'code'){ st = list[Math.floor(s / 5) % list.length]; }
       else st = list[Math.min(list.length - 1, Math.floor(s / 4))];
       const el = c.querySelector('.gc-stage');
       if (el && el.dataset.v !== st){ el.dataset.v = st; el.textContent = st; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
@@ -2785,7 +2860,7 @@ function msgHtml(m){
   else if (m.status){
     h += `<div class="status"><span class="dots"><i></i><i></i><i></i></span><span>${esc(m.status)}</span></div>`;
   }
-  if (m.text){ curStreaming = !!m.status; h += `<div class="md">${mdHtml(m.text, m.id)}</div>`; curStreaming = false; }
+  if (m.text){ curStreaming = !!(m.status || m._live); h += `<div class="md">${mdHtml(m.text, m.id)}</div>`; curStreaming = false; }
   const n = m.images?.length || 0;
   if (n) h += `<div class="gen n${Math.min(n, 3)}">${m.images.map((im, i) => `<div class="media"><img${m._fresh ? ' class="reveal"' : ''} data-act="view" data-mid="${m.id}" data-i="${i}" src="${esc(im.url)}" alt="Image générée ${i + 1}"><button class="ovl" data-act="save" data-mid="${m.id}" data-i="${i}" aria-label="Enregistrer l'image">${IC.dl}</button></div>`).join('')}</div>`;
   if (m.videos?.length) h += m.videos.map((v, i) => `<div class="vidcard"><video${m._fresh ? ' class="reveal"' : ''} controls playsinline preload="metadata" src="${esc(vidSrc(v))}"></video><div class="vacts"><button class="mini" data-act="save" data-mid="${m.id}" data-i="${n + i}">Enregistrer</button><button class="mini" data-act="view" data-mid="${m.id}" data-i="${n + i}">Plein écran</button></div>${v.expires ? `<div class="note">Lien temporaire : enregistre la vidéo pour la garder.</div>` : ''}</div>`).join('');
@@ -2817,8 +2892,12 @@ function enhanceMedia(el){
 function paint(m){
   const el = els.get(m.id); if (!el) return;
   const near = nearBottom();
-  const oldCard = el.querySelector('.gencard');
+  const oldCard = el.querySelector('.gencard'), oldLive = el.querySelector('.livepv');
   el.innerHTML = msgHtml(m); enhanceMedia(el);
+  if (oldLive){
+    const nl = el.querySelector('.livepv');
+    if (nl){ oldLive.dataset.lk = nl.dataset.lk; nl.replaceWith(oldLive); liveRefresh(oldLive); }
+  }
   if (oldCard){
     // garde la même carte animée d'une mise à jour à l'autre, pour que l'animation ne redémarre pas
     const nw = el.querySelector('.gencard');
