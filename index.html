@@ -405,7 +405,7 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .us-bar.warn i{background:#ff9f0a}
 .us-bar.over i{background:#ff453a}
 .us-sub{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
-.us-note{margin:14px 4px 10px;font-size:12.5px}
+.us-note{margin:14px 4px 10px;font:400 12.5px/1.45 var(--f-body);color:var(--faint)}
 .us-up{width:100%;margin-top:4px}
 .us-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15.5px;text-align:left}
 .us-row svg{width:22px;height:22px;flex:0 0 22px;color:var(--muted)}
@@ -426,6 +426,13 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .editbar svg{width:17px;height:17px;flex:0 0 17px}
 .editbar span{flex:1}
 .editbar button{border:0;background:var(--raised);color:var(--ink);border-radius:10px;padding:7px 12px;font:inherit;font-size:13.5px;font-weight:600}
+.webhint,.levelhint{display:flex;align-items:center;gap:10px;margin:0 4px 8px;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font:400 13px/1.45 var(--f-body)}
+.webhint[hidden],.levelhint[hidden]{display:none!important}
+.levelhint{flex-direction:column;align-items:stretch}
+.webhint span,.levelhint p{flex:1;margin:0}
+.webhint button,.levelhint button{border:0;background:var(--raised);color:var(--ink);border-radius:10px;padding:7px 12px;font:600 13px var(--f-body);cursor:pointer;white-space:nowrap}
+.levelhint .row{display:flex;gap:8px;justify-content:flex-end}
+.levelhint .go{background:var(--primary);color:var(--primary-ink)}
 .qitem{display:flex;align-items:center;gap:8px;min-width:0;background:var(--surface);border:1px dashed var(--line2);border-radius:14px;padding:4px 4px 4px 12px;font-size:14px}
 .qn{flex:0 0 auto;font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
 .qt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -790,7 +797,8 @@ figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
 .gencard .gc-core{bottom:56px}
 @container (max-height:200px){.gencard .gc-core{bottom:50px}.gencard .gc-foot{padding:9px 12px 10px;gap:5px}}
 .gencard .gc-sub.gc-later{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.4}
-.gencard .gc-time{font:500 12.5px var(--f-mono);color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}
+.gencard .gc-mark{flex:0 0 26px;width:26px;height:26px;align-self:center;position:relative;background:#fff;-webkit-mask:var(--fsm-logo) center/contain no-repeat;mask:var(--fsm-logo) center/contain no-repeat;opacity:.92;filter:drop-shadow(0 0 7px rgba(186,198,255,.8));animation:gcMark 2.8s ease-in-out infinite}
+.gencard .gc-mark::before{content:"";position:absolute;inset:-8px;border-radius:50%;z-index:-1;background:radial-gradient(closest-side,rgba(165,180,255,.55),rgba(229,140,255,.16) 58%,transparent 74%);animation:gcMarkHalo 2.8s ease-in-out infinite}
 .gencard .gc-bar{position:relative;height:3px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
 .gencard .gc-bar i{position:absolute;top:0;bottom:0;left:0;width:40%;border-radius:3px;background:linear-gradient(90deg,transparent,#a5b4ff,#fff,#e58cff,transparent);transform:translate3d(-100%,0,0);animation:gcBar 1.6s cubic-bezier(.6,0,.3,1) infinite;will-change:transform}
 .gencard .gc-bar.det i{width:var(--p,0%);transform:none;animation:none;background:linear-gradient(90deg,#6C8CFF,#E58CFF);transition:width .4s var(--e-out)}
@@ -808,7 +816,9 @@ figure.ill.fresh{animation:fsmFadeIn .5s var(--e-out) both}
 @keyframes gcBar{to{transform:translate3d(350%,0,0)}}
 @keyframes gcStage{from{opacity:0;transform:translateY(4px)}}
 @keyframes gcReveal{0%{opacity:0;filter:blur(22px) saturate(160%);transform:scale(1.03)}60%{opacity:1}100%{opacity:1;filter:none;transform:none}}
-@media (prefers-reduced-motion: reduce){.gencard *,.gencard,.dots i,.md.arrive{animation:none!important}.gen .media img.reveal,.vidcard video.reveal{animation:none}.gencard .gc-scan,.gencard .gc-bar i{transform:none}}
+@keyframes gcMark{0%,100%{opacity:.72;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
+@keyframes gcMarkHalo{0%,100%{opacity:.35;transform:scale(.82)}50%{opacity:1;transform:scale(1.08)}}
+@media (prefers-reduced-motion: reduce){.gencard *,.gencard,.dots i,.md.arrive{animation:none!important}.gencard .gc-mark::before{animation:none!important}.gen .media img.reveal,.vidcard video.reveal{animation:none}.gencard .gc-scan,.gencard .gc-bar i{transform:none}}
 
 /* menu : geste du doigt */
 .drawer-scrim.dragging,.drawer-scrim.settle{animation:none!important;background:rgba(0,0,0,calc(.55 * var(--dp,0)))}
@@ -898,6 +908,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .vfam-h{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 4px}
 .vfam-h span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
 .vinc{font-size:15px;font-weight:600;color:var(--ink);padding:2px 4px 10px}
+.vnote{margin:2px 4px 16px;font:400 12.5px/1.45 var(--f-body);color:var(--faint)}
 .vrow em{font-style:normal;color:var(--faint)}
 
 .devcard{width:min(100%,520px);margin:4px 0 12px}
@@ -946,6 +957,8 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 
   <footer class="composer">
     <div class="col">
+      <div class="levelhint" id="levelHint" hidden role="dialog" aria-modal="false" aria-labelledby="levelHintText"><p id="levelHintText"></p><div class="row"><button type="button" class="go" id="levelHintGo">Activer</button><button type="button" id="levelHintClose">Fermer</button></div></div>
+      <div class="webhint" id="webHint" hidden><span>Cette demande semble concerner l'actualité, un prix ou une info récente.</span><button type="button" id="webHintGo">Activer le web</button></div>
       <div class="editbar" id="editBar" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modification du message</span><button type="button" id="editCancel">Annuler</button></div>
       <div class="queue" id="queue" hidden></div>
       <div class="suggest" id="suggest" hidden></div>
@@ -1627,7 +1640,8 @@ function refreshModelUI(){
 function applyPreset(cat){
   S.set.category = cat.id;
   const p = cat.preset || {};
-  S.set.web = !!p.web; S.set.reasoning = !!p.reasoning;
+  /* CORSER 5.0 démarre sans web ni réflexion : le preset Discussion ne les rallume pas. */
+  if (!(typeof corser50On === 'function' && corser50On())){ S.set.web = !!p.web; S.set.reasoning = !!p.reasoning; }
   if ('fileHints' in p) S.set.fileHints = p.fileHints;
   if ('imgAspect' in p) S.set.imgAspect = p.imgAspect; else if (S.set.imgAspect === 'auto' && cat.id !== 'photoedit') S.set.imgAspect = '1:1';
   saveSettings();
@@ -3225,6 +3239,7 @@ async function send(){
     else if (!mi || !isFree(mi)){ const r = freeRoute(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; toast('Abonnement Free : modèle gratuit utilisé'); } }
   }
   if (!(await budgetGate(estimateCost(item, cat)))) return;
+  if (!(text && !S.voiceActive && !S.conv?.bot && ['chat', 'search', 'reason'].includes(cat) && showWebHint(text))){ if (!S.voiceActive) hideWebHint(); }
   S.pending = []; renderPending(); $('#input').value = ''; autosize(); renderSend();
   try{ localStorage.removeItem('relais.draft'); }catch(e){}
   if (S.editing) await applyEdit();
@@ -3419,6 +3434,7 @@ function codeHtml(code, info){
 }
 let curStreaming = false;
 /* Carte « développement en cours » pendant que FSM AI écrit un jeu ou une page */
+const GEN_MARK = '<span class="gc-mark" aria-hidden="true"></span>';
 function devCardHtml(code, pv){
   const lines = String(code || '').split('\n').length;
   const game = /canvas|requestAnimationFrame|game|jeu|score|player|joueur|level|niveau|sprite|keydown|touchstart/i.test(code);
@@ -3427,7 +3443,7 @@ function devCardHtml(code, pv){
   return `<div class="gencard devcard" style="--ar:16/8" data-kind="code" data-t0="${Date.now()}" role="status" aria-label="Développement en cours">
     <div class="gc-mesh"></div><div class="gc-grid"></div><div class="gc-scan"></div><div class="gc-noise"></div>
     <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div></div>
-    <div class="gc-foot"><div class="gc-row"><span class="gc-title">Développement en cours</span><span class="gc-time">0:00</span></div>
+    <div class="gc-foot"><div class="gc-row"><span class="gc-title">Développement en cours</span>${GEN_MARK}</div>
       <div class="gc-bar"><i></i></div>
       <div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg"> · ${esc(what)} · ${lines} ligne${lines > 1 ? 's' : ''}</span></div></div></div>`;
 }
@@ -4040,7 +4056,7 @@ function genCardHtml(m, kind){
   return `<div class="gencard${wide ? ' wide' : ''}" style="--ar:${ar}" data-kind="${kind}" data-t0="${t0}" role="status" aria-label="${esc(title)} en cours">
     ${src}<div class="gc-grid"></div><div class="gc-scan"></div><div class="gc-noise"></div>
     <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div><div class="gc-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-    <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span>${kind === 'video' ? '' : '<span class="gc-time">0:00</span>'}</div>
+    <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span>${GEN_MARK}</div>
       <div class="gc-bar${pc != null ? ' det' : ''}"${pc != null ? ` style="--p:${pc}%"` : ''}><i></i></div>
       ${kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Création de l'image|Création de l'image avec Grok|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
 }
@@ -4054,7 +4070,6 @@ function genClock(){
     const now = Date.now();
     cards.forEach(c => {
       const s = Math.max(0, Math.floor((now - +c.dataset.t0) / 1000));
-      const t = c.querySelector('.gc-time'); if (t) t.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
       const list = GEN_STAGES[c.dataset.kind] || GEN_STAGES.image;
       let st;
       if (c.dataset.kind === 'video'){ const k = Math.floor(s / 12); st = k === 0 ? list[0] : list[1 + (k - 1) % (list.length - 2)]; }
@@ -7143,8 +7158,9 @@ function universalRoute(text, atts, conv, forceCat){
   }
   const pol = planPolicy();
   const route = { model, tier: r?.tier, why: r?.why || INTENT_FR[cat], cat, label: cat === 'chat' ? '' : INTENT_FR[cat], universal: true, plan: S.set.plan || '' };
-  if (cat === 'search') route.web = true;
-  if (cat === 'reason') route.reason = true;
+  /* CORSER 5.0 : la puce éteinte reste éteinte. Les autres niveaux gardent la recherche et la réflexion automatiques. */
+  if (cat === 'search' && !(corser50On() && !S.set.web)) route.web = true;
+  if (cat === 'reason' && !(corser50On() && !S.set.reasoning)) route.reason = true;
   if (cat === 'photoedit') route.imgAspect = 'auto';
   if (pol.drop && r) route.why += ' · budget du mois bientôt atteint';
   return { cat, model, route };
@@ -7370,7 +7386,8 @@ function renderUsage(){
     ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend au renouvellement. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
     ${unlockBtnHtml()}
-    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
+    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}
+    <p class="us-note">Les niveaux plus puissants, le Web et la Réflexion font avancer le forfait un peu plus vite. Ton pourcentage reste le repère.</p>`;
 }
 function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
 document.getElementById('btnUsage')?.addEventListener('click', openUsage);
@@ -7716,23 +7733,23 @@ const BRANDS = {
 /* ----- Variantes des modèles FSM AI (une gamme par abonnement, les abonnements supérieurs incluent les gammes inférieures) ----- */
 const VARIANTS = [
   { id:'corser50',  plan:'entreprise', fam:'CORSER', name:'FSM AI CORSER 5.0',     top:'FSM AI 5.0', sub:'CORSER',     lvl:0, def:true,
-    desc:"Le modèle Entreprise : rapide, fiable et efficace au quotidien." },
+    desc:"Rapide et économique pour le quotidien : questions, rédaction, résumés, traductions et code simple (scripts, petites fonctions, corrections rapides)." },
   { id:'corser55',  plan:'entreprise', fam:'CORSER', name:'FSM AI CORSER 5.5 PRO', top:'FSM AI 5.5', sub:'CORSER PRO', lvl:1,
-    desc:"La version Pro de Corser : résultats plus cohérents, recherches plus approfondies." },
+    desc:"Le choix pour le code et les projets sérieux : applications complètes, débogage difficile, refonte de code, et des réponses plus précises sur les sujets exigeants." },
   { id:'corser60',  plan:'entreprise', fam:'CORSER', name:'FSM AI CORSER 6.0 MAX', top:'FSM AI 6.0', sub:'CORSER MAX', lvl:2,
-    desc:"La version Max de Corser : la meilleure qualité de la gamme, pour tes demandes les plus importantes." },
+    desc:"Le niveau le plus poussé de CORSER : le même code solide que PRO, avec en plus le modèle le plus puissant pour les analyses, les rapports, la stratégie et le raisonnement complexe." },
   { id:'neural55',  plan:'competence', fam:'NEURAL', name:'FSM AI NEURAL 5.5',     top:'FSM AI 5.5', sub:'NEURAL',     lvl:3, def:true,
-    desc:"Le modèle Compétence : plus puissant, plus précis, à l'aise sur les sujets exigeants." },
+    desc:"Les petites demandes restent sur un modèle léger ; le code et les sujets sérieux montent, jusqu'au haut de la gamme si l'enjeu le demande. Images et vidéos déjà premium." },
   { id:'neural58',  plan:'competence', fam:'NEURAL', name:'FSM AI NEURAL PRO 5.8', top:'FSM AI 5.8', sub:'NEURAL PRO', lvl:4,
-    desc:"La version Pro de Neural : analyses plus fines, code et rédaction plus aboutis." },
+    desc:"Les questions courtes partent déjà sur un modèle solide, et le code comme les sujets exigeants vont au plus haut de NEURAL. Images et vidéos premium." },
   { id:'neural60',  plan:'competence', fam:'NEURAL', name:'FSM AI NEURAL MAX 6.0', top:'FSM AI 6.0', sub:'NEURAL MAX', lvl:5,
-    desc:"La version Max de Neural : un niveau premium sur chaque réponse." },
+    desc:"Le plus haut de NEURAL : une demande courte reste solide, et le code, les analyses et les sujets difficiles partent au maximum. Images et vidéos premium." },
   { id:'omega80',   plan:'elite', fam:'OMEGA', name:'FSM AI OMEGA 8.0',     top:'FSM AI 8.0', sub:'OMEGA',     lvl:6, def:true,
-    desc:"Le modèle Élite : la puissance des meilleurs modèles au service de chaque demande." },
+    desc:"Au plus haut dès que la demande a du corps, sans écarter un modèle trop puissant. Pour le code ambitieux, les dossiers longs et des images et vidéos premium." },
   { id:'omega85',   plan:'elite', fam:'OMEGA', name:'FSM AI OMEGA PRO 8.5', top:'FSM AI 8.5', sub:'OMEGA PRO', lvl:7,
-    desc:"La version Pro d'Omega : raisonnement approfondi et précision maximale." },
+    desc:"Dès la première vraie demande, le plus haut niveau, et un raisonnement approfondi activé automatiquement. Pour le code difficile et les projets longs. Images et vidéos premium." },
   { id:'omega90',   plan:'elite', fam:'OMEGA', name:'FSM AI OMEGA MAX 9.0', top:'FSM AI 9.0', sub:'OMEGA MAX', lvl:8,
-    desc:"La version Max d'Omega : le plus haut niveau de FSM AI, sans compromis." }
+    desc:"Le sommet : chaque vraie demande prend le modèle le plus puissant disponible, avec le raisonnement approfondi automatique. Dossiers critiques et code le plus difficile. Images et vidéos premium." }
 ];
 const PLAN_RANK = { entreprise:1, competence:2, elite:3 };
 function variantsFor(plan){ const r = PLAN_RANK[plan] || 0; return VARIANTS.filter(v => (PLAN_RANK[v.plan] || 0) <= r); }
@@ -7764,13 +7781,16 @@ function variantRowsHtml(){
     return `<div class="vfam"><div class="vfam-h">Gamme ${esc(f)}${own ? '' : ` <span>· incluse avec ton abonnement</span>`}</div>`
       + vs.map(v => `<button class="mrow auto vrow${cur && v.id === cur.id ? ' on' : ''}" data-variant="${v.id}"><span class="l1"><span class="mn">${esc(v.name)}</span>${v.def && own ? '<span class="rec">Par défaut</span>' : v.lvl % 3 ? `<span class="rec">${v.lvl % 3 === 1 ? 'PRO' : 'MAX'}</span>` : ''}</span><span class="mid auto-d">${esc(v.desc)}</span></button>`).join('')
       + '</div>';
-  }).join('');
+  }).join('') + '<p class="vnote">Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.</p>';
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-variant]'); if (!b) return;
   const v = VARIANTS.find(x => x.id === b.dataset.variant); if (!v) return;
+  const prevId = curVariant()?.id;
   S.set.variant = v.id; saveSettings();
+  if (v.id === 'corser50') applyCorser50Quiet();
   try{ refreshModelUI(); renderModelList(); if (!S.conv?.messages?.length) renderThread(); }catch(err){}
+  if (prevId !== v.id) offerLevelHint(v);
   toast(v.name + ' sélectionné');
 });
 
@@ -7942,8 +7962,58 @@ async function autoVideoContinuation(text){
   return 'video';
 }
 
-/* Web et réflexion activés par défaut (une fois, pour les réglages existants) */
-if (!S.set.defaultsV2){ S.set.web = true; S.set.reasoning = true; S.set.defaultsV2 = true; try{ saveSettings(); }catch(e){} }
+/* Web et réflexion : activés une fois, sauf CORSER 5.0, qui démarre avec les deux puces éteintes.
+   L'utilisateur peut les rallumer. On ne refait pas ce réglage. */
+function corser50On(){ try{ return typeof curVariant === 'function' && curVariant()?.id === 'corser50'; }catch(e){ return false; } }
+function applyCorser50Quiet(){
+  if (!corser50On() || S.set.corser50Quiet) return false;
+  S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true;
+  try{ saveSettings(); }catch(e){}
+  return true;
+}
+if (!S.set.defaultsV2){
+  if (corser50On()){ S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true; }
+  else { S.set.web = true; S.set.reasoning = true; }
+  S.set.defaultsV2 = true; try{ saveSettings(); }catch(e){}
+}
+applyCorser50Quiet();
+function showWebHint(text){
+  if (!corser50On() || S.set.web || S.voiceActive) return false;
+  if (!needsWeb(text)) return false;
+  const el = $('#webHint'); if (!el) return false;
+  el.hidden = false;
+  return true;
+}
+function hideWebHint(){ const el = $('#webHint'); if (el) el.hidden = true; }
+function acceptWebHint(){
+  S.set.web = true; saveSettings(); hideWebHint();
+  try{ renderOpts(); }catch(e){}
+}
+function offerLevelHint(v){
+  if (!v || (v.id !== 'corser55' && v.id !== 'corser60')) return false;
+  const seen = LS.get('fsm.levelhint', {}) || {};
+  if (seen[v.id]) return false;
+  if (S.set.web && S.set.reasoning){ seen[v.id] = 1; LS.set('fsm.levelhint', seen); return false; }
+  const name = v.id === 'corser55' ? 'CORSER 5.5 PRO' : 'CORSER 6.0 MAX';
+  const el = $('#levelHint'); if (!el) return false;
+  $('#levelHintText').textContent = 'Pour tirer le meilleur de ' + name + ', tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.';
+  el.dataset.level = v.id; el.hidden = false;
+  return true;
+}
+function dismissLevelHint(activate){
+  const el = $('#levelHint'); if (!el) return;
+  const id = el.dataset.level;
+  if (id){ const seen = LS.get('fsm.levelhint', {}) || {}; seen[id] = 1; LS.set('fsm.levelhint', seen); }
+  if (activate){
+    if (!S.set.web) S.set.web = true;
+    if (!S.set.reasoning) S.set.reasoning = true;
+    saveSettings(); try{ renderOpts(); }catch(e){}
+  }
+  el.hidden = true;
+}
+document.getElementById('webHintGo')?.addEventListener('click', () => acceptWebHint());
+document.getElementById('levelHintGo')?.addEventListener('click', () => dismissLevelHint(true));
+document.getElementById('levelHintClose')?.addEventListener('click', () => dismissLevelHint(false));
 async function craftZipBytes(name, payload, liedSize){
   const comp = await deflateRaw(payload); if (!comp) throw new Error('deflate indisponible');
   const crc = crc32(payload), nm = new TextEncoder().encode(name);
@@ -8391,6 +8461,7 @@ async function runProductTests(){
   ok('second déblocage refusé', applyUnlock() === false && canUnlock().why === 'used');
   renderUsage();
   ok('bouton grisé', /Déblocage déjà utilisé ce mois-ci/.test($('#usBody').innerText || ''));
+  ok('note limites', ($('#usBody').innerText || '').includes('Les niveaux plus puissants, le Web et la Réflexion font avancer le forfait un peu plus vite. Ton pourcentage reste le repère.'));
   window.__fsmNow = Date.parse('2026-11-01T00:00:00Z');
   ok('nouveau mois UTC', canUnlock().ok === true);
   window.__fsmNow = Date.parse('2026-10-24T12:00:00Z');
@@ -8507,6 +8578,40 @@ async function runProductTests(){
       ok('NEURAL inchangé', go(complexe).model === OPUS && go(exigeant).model === OPUS && go('écris une fonction qui additionne deux nombres').model === OPUS);
       S.set.plan = 'elite'; S.set.variant = 'omega90';
       ok('OMEGA inchangé', go('quelle heure est-il ?').model === OPUS && go(complexe).model === OPUS);
+      {
+        const modeKeep = { web: S.set.web, reasoning: S.set.reasoning, quiet: S.set.corser50Quiet, plan: S.set.plan, variant: S.set.variant, keyInfo: S.keyInfo };
+        const prix = "quel est le prix du bitcoin aujourd'hui";
+        const preuve = "démontre que la somme des angles d'un triangle vaut 180";
+        try{
+          S.keyInfo = { limit:18, used:1, remaining:17, weekly:0.1, monthly:1, t:Date.now() };
+          S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true;
+          const off = universalRoute(prix, [], { messages:[] });
+          ok('5.0 web coupé ne force pas la recherche', off && off.cat === 'search' && off.route && !off.route.web);
+          S.set.web = true;
+          const on = universalRoute(prix, [], { messages:[] });
+          ok('5.0 web allumé cherche', !!(on && on.route && on.route.web === true));
+          S.set.web = false; S.set.reasoning = false;
+          const quietR = universalRoute(preuve, [], { messages:[] });
+          ok('5.0 réflexion coupée non forcée', quietR && quietR.cat === 'reason' && quietR.route && !quietR.route.reason);
+          S.set.reasoning = true;
+          const loudR = universalRoute(preuve, [], { messages:[] });
+          ok('5.0 réflexion allumée', !!(loudR && loudR.route && loudR.route.reason === true));
+          S.set.variant = 'corser55'; S.set.web = false; S.set.reasoning = false;
+          const pro = universalRoute(prix, [], { messages:[] });
+          const proR = universalRoute(preuve, [], { messages:[] });
+          ok('PRO inchangé si les puces sont coupées', !!(pro && pro.route && pro.route.web === true && proR && proR.route && proR.route.reason === true));
+          S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.web = false; S.set.reasoning = false;
+          const neu = universalRoute(prix, [], { messages:[] });
+          const neuR = universalRoute(preuve, [], { messages:[] });
+          ok('NEURAL web et réflexion inchangés', !!(neu && neu.route && neu.route.web === true && neuR && neuR.route && neuR.route.reason === true));
+          S.set.plan = 'elite'; S.set.variant = 'omega80'; S.set.web = false; S.set.reasoning = false;
+          const om = universalRoute(prix, [], { messages:[] });
+          ok('OMEGA web inchangé', !!(om && om.route && om.route.web === true));
+        } finally {
+          S.set.web = modeKeep.web; S.set.reasoning = modeKeep.reasoning; S.set.corser50Quiet = modeKeep.quiet;
+          S.set.plan = modeKeep.plan; S.set.variant = modeKeep.variant; S.keyInfo = modeKeep.keyInfo;
+        }
+      }
     } finally {
       S.models = saved.models; S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo;
     }
@@ -8555,6 +8660,91 @@ async function runProductTests(){
       if (saved.now) window.__fsmNow = saved.now; else delete window.__fsmNow;
     }
   }
+  {
+    const keep = { plan: S.set.plan, variant: S.set.variant, web: S.set.web, reasoning: S.set.reasoning, quiet: S.set.corser50Quiet, cat: S.set.category, model: S.set.model, models: S.models };
+    const hint = LS.get('fsm.levelhint', null);
+    try{
+      S.models = [{ id:'t/m', supported_parameters:['reasoning', 'tools'], architecture:{ input_modalities:['text'], output_modalities:['text'] } }];
+      S.set.model = 't/m'; S.set.category = 'chat';
+      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.web = true; S.set.reasoning = true; S.set.corser50Quiet = false;
+      ok('défaut 5.0 coupe une fois', applyCorser50Quiet() === true && S.set.web === false && S.set.reasoning === false && S.set.corser50Quiet === true);
+      S.set.web = true; S.set.reasoning = true;
+      ok('défaut 5.0 ne se répète pas', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.corser50Quiet = false; S.set.web = true; S.set.reasoning = true;
+      ok('défaut neural non touché', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'free'; S.set.variant = '';
+      ok('défaut free non touché', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'elite'; S.set.variant = 'omega80';
+      ok('défaut omega non touché', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.corser50Quiet = true; S.set.web = false; S.set.reasoning = false;
+      applyPreset(catById('chat'));
+      ok('preset 5.0 garde les puces éteintes', S.set.category === 'chat' && S.set.web === false && S.set.reasoning === false);
+      renderOpts();
+      const chipW = document.querySelector('#opts [data-toggle="web"]'), chipR = document.querySelector('#opts [data-toggle="reasoning"]');
+      ok('puces 5.0 présentes', !!chipW && !!chipR && chipW.getAttribute('aria-pressed') === 'false' && chipR.getAttribute('aria-pressed') === 'false');
+      chipW.click();
+      ok('puce web activable', S.set.web === true && document.querySelector('#opts [data-toggle="web"]')?.getAttribute('aria-pressed') === 'true');
+      S.set.web = false; renderOpts();
+      S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.web = false; S.set.reasoning = false;
+      applyPreset(catById('chat'));
+      ok('preset neural rallume comme avant', S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true;
+      hideWebHint();
+      const prix = "quel est le prix du bitcoin aujourd'hui";
+      ok('suggestion web', showWebHint(prix) === true && $('#webHint').hidden === false && /Activer le web/.test($('#webHint').innerText) && /actualité, un prix ou une info récente/.test($('#webHint').innerText));
+      $('#webHintGo').click();
+      ok('activer le web garde la réflexion', S.set.web === true && S.set.reasoning === false && $('#webHint').hidden === true);
+      S.set.web = false;
+      ok('pas de suggestion sans besoin', showWebHint('résume ce texte en trois lignes') === false);
+      S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.web = false;
+      ok('pas de suggestion neural', showWebHint(prix) === false && $('#webHint').hidden === true);
+      S.set.plan = 'free'; S.set.variant = '';
+      ok('pas de suggestion free', showWebHint('météo à Lyon demain') === false);
+      S.set.plan = 'elite'; S.set.variant = 'omega90'; S.set.web = false;
+      ok('pas de suggestion omega', showWebHint(prix) === false);
+      LS.set('fsm.levelhint', {});
+      S.set.plan = 'entreprise'; S.set.web = false; S.set.reasoning = false;
+      const v55 = VARIANTS.find(v => v.id === 'corser55'), v60 = VARIANTS.find(v => v.id === 'corser60');
+      ok('popup pro', offerLevelHint(v55) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 5.5 PRO, tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.' && /Activer/.test($('#levelHintGo').textContent) && $('#levelHintClose').textContent === 'Fermer');
+      ok('note variantes', variantRowsHtml().includes('Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.'));
+      $('#levelHintClose').click();
+      ok('fermer conserve les choix', $('#levelHint').hidden === true && S.set.web === false && S.set.reasoning === false);
+      ok('popup une seule fois', offerLevelHint(v55) === false && $('#levelHint').hidden === true);
+      S.set.web = true; S.set.reasoning = false;
+      ok('popup max une fois par niveau', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 6.0 MAX, tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.');
+      $('#levelHintGo').click();
+      ok('activer n\'éteint pas le web déjà choisi', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
+      ok('max ne revient pas', offerLevelHint(v60) === false && $('#levelHint').hidden === true);
+      LS.set('fsm.levelhint', {});
+      S.set.web = true; S.set.reasoning = true;
+      ok('popup sauté si déjà activés', offerLevelHint(v55) === false && $('#levelHint').hidden === true && (LS.get('fsm.levelhint', {}) || {}).corser55 === 1 && S.set.web === true && S.set.reasoning === true);
+      ok('pas de popup neural', offerLevelHint(VARIANTS.find(v => v.id === 'neural58')) === false);
+      ok('pas de popup omega', offerLevelHint(VARIANTS.find(v => v.id === 'omega90')) === false);
+      ok('pas de popup 5.0', offerLevelHint(VARIANTS.find(v => v.id === 'corser50')) === false);
+    } finally {
+      S.set.plan = keep.plan; S.set.variant = keep.variant; S.set.web = keep.web; S.set.reasoning = keep.reasoning; S.set.corser50Quiet = keep.quiet;
+      S.set.category = keep.cat; S.set.model = keep.model; S.models = keep.models;
+      if (hint == null){ try{ localStorage.removeItem('fsm.levelhint'); }catch(e){} } else LS.set('fsm.levelhint', hint);
+      hideWebHint(); const lh = $('#levelHint'); if (lh) lh.hidden = true;
+      try{ saveSettings(); renderOpts(); }catch(e){}
+    }
+  }
+  const imgCard = genCardHtml({ status: "Création de l'image", imgAspect: '1:1', t: Date.now() - 9000 }, 'image');
+  const vidCard = genCardHtml({ status: 'Génération de la vidéo', vidAspect: '16:9' }, 'video');
+  const devCard = devCardHtml('canvas', 'html');
+  ok('image sans compteur', imgCard.includes('class="gc-mark"') && !imgCard.includes('gc-time') && imgCard.includes('gc-bar') && !/\d+:\d{2}/.test(imgCard));
+  ok('vidéo sans compteur', vidCard.includes('class="gc-mark"') && !vidCard.includes('gc-time') && vidCard.includes('class="gc-bar"') && /Revenez plus tard/.test(vidCard));
+  ok('code sans compteur', devCard.includes('class="gc-mark"') && !devCard.includes('gc-time') && devCard.includes('gc-bar'));
+  const host = document.createElement('div');
+  host.innerHTML = imgCard;
+  document.body.appendChild(host);
+  genClock();
+  await new Promise(r => setTimeout(r, 560));
+  const rowTxt = host.querySelector('.gc-row')?.textContent || '';
+  ok('horloge arrêtée', !host.querySelector('.gc-time') && !/\d+:\d{2}/.test(rowTxt) && !!host.querySelector('.gc-mark') && !!host.querySelector('.gc-bar i'));
+  host.remove();
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
+  ok('mouvement réduit', /prefers-reduced-motion:\s*reduce/.test(css) && /gc-mark::before\{animation:none!important\}/.test(css) && /\.gc-bar i\{/.test(css));
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
