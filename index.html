@@ -405,7 +405,6 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .us-bar.warn i{background:#ff9f0a}
 .us-bar.over i{background:#ff453a}
 .us-sub{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
-.us-note{margin:14px 4px 10px;font:400 12.5px/1.45 var(--f-body);color:var(--faint)}
 .us-up{width:100%;margin-top:4px}
 .us-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15.5px;text-align:left}
 .us-row svg{width:22px;height:22px;flex:0 0 22px;color:var(--muted)}
@@ -908,7 +907,6 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .vfam-h{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 4px}
 .vfam-h span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
 .vinc{font-size:15px;font-weight:600;color:var(--ink);padding:2px 4px 10px}
-.vnote{margin:2px 4px 16px;font:400 12.5px/1.45 var(--f-body);color:var(--faint)}
 .vrow em{font-style:normal;color:var(--faint)}
 
 .devcard{width:min(100%,520px);margin:4px 0 12px}
@@ -7385,8 +7383,7 @@ function renderUsage(){
     ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend au renouvellement. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
     ${unlockBtnHtml()}
-    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}
-    <p class="us-note">Les niveaux plus puissants, le Web et la Réflexion font avancer le forfait un peu plus vite. Ton pourcentage reste le repère.</p>`;
+    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
 }
 function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
 document.getElementById('btnUsage')?.addEventListener('click', openUsage);
@@ -7780,7 +7777,7 @@ function variantRowsHtml(){
     return `<div class="vfam"><div class="vfam-h">Gamme ${esc(f)}${own ? '' : ` <span>· incluse avec ton abonnement</span>`}</div>`
       + vs.map(v => `<button class="mrow auto vrow${cur && v.id === cur.id ? ' on' : ''}" data-variant="${v.id}"><span class="l1"><span class="mn">${esc(v.name)}</span>${v.def && own ? '<span class="rec">Par défaut</span>' : v.lvl % 3 ? `<span class="rec">${v.lvl % 3 === 1 ? 'PRO' : 'MAX'}</span>` : ''}</span><span class="mid auto-d">${esc(v.desc)}</span></button>`).join('')
       + '</div>';
-  }).join('') + '<p class="vnote">Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.</p>';
+  }).join('');
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-variant]'); if (!b) return;
@@ -7994,11 +7991,10 @@ const LEVEL_HINT_MS = 6000;
 let levelHintTimer = 0;
 function levelHintCopy(){
   const web = !!S.set.web, reason = !!S.set.reasoning;
-  const pace = ' Cela fait avancer le forfait un peu plus vite.';
-  if (web && reason) return 'Le Web et la Réflexion sont activés. Tu peux les désactiver.' + pace;
-  if (!web && reason) return 'Tu peux activer le Web. La Réflexion est déjà allumée.' + pace;
-  if (web && !reason) return 'Tu peux activer la Réflexion. Le Web est déjà allumé.' + pace;
-  return 'Tu peux activer le Web et la Réflexion.' + pace;
+  if (web && reason) return 'Le Web et la Réflexion sont activés. Tu peux les désactiver.';
+  if (!web && reason) return 'Tu peux activer le Web. La Réflexion est déjà allumée.';
+  if (web && !reason) return 'Tu peux activer la Réflexion. Le Web est déjà allumé.';
+  return 'Tu peux activer le Web et la Réflexion.';
 }
 function offerLevelHint(v){
   if (!v || !CORSER_HINT.has(v.id)) return false;
@@ -8471,7 +8467,7 @@ async function runProductTests(){
   ok('second déblocage refusé', applyUnlock() === false && canUnlock().why === 'used');
   renderUsage();
   ok('bouton grisé', /Déblocage déjà utilisé ce mois-ci/.test($('#usBody').innerText || ''));
-  ok('note limites', ($('#usBody').innerText || '').includes('Les niveaux plus puissants, le Web et la Réflexion font avancer le forfait un peu plus vite. Ton pourcentage reste le repère.'));
+  ok('note limites absente', !/plus vite|consomment ton forfait|font avancer le forfait|us-note/.test(($('#usBody').innerText || '') + ($('#usBody').innerHTML || '')));
   window.__fsmNow = Date.parse('2026-11-01T00:00:00Z');
   ok('nouveau mois UTC', canUnlock().ok === true);
   window.__fsmNow = Date.parse('2026-10-24T12:00:00Z');
@@ -8715,22 +8711,23 @@ async function runProductTests(){
       LS.set('fsm.levelhint', { corser50:1, corser55:1, corser60:1 });
       S.set.plan = 'entreprise'; S.set.web = true; S.set.reasoning = true;
       const v50 = VARIANTS.find(v => v.id === 'corser50'), v55 = VARIANTS.find(v => v.id === 'corser55'), v60 = VARIANTS.find(v => v.id === 'corser60');
-      const onCopy = 'Le Web et la Réflexion sont activés. Tu peux les désactiver. Cela fait avancer le forfait un peu plus vite.';
-      ok('mention 5.0 tout allumé', offerLevelHint(v50) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === onCopy && $('#levelHintGo').hidden === true && $('#levelHintClose').textContent === 'Fermer' && !/\d|\$|€/.test($('#levelHintText').textContent));
-      ok('note variantes', variantRowsHtml().includes('Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.'));
+      const onCopy = 'Le Web et la Réflexion sont activés. Tu peux les désactiver.';
+      const noPace = t => !/plus vite|consomment ton forfait|font avancer le forfait/.test(t || '');
+      ok('mention 5.0 tout allumé', offerLevelHint(v50) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === onCopy && $('#levelHintGo').hidden === true && $('#levelHintClose').textContent === 'Fermer' && noPace($('#levelHintText').textContent) && !/\$|€/.test($('#levelHintText').textContent));
+      ok('note variantes absente', !/vnote|plus vite|consomment ton forfait|font avancer le forfait/.test(variantRowsHtml()));
       ok('verrou ignoré', offerLevelHint(v50) === true && $('#levelHint').hidden === false);
       $('#levelHintClose').click();
       ok('fermer conserve les choix', $('#levelHint').hidden === true && S.set.web === true && S.set.reasoning === true);
       S.set.web = false; S.set.reasoning = true;
-      ok('mention pro web éteint', offerLevelHint(v55) === true && $('#levelHintText').textContent === 'Tu peux activer le Web. La Réflexion est déjà allumée. Cela fait avancer le forfait un peu plus vite.' && $('#levelHintGo').hidden === false && /Activer/.test($('#levelHintGo').textContent));
+      ok('mention pro web éteint', offerLevelHint(v55) === true && $('#levelHintText').textContent === 'Tu peux activer le Web. La Réflexion est déjà allumée.' && noPace($('#levelHintText').textContent) && $('#levelHintGo').hidden === false && /Activer/.test($('#levelHintGo').textContent));
       $('#levelHintGo').click();
       ok('activer ne touche que le web', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
       S.set.web = true; S.set.reasoning = false;
-      ok('mention max réflexion éteinte', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Tu peux activer la Réflexion. Le Web est déjà allumé. Cela fait avancer le forfait un peu plus vite.');
+      ok('mention max réflexion éteinte', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Tu peux activer la Réflexion. Le Web est déjà allumé.' && noPace($('#levelHintText').textContent));
       $('#levelHintGo').click();
       ok('activer ne touche que la réflexion', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
       S.set.web = false; S.set.reasoning = false;
-      ok('mention deux puces éteintes', offerLevelHint(v50) === true && $('#levelHintText').textContent === 'Tu peux activer le Web et la Réflexion. Cela fait avancer le forfait un peu plus vite.');
+      ok('mention deux puces éteintes', offerLevelHint(v50) === true && $('#levelHintText').textContent === 'Tu peux activer le Web et la Réflexion.' && noPace($('#levelHintText').textContent));
       $('#levelHintClose').click();
       ok('fermer laisse les puces éteintes', $('#levelHint').hidden === true && S.set.web === false && S.set.reasoning === false);
       ok('pas de mention neural', offerLevelHint(VARIANTS.find(v => v.id === 'neural58')) === false);
