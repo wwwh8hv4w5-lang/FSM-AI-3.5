@@ -2718,10 +2718,10 @@ async function apiError(res){
   try{ const j = await res.json(); msg = j.error?.message || j.message || ''; const raw = j.error?.metadata?.raw; if (raw) msg += '\n' + String(typeof raw === 'string' ? raw : JSON.stringify(raw)).slice(0, 300); }
   catch(e){ try{ msg = (await res.text()).slice(0, 300); }catch(_){} }
   const map = { 400:'Requête refusée par le modèle.', 401:'Clé API refusée. Vérifie-la dans les réglages.', 402:'Crédits OpenRouter insuffisants pour ce modèle.', 403:'Accès refusé (modération ou modèle restreint).', 404:'Modèle ou service introuvable. Vérifie que ce modèle gère ce type de demande.', 408:'Délai dépassé.', 413:'Fichier trop lourd pour ce modèle.', 429:'Trop de requêtes : patiente un peu ou change de modèle.', 502:'Le fournisseur du modèle ne répond pas. Réessaie ou change de modèle.', 503:'Aucun fournisseur disponible pour ce modèle avec ces fichiers.' };
-  if (/openrouter\.ai/.test(res.url || '') && (res.status === 403 || res.status === 402) && /key limit|limit exceeded|budget|spend limit|credit limit/i.test(msg)){
+    if (/openrouter\.ai/.test(res.url || '') && (res.status === 403 || res.status === 402) && /key limit|limit exceeded|budget|spend limit|credit limit/i.test(msg)){
     if (S.keyInfo){ S.keyInfo.remaining = 0; S.keyInfo.used = S.keyInfo.limit || S.keyInfo.used; }
     fetchKeyInfo(true);
-    const le = new Error(limitMsg(false) + ' Les modèles gratuits restent disponibles en attendant : renvoie ton message pour continuer.');
+    const le = new Error(limitMsg(true) + ' Renvoie ton message pour continuer.');
     le.status = res.status; le.limit = true; return le;
   }
   const e = new Error((map[res.status] || ('Erreur ' + res.status)) + (msg ? '\n' + msg : ''));
@@ -3216,7 +3216,11 @@ async function send(){
   else if (routerOn(cat) && !isXai(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
   else if (freeOnly() && !S.conv?.bot){
     const mi = modelInfo(item.model), md = modeFor(item.model);
-    if (md === 'image' || md === 'chat+image'){ const im = freeImageModel(cat === 'photoedit'); if (im && im.id !== item.model){ item.model = im.id; toast('Abonnement Free : modèle d\'images gratuit utilisé'); } }
+    if (md === 'image' || md === 'chat+image'){
+      const im = freeImageModel(cat === 'photoedit');
+      if (!im){ toast(isFreePlan() ? "Aucun modèle d'images gratuit n'est disponible pour le moment." : "Aucun modèle d'images économique n'est disponible pour le moment."); return; }
+      if (im.id !== item.model){ item.model = im.id; toast(isFreePlan() ? 'Abonnement Free : modèle d\'images gratuit utilisé' : 'Limite atteinte : les images continuent avec le modèle le plus économique.'); }
+    }
     else if (!mi || !isFree(mi)){ const r = freeRoute(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; toast('Abonnement Free : modèle gratuit utilisé'); } }
   }
   if (!(await budgetGate(estimateCost(item, cat)))) return;
@@ -7105,10 +7109,9 @@ function universalRoute(text, atts, conv, forceCat){
     if (cat === 'video') return { blocked: capped ? limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.' : FREE_NO_VIDEO, cat };
     if (cat === 'image' || cat === 'photoedit'){
       const im = freeImageModel(cat === 'photoedit');
-      if (capped && im && !/:free$/.test(im.id)) return { blocked: limitMsg(false) + " La création d'images reviendra à ce moment-là.", cat };
-      if (im) return { cat, model: im.id, route:{ model: im.id, cat, label: INTENT_FR[cat], why: INTENT_FR[cat] + ' · abonnement Free', universal:true, plan:'free', imgAspect: cat === 'photoedit' ? 'auto' : undefined } };
-      if (cat === 'photoedit') return { blocked: "Aucun modèle d'images gratuit ne sait retoucher une photo jointe : la retouche photo n'est pas disponible avec l'abonnement Free.", cat };
-      return { blocked: "Aucun modèle de génération d'images n'est disponible pour le moment.", cat };
+      if (im) return { cat, model: im.id, route:{ model: im.id, cat, label: INTENT_FR[cat], why: INTENT_FR[cat] + (capped ? ' · modèle le plus économique' : ' · abonnement Free'), universal:true, plan: capped ? (S.set.plan || '') : 'free', imgAspect: cat === 'photoedit' ? 'auto' : undefined } };
+      if (cat === 'photoedit') return { blocked: capped ? "Aucun modèle d'images économique ne sait retoucher une photo jointe pour le moment." : "Aucun modèle d'images gratuit ne sait retoucher une photo jointe : la retouche photo n'est pas disponible avec l'abonnement Free.", cat };
+      return { blocked: capped ? "Aucun modèle d'images économique n'est disponible pour le moment." : "Aucun modèle de génération d'images n'est disponible pour le moment.", cat };
     }
     if (cat === 'search') cat = 'chat';
     if (cat === 'videoedit' && !freeTextModel('videoedit', atts, conv, 'standard')) return { blocked: "Aucun modèle gratuit ne sait analyser une vidéo pour la monter : la retouche vidéo n'est pas disponible avec l'abonnement Free.", cat };
@@ -7319,9 +7322,10 @@ function resetText(){
 }
 function limitMsg(fallback){
   const p = PLANS[S.set.plan];
-  if (weekExhausted()) return `Limite hebdomadaire de ton abonnement${p ? ' ' + p.key : ''} atteinte. Elle se réinitialise ${fmtReset(nextMondayUTC())}.` + (fallback ? ' En attendant, les modèles gratuits prennent le relais.' : '');
+  const suite = fallback ? ' Le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprendra au renouvellement.' : '';
+  if (weekExhausted()) return `Limite hebdomadaire de ton abonnement${p ? ' ' + p.key : ''} atteinte. Elle se réinitialise ${fmtReset(nextMondayUTC())}.` + suite;
   const base = `Limite mensuelle de ton abonnement${p ? ' ' + p.key : ''} atteinte.` + resetText();
-  return base + (fallback ? ' En attendant, les modèles gratuits prennent le relais.' : '');
+  return base + suite;
 }
 /* La limite atteinte bascule le routeur sur les modèles gratuits */
 function freeOnly(){ return isFreePlan() || keyExhausted() || weekExhausted(); }
@@ -7361,8 +7365,8 @@ function renderUsage(){
   const upd = ki.t ? new Date(ki.t).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '';
   el.innerHTML = `
     <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
-    ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : les modèles gratuits prennent le relais. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
-    ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : les modèles gratuits prennent le relais. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
+    ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
+    ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend au renouvellement. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
     ${unlockBtnHtml()}
     ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
 }
@@ -8398,7 +8402,7 @@ async function runProductTests(){
   S.keyInfo.k = keyTag(S.key); S.keyInfo.weekly = 6; S.keyInfo.remaining = 12; S.keyInfo.used = 6;
   ok('autre clé, autre compteur', S._keyFp !== fp1 && canUnlock().ok === true);
   S.keyInfo.remaining = 0; S.keyInfo.used = 18;
-  ok('mois à 100 % bloque encore', keyExhausted() && !canUnlock().ok && freeOnly());
+  ok('mois à 100 % bloque encore', keyExhausted() && !canUnlock().ok && freeOnly() && /texte passe sur les modèles gratuits/.test(limitMsg(true)) && /images continuent/.test(limitMsg(true)) && !/création d'images reviendra/.test(limitMsg(true)));
   delete window.__fsmNow;
   S.set.plan = 'entreprise'; S.keyState = 'ok';
   S.keyInfo = { k: keyTag(S.key), limit: 18, remaining: 10, used: 8, weekly: 1, monthly: 8, t: Date.now() };
@@ -8479,6 +8483,50 @@ async function runProductTests(){
       ok('OMEGA inchangé', go('quelle heure est-il ?').model === OPUS && go(complexe).model === OPUS);
     } finally {
       S.models = saved.models; S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo;
+    }
+  }
+  {
+    const saved = { models: S.models, plan: S.set.plan, variant: S.set.variant, keyInfo: S.keyInfo, fp: S._keyFp, now: window.__fsmNow };
+    const img = (id, usd, created) => ({ id, created, pricing:{ prompt:'0', completion:'0', image:String(usd) }, architecture:{ input_modalities:['text','image'], output_modalities:['image'] }, supported_parameters:[] });
+    const mini = 'openai/gpt-5-image-mini';
+    S.models = [img('openai/gpt-5-image', 0.04, 100), img(mini, 0.01, 200), img('x-ai/grok-imagine-image', 0.02, 150)];
+    S._keyFp = '';
+    window.__fsmNow = Date.parse('2026-10-24T12:00:00Z');
+    const photo = [{ name:'a.png', type:'image/png' }];
+    const go = (text, atts) => universalRoute(text, atts || [], { messages:[] });
+    try{
+      ok('modèle d\'images le moins cher', freeImageModel(false)?.id === mini && freeImageModel(true)?.id === mini);
+      for (const plan of ['entreprise', 'competence', 'elite']){
+        S.set.plan = plan;
+        S.set.variant = plan === 'competence' ? 'neural55' : plan === 'elite' ? 'omega80' : 'corser50';
+        S.keyInfo = { limit:18, used:18, remaining:0, weekly:6, monthly:18, t:Date.now() };
+        const gen = go('génère une image d\'un chat');
+        const edit = go('passe cette photo en noir et blanc', photo);
+        const vid = go('fais une vidéo de vagues');
+        ok('images au mois plein ' + plan, keyExhausted() && !canUnlock().ok && !gen.blocked && gen.cat === 'image' && gen.model === mini && /économique/.test(gen.route.why) && gen.route.plan === plan && !edit.blocked && edit.cat === 'photoedit' && edit.model === mini && vid.blocked && /vidéo/i.test(vid.blocked) && !/création d'images reviendra/.test(vid.blocked || ''));
+        S.keyInfo = { limit:18, used:6, remaining:12, weekly:6, monthly:6, t:Date.now() };
+        const genW = go('génère une image d\'un chat');
+        const vidW = go('fais une vidéo de vagues');
+        ok('images en semaine pleine ' + plan, weekExhausted() && !keyExhausted() && !genW.blocked && genW.model === mini && vidW.blocked);
+      }
+      S.set.plan = 'free';
+      S.keyInfo = { limit:0, used:0, remaining:0, weekly:0, monthly:0, t:Date.now() };
+      const genF = go('génère une image d\'un chat');
+      const vidF = go('fais une vidéo de vagues');
+      ok('free images inchangé', isFreePlan() && !genF.blocked && genF.model === mini && /abonnement Free/.test(genF.route.why) && vidF.blocked === FREE_NO_VIDEO);
+      S.set.plan = 'entreprise'; S.set.variant = 'corser60';
+      S.keyInfo = { limit:18, used:18, remaining:0, weekly:6, monthly:18, t:Date.now() };
+      const altI = altModel({ cat:'image', model:'openai/gpt-5-image' }, { text:'un chat', atts:[] }, { messages:[] }, ['openai/gpt-5-image']);
+      const altE = altModel({ cat:'photoedit', model:'openai/gpt-5-image' }, { text:'noir et blanc', atts:photo }, { messages:[] }, []);
+      const altV = altModel({ cat:'video', model:'x-ai/grok-imagine-video' }, { text:'des vagues', atts:[] }, { messages:[] }, []);
+      ok('repli image économique, pas la vidéo', altI === mini && altE === mini && altV == null);
+      $('#usageSheet').hidden = false; renderUsage();
+      const us = $('#usBody')?.innerText || '';
+      ok('message de limite images', /images continuent avec le modèle le plus économique/.test(us) && /vidéo reprend/.test(us) && !/création d'images reviendra/.test(us) && !us.includes('$'));
+      $('#usageSheet').hidden = true;
+    } finally {
+      S.models = saved.models; S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo; S._keyFp = saved.fp;
+      if (saved.now) window.__fsmNow = saved.now; else delete window.__fsmNow;
     }
   }
   const pass = results.filter(r => r.pass).length;
