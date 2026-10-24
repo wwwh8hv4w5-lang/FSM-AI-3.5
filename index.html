@@ -7714,23 +7714,23 @@ const BRANDS = {
 /* ----- Variantes des modèles FSM AI (une gamme par abonnement, les abonnements supérieurs incluent les gammes inférieures) ----- */
 const VARIANTS = [
   { id:'corser50',  plan:'entreprise', fam:'CORSER', name:'FSM AI CORSER 5.0',     top:'FSM AI 5.0', sub:'CORSER',     lvl:0, def:true,
-    desc:"Le modèle Entreprise : rapide, fiable et efficace au quotidien." },
+    desc:"Rapide et économique pour le quotidien : questions, rédaction, résumés, traductions et code simple (scripts, petites fonctions, corrections rapides)." },
   { id:'corser55',  plan:'entreprise', fam:'CORSER', name:'FSM AI CORSER 5.5 PRO', top:'FSM AI 5.5', sub:'CORSER PRO', lvl:1,
-    desc:"La version Pro de Corser : résultats plus cohérents, recherches plus approfondies." },
+    desc:"Le choix pour le code et les projets sérieux : applications complètes, débogage difficile, refonte de code, et des réponses plus précises sur les sujets exigeants." },
   { id:'corser60',  plan:'entreprise', fam:'CORSER', name:'FSM AI CORSER 6.0 MAX', top:'FSM AI 6.0', sub:'CORSER MAX', lvl:2,
-    desc:"La version Max de Corser : la meilleure qualité de la gamme, pour tes demandes les plus importantes." },
+    desc:"Le niveau le plus poussé de CORSER : le même code solide que PRO, avec en plus le modèle le plus puissant pour les analyses, les rapports, la stratégie et le raisonnement complexe." },
   { id:'neural55',  plan:'competence', fam:'NEURAL', name:'FSM AI NEURAL 5.5',     top:'FSM AI 5.5', sub:'NEURAL',     lvl:3, def:true,
-    desc:"Le modèle Compétence : plus puissant, plus précis, à l'aise sur les sujets exigeants." },
+    desc:"Les petites demandes restent sur un modèle léger ; le code et les sujets sérieux montent, jusqu'au haut de la gamme si l'enjeu le demande. Images et vidéos déjà premium." },
   { id:'neural58',  plan:'competence', fam:'NEURAL', name:'FSM AI NEURAL PRO 5.8', top:'FSM AI 5.8', sub:'NEURAL PRO', lvl:4,
-    desc:"La version Pro de Neural : analyses plus fines, code et rédaction plus aboutis." },
+    desc:"Les questions courtes partent déjà sur un modèle solide, et le code comme les sujets exigeants vont au plus haut de NEURAL. Images et vidéos premium." },
   { id:'neural60',  plan:'competence', fam:'NEURAL', name:'FSM AI NEURAL MAX 6.0', top:'FSM AI 6.0', sub:'NEURAL MAX', lvl:5,
-    desc:"La version Max de Neural : un niveau premium sur chaque réponse." },
+    desc:"Le plus haut de NEURAL : une demande courte reste solide, et le code, les analyses et les sujets difficiles partent au maximum. Images et vidéos premium." },
   { id:'omega80',   plan:'elite', fam:'OMEGA', name:'FSM AI OMEGA 8.0',     top:'FSM AI 8.0', sub:'OMEGA',     lvl:6, def:true,
-    desc:"Le modèle Élite : la puissance des meilleurs modèles au service de chaque demande." },
+    desc:"Au plus haut dès que la demande a du corps, sans écarter un modèle trop puissant. Pour le code ambitieux, les dossiers longs et des images et vidéos premium." },
   { id:'omega85',   plan:'elite', fam:'OMEGA', name:'FSM AI OMEGA PRO 8.5', top:'FSM AI 8.5', sub:'OMEGA PRO', lvl:7,
-    desc:"La version Pro d'Omega : raisonnement approfondi et précision maximale." },
+    desc:"Dès la première vraie demande, le plus haut niveau, et un raisonnement approfondi activé automatiquement. Pour le code difficile et les projets longs. Images et vidéos premium." },
   { id:'omega90',   plan:'elite', fam:'OMEGA', name:'FSM AI OMEGA MAX 9.0', top:'FSM AI 9.0', sub:'OMEGA MAX', lvl:8,
-    desc:"La version Max d'Omega : le plus haut niveau de FSM AI, sans compromis." }
+    desc:"Le sommet : chaque vraie demande prend le modèle le plus puissant disponible, avec le raisonnement approfondi automatique. Dossiers critiques et code le plus difficile. Images et vidéos premium." }
 ];
 const PLAN_RANK = { entreprise:1, competence:2, elite:3 };
 function variantsFor(plan){ const r = PLAN_RANK[plan] || 0; return VARIANTS.filter(v => (PLAN_RANK[v.plan] || 0) <= r); }
