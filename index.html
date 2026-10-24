@@ -957,7 +957,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 
   <footer class="composer">
     <div class="col">
-      <div class="levelhint" id="levelHint" hidden role="dialog" aria-modal="false" aria-labelledby="levelHintText"><p id="levelHintText"></p><div class="row"><button type="button" class="go" id="levelHintGo">Activer</button><button type="button" id="levelHintClose">Fermer</button></div></div>
+      <div class="levelhint" id="levelHint" hidden role="status" aria-labelledby="levelHintText"><p id="levelHintText"></p><div class="row"><button type="button" class="go" id="levelHintGo">Activer</button><button type="button" id="levelHintClose">Fermer</button></div></div>
       <div class="webhint" id="webHint" hidden><span>Cette demande semble concerner l'actualité, un prix ou une info récente.</span><button type="button" id="webHintGo">Activer le web</button></div>
       <div class="editbar" id="editBar" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modification du message</span><button type="button" id="editCancel">Annuler</button></div>
       <div class="queue" id="queue" hidden></div>
@@ -1640,8 +1640,7 @@ function refreshModelUI(){
 function applyPreset(cat){
   S.set.category = cat.id;
   const p = cat.preset || {};
-  /* CORSER 5.0 démarre sans web ni réflexion : le preset Discussion ne les rallume pas. */
-  if (!(typeof corser50On === 'function' && corser50On())){ S.set.web = !!p.web; S.set.reasoning = !!p.reasoning; }
+  S.set.web = !!p.web; S.set.reasoning = !!p.reasoning;
   if ('fileHints' in p) S.set.fileHints = p.fileHints;
   if ('imgAspect' in p) S.set.imgAspect = p.imgAspect; else if (S.set.imgAspect === 'auto' && cat.id !== 'photoedit') S.set.imgAspect = '1:1';
   saveSettings();
@@ -7788,7 +7787,6 @@ document.addEventListener('click', e => {
   const v = VARIANTS.find(x => x.id === b.dataset.variant); if (!v) return;
   const prevId = curVariant()?.id;
   S.set.variant = v.id; saveSettings();
-  if (v.id === 'corser50') applyCorser50Quiet();
   try{ refreshModelUI(); renderModelList(); if (!S.conv?.messages?.length) renderThread(); }catch(err){}
   if (prevId !== v.id) offerLevelHint(v);
   toast(v.name + ' sélectionné');
@@ -7962,21 +7960,23 @@ async function autoVideoContinuation(text){
   return 'video';
 }
 
-/* Web et réflexion : activés une fois, sauf CORSER 5.0, qui démarre avec les deux puces éteintes.
-   L'utilisateur peut les rallumer. On ne refait pas ce réglage. */
+/* Web et réflexion : allumés par défaut sur CORSER 5.0, comme sur PRO et MAX.
+   Les puces restent affichées et désactivables. Les comptes passés par la version qui les éteignait
+   en 5.0 les retrouvent allumés une fois, puis leurs choix suivants sont conservés. */
 function corser50On(){ try{ return typeof curVariant === 'function' && curVariant()?.id === 'corser50'; }catch(e){ return false; } }
-function applyCorser50Quiet(){
-  if (!corser50On() || S.set.corser50Quiet) return false;
-  S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true;
+function restoreCorserDefaults(){
+  if (!S.set.corser50Quiet) return false;
+  S.set.web = true; S.set.reasoning = true;
+  delete S.set.corser50Quiet;
   try{ saveSettings(); }catch(e){}
   return true;
 }
 if (!S.set.defaultsV2){
-  if (corser50On()){ S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true; }
-  else { S.set.web = true; S.set.reasoning = true; }
+  S.set.web = true; S.set.reasoning = true;
   S.set.defaultsV2 = true; try{ saveSettings(); }catch(e){}
 }
-applyCorser50Quiet();
+restoreCorserDefaults();
+try{ localStorage.removeItem('fsm.levelhint'); }catch(e){}
 function showWebHint(text){
   if (!corser50On() || S.set.web || S.voiceActive) return false;
   if (!needsWeb(text)) return false;
@@ -7989,21 +7989,31 @@ function acceptWebHint(){
   S.set.web = true; saveSettings(); hideWebHint();
   try{ renderOpts(); }catch(e){}
 }
+const CORSER_HINT = new Set(['corser50', 'corser55', 'corser60']);
+const LEVEL_HINT_MS = 6000;
+let levelHintTimer = 0;
+function levelHintCopy(){
+  const web = !!S.set.web, reason = !!S.set.reasoning;
+  const pace = ' Cela fait avancer le forfait un peu plus vite.';
+  if (web && reason) return 'Le Web et la Réflexion sont activés. Tu peux les désactiver.' + pace;
+  if (!web && reason) return 'Tu peux activer le Web. La Réflexion est déjà allumée.' + pace;
+  if (web && !reason) return 'Tu peux activer la Réflexion. Le Web est déjà allumé.' + pace;
+  return 'Tu peux activer le Web et la Réflexion.' + pace;
+}
 function offerLevelHint(v){
-  if (!v || (v.id !== 'corser55' && v.id !== 'corser60')) return false;
-  const seen = LS.get('fsm.levelhint', {}) || {};
-  if (seen[v.id]) return false;
-  if (S.set.web && S.set.reasoning){ seen[v.id] = 1; LS.set('fsm.levelhint', seen); return false; }
-  const name = v.id === 'corser55' ? 'CORSER 5.5 PRO' : 'CORSER 6.0 MAX';
+  if (!v || !CORSER_HINT.has(v.id)) return false;
   const el = $('#levelHint'); if (!el) return false;
-  $('#levelHintText').textContent = 'Pour tirer le meilleur de ' + name + ', tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.';
+  const off = !S.set.web || !S.set.reasoning;
+  $('#levelHintText').textContent = levelHintCopy();
+  const go = $('#levelHintGo'); if (go) go.hidden = !off;
   el.dataset.level = v.id; el.hidden = false;
+  clearTimeout(levelHintTimer);
+  levelHintTimer = setTimeout(() => { levelHintTimer = 0; if (!el.hidden) el.hidden = true; }, LEVEL_HINT_MS);
   return true;
 }
 function dismissLevelHint(activate){
+  clearTimeout(levelHintTimer); levelHintTimer = 0;
   const el = $('#levelHint'); if (!el) return;
-  const id = el.dataset.level;
-  if (id){ const seen = LS.get('fsm.levelhint', {}) || {}; seen[id] = 1; LS.set('fsm.levelhint', seen); }
   if (activate){
     if (!S.set.web) S.set.web = true;
     if (!S.set.reasoning) S.set.reasoning = true;
@@ -8666,25 +8676,25 @@ async function runProductTests(){
     try{
       S.models = [{ id:'t/m', supported_parameters:['reasoning', 'tools'], architecture:{ input_modalities:['text'], output_modalities:['text'] } }];
       S.set.model = 't/m'; S.set.category = 'chat';
-      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.web = true; S.set.reasoning = true; S.set.corser50Quiet = false;
-      ok('défaut 5.0 coupe une fois', applyCorser50Quiet() === true && S.set.web === false && S.set.reasoning === false && S.set.corser50Quiet === true);
-      S.set.web = true; S.set.reasoning = true;
-      ok('défaut 5.0 ne se répète pas', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
-      S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.corser50Quiet = false; S.set.web = true; S.set.reasoning = true;
-      ok('défaut neural non touché', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.web = false; S.set.reasoning = false; S.set.corser50Quiet = true;
+      ok('5.0 rallume une fois', restoreCorserDefaults() === true && S.set.web === true && S.set.reasoning === true && !S.set.corser50Quiet);
+      S.set.web = false; S.set.reasoning = false;
+      ok('5.0 ne force plus ensuite', restoreCorserDefaults() === false && S.set.web === false && S.set.reasoning === false);
+      S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.web = true; S.set.reasoning = true;
+      ok('défaut neural non touché', restoreCorserDefaults() === false && S.set.web === true && S.set.reasoning === true);
       S.set.plan = 'free'; S.set.variant = '';
-      ok('défaut free non touché', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
+      ok('défaut free non touché', restoreCorserDefaults() === false && S.set.web === true && S.set.reasoning === true);
       S.set.plan = 'elite'; S.set.variant = 'omega80';
-      ok('défaut omega non touché', applyCorser50Quiet() === false && S.set.web === true && S.set.reasoning === true);
-      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.corser50Quiet = true; S.set.web = false; S.set.reasoning = false;
+      ok('défaut omega non touché', restoreCorserDefaults() === false && S.set.web === true && S.set.reasoning === true);
+      S.set.plan = 'entreprise'; S.set.variant = 'corser50'; S.set.web = false; S.set.reasoning = false;
       applyPreset(catById('chat'));
-      ok('preset 5.0 garde les puces éteintes', S.set.category === 'chat' && S.set.web === false && S.set.reasoning === false);
+      ok('preset 5.0 comme PRO', S.set.category === 'chat' && S.set.web === true && S.set.reasoning === true);
       renderOpts();
       const chipW = document.querySelector('#opts [data-toggle="web"]'), chipR = document.querySelector('#opts [data-toggle="reasoning"]');
-      ok('puces 5.0 présentes', !!chipW && !!chipR && chipW.getAttribute('aria-pressed') === 'false' && chipR.getAttribute('aria-pressed') === 'false');
+      ok('puces 5.0 présentes', !!chipW && !!chipR && chipW.getAttribute('aria-pressed') === 'true' && chipR.getAttribute('aria-pressed') === 'true');
       chipW.click();
-      ok('puce web activable', S.set.web === true && document.querySelector('#opts [data-toggle="web"]')?.getAttribute('aria-pressed') === 'true');
-      S.set.web = false; renderOpts();
+      ok('puce web désactivable', S.set.web === false && document.querySelector('#opts [data-toggle="web"]')?.getAttribute('aria-pressed') === 'false');
+      S.set.web = true; renderOpts();
       S.set.plan = 'competence'; S.set.variant = 'neural55'; S.set.web = false; S.set.reasoning = false;
       applyPreset(catById('chat'));
       ok('preset neural rallume comme avant', S.set.web === true && S.set.reasoning === true);
@@ -8702,25 +8712,33 @@ async function runProductTests(){
       ok('pas de suggestion free', showWebHint('météo à Lyon demain') === false);
       S.set.plan = 'elite'; S.set.variant = 'omega90'; S.set.web = false;
       ok('pas de suggestion omega', showWebHint(prix) === false);
-      LS.set('fsm.levelhint', {});
-      S.set.plan = 'entreprise'; S.set.web = false; S.set.reasoning = false;
-      const v55 = VARIANTS.find(v => v.id === 'corser55'), v60 = VARIANTS.find(v => v.id === 'corser60');
-      ok('popup pro', offerLevelHint(v55) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 5.5 PRO, tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.' && /Activer/.test($('#levelHintGo').textContent) && $('#levelHintClose').textContent === 'Fermer');
+      LS.set('fsm.levelhint', { corser50:1, corser55:1, corser60:1 });
+      S.set.plan = 'entreprise'; S.set.web = true; S.set.reasoning = true;
+      const v50 = VARIANTS.find(v => v.id === 'corser50'), v55 = VARIANTS.find(v => v.id === 'corser55'), v60 = VARIANTS.find(v => v.id === 'corser60');
+      const onCopy = 'Le Web et la Réflexion sont activés. Tu peux les désactiver. Cela fait avancer le forfait un peu plus vite.';
+      ok('mention 5.0 tout allumé', offerLevelHint(v50) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === onCopy && $('#levelHintGo').hidden === true && $('#levelHintClose').textContent === 'Fermer' && !/\d|\$|€/.test($('#levelHintText').textContent));
       ok('note variantes', variantRowsHtml().includes('Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.'));
+      ok('verrou ignoré', offerLevelHint(v50) === true && $('#levelHint').hidden === false);
       $('#levelHintClose').click();
-      ok('fermer conserve les choix', $('#levelHint').hidden === true && S.set.web === false && S.set.reasoning === false);
-      ok('popup une seule fois', offerLevelHint(v55) === false && $('#levelHint').hidden === true);
-      S.set.web = true; S.set.reasoning = false;
-      ok('popup max une fois par niveau', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 6.0 MAX, tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.');
+      ok('fermer conserve les choix', $('#levelHint').hidden === true && S.set.web === true && S.set.reasoning === true);
+      S.set.web = false; S.set.reasoning = true;
+      ok('mention pro web éteint', offerLevelHint(v55) === true && $('#levelHintText').textContent === 'Tu peux activer le Web. La Réflexion est déjà allumée. Cela fait avancer le forfait un peu plus vite.' && $('#levelHintGo').hidden === false && /Activer/.test($('#levelHintGo').textContent));
       $('#levelHintGo').click();
-      ok('activer n\'éteint pas le web déjà choisi', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
-      ok('max ne revient pas', offerLevelHint(v60) === false && $('#levelHint').hidden === true);
-      LS.set('fsm.levelhint', {});
+      ok('activer ne touche que le web', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
+      S.set.web = true; S.set.reasoning = false;
+      ok('mention max réflexion éteinte', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Tu peux activer la Réflexion. Le Web est déjà allumé. Cela fait avancer le forfait un peu plus vite.');
+      $('#levelHintGo').click();
+      ok('activer ne touche que la réflexion', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
+      S.set.web = false; S.set.reasoning = false;
+      ok('mention deux puces éteintes', offerLevelHint(v50) === true && $('#levelHintText').textContent === 'Tu peux activer le Web et la Réflexion. Cela fait avancer le forfait un peu plus vite.');
+      $('#levelHintClose').click();
+      ok('fermer laisse les puces éteintes', $('#levelHint').hidden === true && S.set.web === false && S.set.reasoning === false);
+      ok('pas de mention neural', offerLevelHint(VARIANTS.find(v => v.id === 'neural58')) === false);
+      ok('pas de mention omega', offerLevelHint(VARIANTS.find(v => v.id === 'omega90')) === false);
       S.set.web = true; S.set.reasoning = true;
-      ok('popup sauté si déjà activés', offerLevelHint(v55) === false && $('#levelHint').hidden === true && (LS.get('fsm.levelhint', {}) || {}).corser55 === 1 && S.set.web === true && S.set.reasoning === true);
-      ok('pas de popup neural', offerLevelHint(VARIANTS.find(v => v.id === 'neural58')) === false);
-      ok('pas de popup omega', offerLevelHint(VARIANTS.find(v => v.id === 'omega90')) === false);
-      ok('pas de popup 5.0', offerLevelHint(VARIANTS.find(v => v.id === 'corser50')) === false);
+      ok('mention se ferme seule', offerLevelHint(v55) === true && $('#levelHint').hidden === false);
+      await new Promise(r => setTimeout(r, LEVEL_HINT_MS + 250));
+      ok('mention disparue', $('#levelHint').hidden === true && S.set.web === true && S.set.reasoning === true);
     } finally {
       S.set.plan = keep.plan; S.set.variant = keep.variant; S.set.web = keep.web; S.set.reasoning = keep.reasoning; S.set.corser50Quiet = keep.quiet;
       S.set.category = keep.cat; S.set.model = keep.model; S.models = keep.models;
