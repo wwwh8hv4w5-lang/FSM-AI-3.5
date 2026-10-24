@@ -1789,9 +1789,8 @@ function renderPlan(){
   el.hidden = false;
   const pol = typeof PLAN_POL !== 'undefined' ? PLAN_POL[S.set.plan] : null;
   const lim = S.set.plan === 'unlimited' ? `<b>Illimité</b> · Aucun plafond · Accès à tous les modèles` : p.limit ? `<b>${esc(p.key)}</b> · Accès à tous les modèles, images, vidéos et recherche web` : `<b>Gratuit</b> · Modèles gratuits uniquement · 1 modèle de génération d'images · Pas de génération de vidéos`;
-  const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
-  const spent = ki ? ki.used : spentMonth(), cap = ki ? ki.limit : p.limit;
-  const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${usedPct(spent, cap)} de ton abonnement utilisé${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
+  const mu = monthUsage();
+  const used = mu ? `<div class="pl-row"><span>Ce mois-ci</span><span>${pctLabel(mu.ratio)} de ton abonnement utilisé${mu.fromKey ? ' (tous appareils)' : ''}${mu.ratio >= 1 ? ' · limite atteinte, modèles gratuits en attendant' : mu.ratio >= 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
   const balBlock = ''; /* l'utilisation se consulte dans l'onglet « Limites d'utilisation » */
   const auto = S.set.planAuto ? `<div class="pl-row"><span>Détection</span><span>Reconnu automatiquement grâce à ta clé</span></div>` : '';
   el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}${p.auto ? '' : `<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div>`}<div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèle</span><span><b>${esc(brand().name)}</b> · ${esc(brand().desc)}${['elite', 'unlimited'].includes(S.set.plan) ? '' : ' ' + esc(UPSELL)}</span></div>` : ''}${used}`;
@@ -3736,28 +3735,83 @@ function qVariants(q){
   if (words.length > 3) v.push(words.slice(0, 3).join(' '));
   return [...new Set(v)].slice(0, 4);
 }
+/* Banques publiques, gratuites, sans clé, appelables depuis le navigateur. Interrogées en parallèle. */
+const ILL_MS = 3200;
+const ILL_SOURCES = ['Wikipédia', 'Wikipédia (en)', 'Wikimedia Commons', 'Openverse', 'Art Institute of Chicago', 'The Met (domaine public)', 'NASA Image Library', 'Cleveland Museum of Art (CC0)'];
+function wikiCard(p, base, site){
+  if (!p?.thumbnail?.source || /\.svg/i.test(p.pageimage || '') || BAD_IMG.test((p.pageimage || '') + ' ' + (p.title || ''))) return null;
+  return { src: p.thumbnail.source, page: p.fullurl || `${base.replace(/\/w$/, '')}/wiki/${enc(p.title)}`, title: p.title || '', caption: p.pageimage || '', tags: '', site };
+}
+async function wikiHits(lang, q){
+  const base = `https://${lang}.wikipedia.org/w`;
+  const site = 'Wikipédia' + (lang === 'fr' ? '' : ' (' + lang + ')');
+  const u = `${base}/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${enc(q)}&gsrlimit=5&prop=pageimages|info&piprop=thumbnail|name&pithumbsize=900&inprop=url&redirects=1`;
+  const r = await fetch(u); if (!r.ok) return [];
+  return mwPages(await r.json()).map(p => wikiCard(p, base, site)).filter(Boolean).slice(0, 3);
+}
+async function commonsHits(q){
+  const u = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrsearch=${enc(q + ' filetype:bitmap')}&gsrlimit=8&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=900`;
+  const j = await (await fetch(u)).json();
+  return mwPages(j).filter(x => /image\/(jpeg|png|webp|gif)/.test(x.imageinfo?.[0]?.mime || '') && !BAD_IMG.test(x.title || '')).slice(0, 4).map(p => {
+    const info = p.imageinfo[0], meta = info.extmetadata || {};
+    const plain = v => String(v || '').replace(/<[^>]+>/g, ' ');
+    return { src: info.thumburl || info.url, page: info.descriptionurl, title: String(p.title || '').replace(/^File:|\.\w+$/g, '').replace(/_/g, ' '), caption: plain(meta.ImageDescription?.value), tags: plain(meta.Categories?.value), site: 'Wikimedia Commons' };
+  });
+}
+async function openverseHits(q){
+  const j = await (await fetch(`https://api.openverse.org/v1/images/?q=${enc(q)}&page_size=6&mature=false`)).json();
+  return (j.results || []).filter(x => (x.url || x.thumbnail) && !BAD_IMG.test(x.title || '')).slice(0, 4).map(p => ({
+    src: p.url || p.thumbnail, page: p.foreign_landing_url || p.url, title: p.title || q, caption: p.title || '',
+    tags: (p.tags || []).map(t => t.name || t).join(' '), site: 'Openverse' + (p.source ? ' · ' + p.source : '')
+  }));
+}
+async function aicHits(q){
+  const j = await getJSON(`https://api.artic.edu/api/v1/artworks/search?q=${enc(q)}&fields=id,title,image_id,is_public_domain,term_titles&limit=6`);
+  const base = j.config?.iiif_url || 'https://www.artic.edu/iiif/2';
+  return (j.data || []).filter(x => x.image_id).slice(0, 3).map(p => ({
+    src: `${base}/${p.image_id}/full/843,/0/default.jpg`, page: `https://www.artic.edu/artworks/${p.id}`, title: p.title || q,
+    caption: '', tags: (p.term_titles || []).join(' '), site: 'Art Institute of Chicago'
+  }));
+}
+async function metHits(q){
+  const j = await getJSON(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=${enc(q)}`);
+  const out = [];
+  for (const id of (j.objectIDs || []).slice(0, 2)){
+    const o = await getJSON(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`).catch(() => null);
+    if (!o || !o.primaryImageSmall) continue;
+    out.push({ src: o.primaryImageSmall, page: o.objectURL || `https://www.metmuseum.org/art/collection/search/${id}`, title: o.title || q, caption: o.objectName || '', tags: (o.tags || []).map(t => t.term || t).join(' '), site: 'The Met (domaine public)' });
+  }
+  return out;
+}
+async function nasaHits(q){
+  const j = await getJSON(`https://images-api.nasa.gov/search?q=${enc(q)}&media_type=image`);
+  return (j.collection?.items || []).filter(x => x.links?.[0]?.href).slice(0, 3).map(it => {
+    const d = it.data?.[0] || {};
+    return { src: String(it.links[0].href).replace(/~thumb\.jpg$/, '~medium.jpg'), page: `https://images.nasa.gov/details/${enc(d.nasa_id || '')}`, title: d.title || q, caption: d.description || '', tags: Array.isArray(d.keywords) ? d.keywords.join(' ') : (d.keywords || ''), site: 'NASA Image Library' };
+  });
+}
+async function clevelandHits(q){
+  const j = await getJSON(`https://openaccess-api.clevelandart.org/api/artworks/?q=${enc(q)}&has_image=1&cc0=1&limit=4`);
+  return (j.data || []).filter(x => x.images?.web?.url).slice(0, 3).map(p => ({
+    src: p.images.web.url, page: p.url || 'https://www.clevelandart.org/art', title: p.title || q, caption: p.creation_date || '', tags: [p.technique, p.culture].filter(Boolean).join(' '), site: 'Cleveland Museum of Art (CC0)'
+  }));
+}
+const ILL_PUBLIC = [q => wikiHits('fr', q), q => wikiHits('en', q), commonsHits, openverseHits, aicHits, metHits, nasaHits, clevelandHits];
+function till(p, ms){ return Promise.race([Promise.resolve().then(() => p).catch(() => []), new Promise(res => setTimeout(() => res([]), ms))]); }
 function findIll(q, src, ctx){
   const k = illKey(q, src);
   if (ILL.has(k)) return ILL.get(k);
-  const lang = (navigator.language || 'fr').slice(0, 2).toLowerCase();
-  const sub = subOf(src) || fandomFor(q + ' ' + (src || '') + ' ' + (ctx || ''));
-  const bank = bankOf(src), all = q + ' ' + (ctx || '');
   const pr = (async () => {
-    const vs = qVariants(q), steps = [];
-    const v0 = vs[0], vplain = v0.replace(/\s*\([^)]*\)/g, '');
-    if (bank && BANKS[bank]) steps.push(() => BANKS[bank](vplain));
-    if (sub) for (const v of vs.slice(0, 2)) steps.push(() => fandomImg(sub, v.replace(/\s*\([^)]*\)/g, '')));
-    if (ART_RE.test(q)){ steps.push(() => metImg(vplain), () => aicImg(vplain), () => clevelandImg(vplain), () => commonsImg(vplain)); }
-    if (SPACE_RE.test(q)) steps.push(() => nasaImg(vplain));
-    if (PHOTO_RE.test(q) && !ART_RE.test(q)) steps.push(() => unsplashImg(vplain), () => pexelsImg(vplain));
-    for (const v of vs){ steps.push(() => wikiImg(lang, v)); if (lang !== 'en') steps.push(() => wikiImg('en', v)); }
-    steps.push(() => commonsImg(vs[vs.length > 1 ? 1 : 0]));
-    steps.push(() => openverseImg(vs[0]));
-    if (!PHOTO_RE.test(q)) steps.push(() => unsplashImg(vplain), () => pexelsImg(vplain));
-    if (!ART_RE.test(q) && /(histoire|history|ancien|old|vintage|époque)/i.test(all)) steps.push(() => metImg(vplain), () => aicImg(vplain));
-    /* chaque image trouvée est d'abord chargée pour de vrai : si elle ne s'affiche pas, on passe à la banque suivante */
-    for (const fn of steps){ try{ const r = await fn(); if (r && !BROKEN_IMG.has(r.src) && await probeImg(r.src)) return r; }catch(e){} }
-    return null;
+    if (!sigToks(q).length) return null;
+    const v0 = (qVariants(q)[0] || q).replace(/\s*\([^)]*\)/g, '').trim() || q;
+    const sub = subOf(src) || fandomFor(q + ' ' + (src || '') + ' ' + (ctx || ''));
+    const jobs = ILL_PUBLIC.map(fn => till(fn(v0), ILL_MS));
+    if (sub) jobs.push(till(fandomImg(sub, v0).then(r => r ? [r] : []).catch(() => []), ILL_MS));
+    const lists = await Promise.all(jobs);
+    const cands = lists.flat().filter(r => r && r.src && !BROKEN_IMG.has(r.src));
+    const ok = [];
+    await Promise.all(cands.map(async r => { try{ if (await probeImg(r.src, 2200)) ok.push(r); }catch(e){} }));
+    return bestIll(ok, q);
   })().then(r => { ILL.set(k, r); saveIll(); return r; });
   ILL.set(k, pr); return pr;
 }
@@ -3767,7 +3821,7 @@ function mountIll(el){
     const q = fig.dataset.q, cap = fig.dataset.cap, src = fig.dataset.src;
     Promise.resolve(findIll(q, src, ctx)).then(r => {
       if (!fig.isConnected) return;
-      if (!r){ fig.remove(); return; }
+      if (!r || !illRelevant(r, q)){ fig.remove(); return; }
       const t = document.createElement('div'); t.innerHTML = figHtml(q, cap, src);
       const nf = t.firstElementChild; if (!nf || nf.classList.contains('wait')) return fig.remove();
       nf.querySelector('img').dataset.act = 'viewsrc';
@@ -3781,7 +3835,59 @@ function mountIll(el){
 const ILL_SKIP = ['code', 'photoedit', 'videoedit', 'image', 'video', 'adult'];
 const illusOn = id => S.set.illus !== false && !ILL_SKIP.includes(id);
 const fold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-const STOP = new Set('le la les un une des du de d l et ou en au aux a dans sur pour par avec sans the of and in on for to an chez son sa ses leur leurs ce cette ces qui que quoi est sont plus tres comme histoire role personnage personnalite resume introduction conclusion origine origines presentation partie chapitre section apercu vue ensemble general generale details informations caracteristiques description pourquoi comment ou quand quel quelle quels quelles notes sources references liens voir aussi 1 2 3 4 5 6 7 8 9 10 en bref'.split(' '));
+const STOP = new Set('le la les un une des du de d l et ou en au aux a dans sur pour par avec sans the of and in on for to an chez son sa ses leur leurs ce cette ces qui que quoi est sont plus tres comme histoire role personnage personnalite resume introduction conclusion origine origines presentation partie chapitre section apercu vue ensemble general generale details informations caracteristiques description pourquoi comment ou quand quel quelle quels quelles notes sources references liens voir aussi 1 2 3 4 5 6 7 8 9 10 en bref bonjour bonsoir salut coucou hello hey yo bjr please merci okay'.split(' '));
+const GREET_RE = /^(?:bonjour|bonsoir|salut|coucou|hello|hey|hi|yo|bjr|bon matin|good\s+(?:morning|evening|afternoon))\b[\s!,.:;]*/i;
+const ILL_ASK_RE = /^(?:s['’]il te pla[iî]t|s['’]il vous pla[iî]t|stp|please|peux[- ]tu|pourrais[- ]tu|tu peux|est[- ]ce que tu (?:peux|pourrais)|j['’]aimerais|je voudrais|je veux|dis[- ]moi|explique(?:[- ]moi)?|d[ée]cris(?:[- ]moi)?|pr[ée]sente(?:[- ]moi)?|parle(?:[- ]moi)?(?:\s+(?:de|du|des|d['’]))?|raconte(?:[- ]moi)?|c['’]est quoi|qu['’]est[- ]ce que|qu['’]est[- ]ce qu['’]|qui est|qui [ée]tait|infos?(?:\s+sur)?|tout sur)\b[\s:,]*/i;
+const GREET_ONLY = /^\s*(?:bonjour|bonsoir|salut|coucou|hello|hey|hi|yo|bjr|bon matin|good\s+(?:morning|evening|afternoon))(?:\s*[,!]?\s*(?:ça va|ca va|comment (?:ça|ca) va|tout le monde|a tous|à tous|there|how are you|fsm))?\s*[?!.]*\s*$/i;
+function stripAsk(s){
+  let t = String(s || '').trim();
+  for (let i = 0; i < 4; i++){
+    const n = t.replace(GREET_RE, '').replace(ILL_ASK_RE, '').replace(/^[,:;.\s]+/, '').trim();
+    if (n === t) break;
+    t = n;
+  }
+  return t.replace(/^(?:le|la|les|l['’]|un|une|des|du|de la|de l['’]|the|a|an)\s+/i, '').replace(/[?!.]+$/g, '').trim();
+}
+function illSubject(userText){
+  const words = stripAsk(userText).split(/\s+/).filter(w => { const f = fold(w).replace(/[^a-z0-9]+/g, ''); return f.length > 2 && !STOP.has(f); });
+  return words.slice(0, 6).join(' ');
+}
+function tokHit(w, bag){
+  if (bag.has(w)) return true;
+  if (w.length < 5) return false;
+  for (const t of bag){
+    if (t.startsWith(w) || w.startsWith(t)) return true;
+    let i = 0; while (i < w.length && i < t.length && w[i] === t[i]) i++;
+    if (i >= 6) return true;
+  }
+  return false;
+}
+function illRank(r, q){
+  const qt = sigToks(q);
+  if (!r || !qt.length) return 0;
+  const title = sigToks(r.title || '');
+  const rest = sigToks([r.caption, r.tags, decodeURIComponent(String(r.page || '').split('/').pop() || '')].join(' '));
+  const bag = new Set([...title, ...rest]);
+  const n = qt.filter(w => tokHit(w, bag)).length;
+  if (!n) return 0;
+  if (qt.length >= 3 && n / qt.length < 0.5) return 0;
+  const titleBag = new Set(title);
+  const titleN = qt.filter(w => tokHit(w, titleBag)).length;
+  return titleN * 3 + n;
+}
+function bestIll(list, q){
+  let best = null, score = 0;
+  for (const r of list || []){ const s = illRank(r, q); if (s > score){ score = s; best = r; } }
+  return best;
+}
+function illBlocked(user, asst){
+  const ut = String(user?.text || '').trim();
+  if (!ut) return '';
+  if (GREET_ONLY.test(ut) || SMALLTALK_RE.test(ut)) return 'greet';
+  if (needsClarify(ut)) return 'ask';
+  if ((asst && asst.cat === 'code') || detectIntent(ut, (user && user.atts) || []) === 'code') return 'code';
+  return '';
+}
 const sigToks = s => fold(s).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(w => w.length > 2 && !STOP.has(w));
 const GENERIC_HEAD = /^(r[ée]sum[ée]|en (bref|r[ée]sum[ée])|conclusion|introduction|sources?|r[ée]f[ée]rences?|notes?|voir aussi|liens?|pourquoi|comment|ce qu'il faut retenir|points? cl[ée]s?|[ée]tapes?|conseils?|astuces?|avantages?|inconv[ée]nients?|faq|questions?|exemples?|code|installation|tableau|comparatif|bilan|verdict|r[ée]ponse)/i;
 const ONE_STOP = /^(Le|La|Les|L|Un|Une|Des|The|A|An|Dans|Sur|Pour|Son|Sa|Ses|Il|Elle|Ils|Elles|Ce|Cette|Ces|En|Au|Aux|Après|Avant|Quand|Comment|Pourquoi|Qui|Que|Quel|Quelle|Voici|Bien|Oui|Non|Enfin|Ainsi|Mais|Donc|Chapitre|Partie|Section|Étape|Note|Points?)$/i;
@@ -3818,9 +3924,9 @@ function illCandidates(text, userText){
   }
   if (!out.length){
     const bold = (String(text).slice(0, 600).match(/\*\*([^*\n]{3,60})\*\*/) || [])[1];
-    const us = (String(userText || '').match(/(?:qui est|qui était|c'est qui|parle(?:-moi)? (?:de|du|des)|présente(?:-moi)?|histoire (?:de|du|des)|qu'est-ce que|c'est quoi|raconte(?:-moi)?|explique(?:-moi)?|décris|infos? sur|tout sur)\s+(.{3,80})/i) || [])[1];
-    const s = properNoun(bold) || properNoun(us) || properNoun(userText);
-    if (s) out.push({ q: s, at: h1 >= 0 ? h1 : firstPara, main: true });
+    const sub = illSubject(userText);
+    const s = properNoun(bold) || properNoun(sub) || sub;
+    if (s && sigToks(s).length) out.push({ q: s, at: h1 >= 0 ? h1 : (firstPara >= 0 ? firstPara : 0), main: true });
   }
   for (let i = 0; i < lines.length && out.length < 5; i++){
     const L = lines[i];
@@ -3831,14 +3937,9 @@ function illCandidates(text, userText){
     const s = properNoun(head, text);
     if (s && !out.some(o => fold(o.q) === fold(s))) out.push({ q: s, at: i });
   }
-  return out.filter(o => o.at >= 0);
+  return out.filter(o => o.at >= 0 && sigToks(o.q).length && !GREET_ONLY.test(o.q));
 }
-function illRelevant(r, q, ctx){
-  if (!r) return false;
-  const t = sigToks(r.title + ' ' + decodeURIComponent(String(r.page || '').split('/').pop() || ''));
-  const qt = sigToks(q), ct = sigToks(ctx).slice(0, 40);
-  return qt.some(w => t.includes(w)) || (r.site.startsWith('Fandom') && qt.length > 0) || (ct.length && t.filter(w => ct.includes(w)).length >= 2);
-}
+function illRelevant(r, q){ return illRank(r, q) > 0; }
 async function commonsImgs(q, n){
   const u = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrsearch=${enc(q + ' filetype:bitmap')}&gsrlimit=12&prop=imageinfo&iiprop=url|mime&iiurlwidth=900`;
   const j = await (await fetch(u)).json();
@@ -3850,9 +3951,14 @@ const SMALLTALK_RE = /^\s*(merci|super|génial|genial|top|parfait|bravo|excellen
 const APPTALK_RE = /(fsm|retouche photos?|retouche vidéos?|catégorie|application|appli\b|ce modèle|l'outil)/i;
 async function autoIllustrate(asst, user){
   try{
-    /* remerciement, compliment ou remarque sur l'app : aucune image, et on retire celles que le modèle aurait ajoutées */
-    if ((SMALLTALK_RE.test(user?.text || '') || APPTALK_RE.test(user?.text || '')) && ILL_RE.test(asst.text || '')){
-      ILL_RE.lastIndex = 0; asst.text = asst.text.replace(ILL_RE, '').replace(/\n{3,}/g, '\n\n'); paint(asst); const cv = asst._conv || S.conv; if (cv) saveConv(cv); return;
+    /* salutation, code, question de clarification, remerciement : aucune image */
+    const block = illBlocked(user, asst) || ((APPTALK_RE.test(user?.text || '')) ? 'app' : '');
+    if (block){
+      ILL_RE.lastIndex = 0;
+      if (ILL_RE.test(asst.text || '')){
+        ILL_RE.lastIndex = 0; asst.text = asst.text.replace(ILL_RE, '').replace(/\n{3,}/g, '\n\n'); paint(asst); const cv = asst._conv || S.conv; if (cv) saveConv(cv);
+      }
+      return;
     }
     ILL_RE.lastIndex = 0;
     if (!illusOn(asst.cat || 'chat') || S.voiceActive || asst.error || asst.stopped || asst.mode !== 'chat') return;
@@ -7351,8 +7457,20 @@ function resetShort(){
   if (r === 'weekly') return 'Renouvellement lundi'; if (r === 'daily') return 'Renouvellement demain';
   return '';
 }
-/* Part de l'abonnement utilisée, en pourcentage (le montant en dollars n'est plus affiché) */
-function usedPct(used, cap){ const p = cap > 0 ? used / cap * 100 : 0; return p <= 0 ? '0 %' : p < 1 ? 'moins de 1 %' : Math.min(100, Math.round(p)) + ' %'; }
+/* Part de l'abonnement utilisée, en pourcentage (le montant en dollars n'est plus affiché).
+   Statut et Limites d'utilisation passent par le même calcul. */
+function pctLabel(ratio){
+  const p = Math.max(0, ratio || 0) * 100;
+  return p <= 0 ? '0 %' : p < 1 ? 'moins de 1 %' : Math.min(100, Math.round(p)) + ' %';
+}
+function usedPct(used, cap){ return pctLabel(cap > 0 ? used / cap : 0); }
+function monthUsage(){
+  const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
+  const plan = PLANS[S.set.plan];
+  if (ki) return { used: ki.used || 0, cap: ki.limit, ratio: Math.min(1.5, (ki.used || 0) / ki.limit), fromKey: true };
+  if (plan && plan.limit > 0) return { used: spentMonth(), cap: plan.limit, ratio: Math.min(1.5, spentMonth() / plan.limit), fromKey: false };
+  return null;
+}
 function balanceHtml(compact){
   const ki = S.keyInfo, p = PLANS[S.set.plan];
   if (S.set.plan === 'free') return `<div class="bal-sub">Abonnement Free · Modèles gratuits uniquement</div>`;
@@ -7366,21 +7484,22 @@ function balanceHtml(compact){
 /* ----- Onglet « Limites d'utilisation » : tout en pourcentage, jamais de montant ----- */
 function usCard(title, ratio, sub){
   const pc = Math.max(0, ratio || 0) * 100;
-  const txt = pc <= 0 ? '0 % utilisé' : pc < 1 ? 'moins de 1 % utilisé' : Math.min(100, Math.round(pc)) + ' % utilisé';
+  const txt = pctLabel(ratio) + ' utilisé';
   return `<div class="us-card"><div class="us-top"><b>${esc(title)}</b><span>${txt}</span></div><div class="us-bar${pc >= 100 ? ' over' : pc >= 80 ? ' warn' : ''}"><i style="width:${Math.min(100, pc).toFixed(1)}%"></i></div>${sub ? `<div class="us-sub">${sub}</div>` : ''}</div>`;
 }
 function renderUsage(){
   const el = document.getElementById('usBody'); if (!el) return;
   const ki = S.keyInfo, p = PLANS[S.set.plan];
-  if (!S.key){ el.innerHTML = '<p class="note">Ajoute ta clé FSM AI dans les réglages pour voir ton utilisation.</p>'; return; }
   if (S.set.plan === 'unlimited'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Illimité</b><span>Aucune limite</span></div><div class="us-sub">Ta clé n'a pas de plafond : aucune limite hebdomadaire ni mensuelle.</div></div>`; return; }
   if (S.set.plan === 'free'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Free</b><span>Modèles gratuits</span></div><div class="us-sub">Les modèles gratuits n'ont pas de limite de crédit. Pour la vidéo et les modèles les plus puissants, passe à un abonnement supérieur.</div></div><button class="btn us-up" data-usup>Voir les abonnements</button>`; return; }
-  if (!ki || !(ki.limit > 0)){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; fetchKeyInfo(true).then(() => renderUsage()); return; }
-  const wr = weekRatio() || 0, mr = Math.min(1.5, (ki.used || 0) / ki.limit);
-  const upd = ki.t ? new Date(ki.t).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '';
+  if (S.key && !(ki && ki.limit > 0)){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; fetchKeyInfo(true).then(() => renderUsage()); return; }
+  const mu = monthUsage();
+  if (!mu){ el.innerHTML = '<p class="note">Ajoute ta clé FSM AI dans les réglages pour voir ton utilisation.</p>'; return; }
+  const wr = mu.fromKey ? (weekRatio() || 0) : 0, mr = mu.ratio;
+  const week = mu.fromKey ? usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`) : '';
   el.innerHTML = `
     <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
-    ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
+    ${week}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend au renouvellement. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
     ${unlockBtnHtml()}
     ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
@@ -7987,14 +8106,33 @@ function acceptWebHint(){
   try{ renderOpts(); }catch(e){}
 }
 const CORSER_HINT = new Set(['corser50', 'corser55', 'corser60']);
-const LEVEL_HINT_MS = 6000;
+const LEVEL_HINT_MS = 12000;
 let levelHintTimer = 0;
+const levelHintPause = new Set();
 function levelHintCopy(){
   const web = !!S.set.web, reason = !!S.set.reasoning;
   if (web && reason) return 'Le Web et la Réflexion sont activés. Tu peux les désactiver.';
   if (!web && reason) return 'Tu peux activer le Web. La Réflexion est déjà allumée.';
   if (web && !reason) return 'Tu peux activer la Réflexion. Le Web est déjà allumé.';
   return 'Tu peux activer le Web et la Réflexion.';
+}
+function armLevelHint(){
+  clearTimeout(levelHintTimer);
+  const el = $('#levelHint');
+  if (!el || el.hidden || levelHintPause.size){ levelHintTimer = 0; return; }
+  levelHintTimer = setTimeout(() => { levelHintTimer = 0; if (!el.hidden && !levelHintPause.size) el.hidden = true; }, LEVEL_HINT_MS);
+}
+function pauseLevelHint(why){
+  const el = $('#levelHint'); if (!el || el.hidden) return;
+  levelHintPause.add(why);
+  clearTimeout(levelHintTimer); levelHintTimer = 0;
+}
+function resumeLevelHint(why){
+  if (!levelHintPause.has(why)) return;
+  levelHintPause.delete(why);
+  const el = $('#levelHint');
+  if (!el || el.hidden){ levelHintPause.clear(); clearTimeout(levelHintTimer); levelHintTimer = 0; return; }
+  if (!levelHintPause.size) armLevelHint();
 }
 function offerLevelHint(v){
   if (!v || !CORSER_HINT.has(v.id)) return false;
@@ -8003,12 +8141,13 @@ function offerLevelHint(v){
   $('#levelHintText').textContent = levelHintCopy();
   const go = $('#levelHintGo'); if (go) go.hidden = !off;
   el.dataset.level = v.id; el.hidden = false;
-  clearTimeout(levelHintTimer);
-  levelHintTimer = setTimeout(() => { levelHintTimer = 0; if (!el.hidden) el.hidden = true; }, LEVEL_HINT_MS);
+  levelHintPause.clear();
+  armLevelHint();
   return true;
 }
 function dismissLevelHint(activate){
   clearTimeout(levelHintTimer); levelHintTimer = 0;
+  levelHintPause.clear();
   const el = $('#levelHint'); if (!el) return;
   if (activate){
     if (!S.set.web) S.set.web = true;
@@ -8020,6 +8159,16 @@ function dismissLevelHint(activate){
 document.getElementById('webHintGo')?.addEventListener('click', () => acceptWebHint());
 document.getElementById('levelHintGo')?.addEventListener('click', () => dismissLevelHint(true));
 document.getElementById('levelHintClose')?.addEventListener('click', () => dismissLevelHint(false));
+(function bindLevelHintPause(){
+  const el = document.getElementById('levelHint'); if (!el) return;
+  el.addEventListener('pointerenter', () => pauseLevelHint('over'));
+  el.addEventListener('pointerleave', () => resumeLevelHint('over'));
+  el.addEventListener('pointerdown', () => pauseLevelHint('down'));
+  el.addEventListener('focusin', () => pauseLevelHint('focus'));
+  el.addEventListener('focusout', e => { if (!el.contains(e.relatedTarget)) resumeLevelHint('focus'); });
+})();
+document.addEventListener('pointerup', () => resumeLevelHint('down'));
+document.addEventListener('pointercancel', () => resumeLevelHint('down'));
 async function craftZipBytes(name, payload, liedSize){
   const comp = await deflateRaw(payload); if (!comp) throw new Error('deflate indisponible');
   const crc = crc32(payload), nm = new TextEncoder().encode(name);
@@ -8468,6 +8617,18 @@ async function runProductTests(){
   renderUsage();
   ok('bouton grisé', /Déblocage déjà utilisé ce mois-ci/.test($('#usBody').innerText || ''));
   ok('note limites absente', !/plus vite|consomment ton forfait|font avancer le forfait|us-note/.test(($('#usBody').innerText || '') + ($('#usBody').innerHTML || '')));
+  renderPlan();
+  ok('même mois avec clé', /33 %/.test($('#usBody').innerText || '') && /33 %/.test($('#planInfo').innerText || ''));
+  {
+    const keepKey = S.key, keepInfo = S.keyInfo, mk = monthKey(), keepLed = S.ledger.m[mk];
+    S.key = ''; S.keyInfo = null; S.ledger.m[mk] = 0.05;
+    renderUsage(); renderPlan();
+    const a = ($('#usBody').innerText || '').replace(/\u00a0/g, ' ');
+    const b = ($('#planInfo').innerText || '').replace(/\u00a0/g, ' ');
+    ok('même mois sans clé', /moins de 1 %/.test(a) && /moins de 1 %/.test(b) && !/\$|€/.test(a + b));
+    S.key = keepKey; S.keyInfo = keepInfo; if (keepLed == null) delete S.ledger.m[mk]; else S.ledger.m[mk] = keepLed;
+    renderUsage(); renderPlan();
+  }
   window.__fsmNow = Date.parse('2026-11-01T00:00:00Z');
   ok('nouveau mois UTC', canUnlock().ok === true);
   window.__fsmNow = Date.parse('2026-10-24T12:00:00Z');
@@ -8732,6 +8893,17 @@ async function runProductTests(){
       ok('fermer laisse les puces éteintes', $('#levelHint').hidden === true && S.set.web === false && S.set.reasoning === false);
       ok('pas de mention neural', offerLevelHint(VARIANTS.find(v => v.id === 'neural58')) === false);
       ok('pas de mention omega', offerLevelHint(VARIANTS.find(v => v.id === 'omega90')) === false);
+      ok('délai mention 12 s', LEVEL_HINT_MS === 12000);
+      S.set.web = false; S.set.reasoning = true;
+      offerLevelHint(v55);
+      $('#levelHint').dispatchEvent(new PointerEvent('pointerenter', { bubbles:true }));
+      ok('survol suspend le délai', levelHintTimer === 0 && $('#levelHint').hidden === false);
+      $('#levelHint').dispatchEvent(new PointerEvent('pointerleave', { bubbles:true }));
+      ok('délai relancé après le survol', levelHintTimer !== 0 && $('#levelHint').hidden === false);
+      $('#levelHintGo').dispatchEvent(new FocusEvent('focusin', { bubbles:true }));
+      ok('focus suspend le délai', levelHintPause.has('focus') && levelHintTimer === 0 && $('#levelHint').hidden === false);
+      $('#levelHintGo').click();
+      ok('activer pendant la pause', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
       S.set.web = true; S.set.reasoning = true;
       ok('mention se ferme seule', offerLevelHint(v55) === true && $('#levelHint').hidden === false);
       await new Promise(r => setTimeout(r, LEVEL_HINT_MS + 250));
@@ -8744,6 +8916,21 @@ async function runProductTests(){
       try{ saveSettings(); renderOpts(); }catch(e){}
     }
   }
+  ok('sujet photosynthèse', /photosynth/i.test(illSubject('Bonjour, explique la photosynthèse')) && !/bonjour/i.test(illSubject('Bonjour, explique la photosynthèse')));
+  ok('salutation sans sujet', illSubject('Bonjour') === '' && illBlocked({ text:'Bonjour' }, {}) === 'greet' && !illCandidates('Bonjour.', 'Bonjour').some(c => /bonjour/i.test(c.q)));
+  const ic = illCandidates('La feuille capte la lumière du soleil et la transforme.\n', 'Bonjour, explique la photosynthèse');
+  ok('requête sur le sujet', ic.some(c => /photosynth/i.test(c.q)) && !ic.some(c => /bonjour/i.test(c.q)));
+  const badIll = { title:'Network services', caption:'Bonjour', tags:'screenshot liste', site:'Wikipédia (en)', src:'https://example.com/a.jpg', page:'https://en.wikipedia.org/wiki/Bonjour' };
+  const goodIll = { title:'Photosynthesis', caption:'Diagram of photosynthesis', tags:'chlorophyll plant', site:'Wikipédia', src:'https://example.com/b.jpg', page:'https://fr.wikipedia.org/wiki/Photosynthèse' };
+  ok('image hors sujet écartée', !illRelevant(badIll, 'photosynthèse') && bestIll([badIll, goodIll], 'photosynthèse') === goodIll && bestIll([badIll], 'photosynthèse') == null);
+  ok('pas d illustration code ni clarification', illBlocked({ text:'écris un script python qui trie une liste' }, { cat:'chat' }) === 'code' && illBlocked({ text:'améliore ça' }, {}) === 'ask');
+  const illK = illKey('photosynthèse', '');
+  const prevIll = ILL.get(illK);
+  ILL.set(illK, goodIll);
+  const fig = figHtml('photosynthèse', 'La photosynthèse', '');
+  ok('source sous l image', /<figcaption>/.test(fig) && /Wikipédia/.test(fig) && /La photosynthèse/.test(fig));
+  if (prevIll === undefined) ILL.delete(illK); else ILL.set(illK, prevIll);
+  ok('sources publiques sans clé', ['Wikipédia', 'Wikipédia (en)', 'Wikimedia Commons', 'Openverse', 'Art Institute of Chicago', 'The Met (domaine public)', 'NASA Image Library'].every(s => ILL_SOURCES.includes(s)) && FSM_IMAGE_KEYS.pexels === '' && FSM_IMAGE_KEYS.unsplash === '' && ILL_MS <= 4000 && ILL_MS >= 1500 && /Promise\.all/.test(Function.prototype.toString.call(findIll)));
   const imgCard = genCardHtml({ status: "Création de l'image", imgAspect: '1:1', t: Date.now() - 9000 }, 'image');
   const vidCard = genCardHtml({ status: 'Génération de la vidéo', vidAspect: '16:9' }, 'video');
   const devCard = devCardHtml('canvas', 'html');
