@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="fr">
 <head>
+<link rel="preconnect" href="https://openrouter.ai" crossorigin>
+<link rel="dns-prefetch" href="https://openrouter.ai">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>FSM AI</title>
@@ -26,6 +28,9 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
+/* appui long : aucune sélection de la page ni menu système, sauf dans les champs et le texte choisi via « Sélectionner le texte » */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,[contenteditable],.selecting,.selecting *,.vt-pre,.vt-tbl{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 body{position:fixed;inset:0;width:100%;background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);-webkit-text-size-adjust:100%}
 [hidden]{display:none!important}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -300,6 +305,7 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .toast{position:fixed;left:50%;top:calc(60px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--raised);border:1px solid var(--line);color:var(--ink);padding:9px 16px;border-radius:14px;font-size:14px;z-index:90;max-width:calc(100% - 32px);text-align:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.8)}
 @media (prefers-reduced-motion: reduce){.dots i,.shimmer{animation:none}}
 .voicebtn{border:0}
+#btnVoice[hidden],#btnVoiceSettings[hidden],#fbVoice[hidden]{display:none!important}
 .voice{position:fixed;inset:0;z-index:85;background:var(--bg);display:flex;flex-direction:column;height:var(--app-h);padding-top:env(safe-area-inset-top,0px);padding-bottom:max(16px,env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 .vtop{display:flex;align-items:center;gap:4px;padding:6px 8px}
 .vtop .model-btn{max-width:calc(100% - 100px)}
@@ -356,8 +362,50 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .img-missing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:120px;border-radius:16px;background:var(--surface);border:1px dashed var(--line2);color:var(--muted);font-size:14px;text-align:center;padding:16px}
 .img-missing small{color:var(--faint);font-size:12px}
 figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform .25s}
+.att[data-openatt]{cursor:pointer}
+.vtext{width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;background:#0d0d10;color:#e8e8ec;padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+.vt-h{position:sticky;top:0;z-index:1;display:flex;flex-direction:column;gap:2px;padding:12px 16px;background:rgba(13,13,16,.94);border-bottom:1px solid rgba(255,255,255,.08)}
+.vt-h span{font-size:12px;color:rgba(255,255,255,.55)}
+.vt-pre{margin:0;padding:14px 16px;font:12.5px/1.55 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2}
+.vt-sh{padding:14px 16px 6px;font-weight:600;font-size:13px;color:rgba(255,255,255,.8)}
+.vt-tbl{overflow:auto;padding:0 16px 12px}
+.vt-tbl table{border-collapse:collapse;font-size:12.5px;min-width:100%}
+.vt-tbl th,.vt-tbl td{border:1px solid rgba(255,255,255,.12);padding:5px 8px;text-align:left;white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+.vt-tbl th{background:rgba(255,255,255,.06);font-weight:600;position:sticky;top:0}
+.vaudio{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;height:100%;color:#fff;padding:24px;text-align:center}
+.vaudio audio{width:min(420px,90vw)}
 .umenu-ghost{position:fixed;z-index:81;margin:0;box-sizing:border-box;pointer-events:none;white-space:pre-wrap;overflow-wrap:anywhere;animation:umPop .3s cubic-bezier(.2,.9,.25,1.2)}
 @keyframes umPop{0%{transform:scale(.97)}60%{transform:scale(1.03)}100%{transform:none}}
+.umenu .um-sep{display:block;height:1px;margin:4px 14px;background:rgba(255,255,255,.1)}
+.umenu button.danger,.umenu button.danger svg{color:#ff6b6b}
+.md.selecting{box-shadow:0 0 0 2px var(--line2);border-radius:10px}
+#convs .conv.umenu-ghost{background:var(--raised);border-radius:14px;display:flex}
+#convs .conv.pressed{background:var(--raised)}
+.conv-h{font-size:12.5px;font-weight:600;color:var(--faint);padding:12px 10px 4px}
+.cv-pin{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;background:currentColor;opacity:.55;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 4h6l-1 6 4 3v2H6v-2l4-3zM11 15h2v6h-2z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 4h6l-1 6 4 3v2H6v-2l4-3zM11 15h2v6h-2z'/%3E%3C/svg%3E") center/contain no-repeat}
+.rn-in{width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--surface);color:var(--ink)}
+.us-acts{display:flex;gap:4px;align-items:center}
+#usRefresh.spin svg{animation:usSpin .6s linear}
+@keyframes usSpin{to{transform:rotate(360deg)}}
+.us-sec{font-size:13.5px;font-weight:600;color:var(--muted);margin:18px 4px 8px}
+.us-sec small{font-weight:400;color:var(--faint);margin-left:4px}
+.us-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:10px}
+.us-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.us-top b{font-size:16.5px;font-weight:600}
+.us-top span{font-size:14px;color:var(--muted);white-space:nowrap}
+.us-bar{height:8px;border-radius:99px;background:var(--raised);overflow:hidden;margin:12px 0 2px}
+.us-bar i{display:block;height:100%;border-radius:inherit;background:#34c759;transition:width .5s var(--e-out,ease)}
+.us-bar.warn i{background:#ff9f0a}
+.us-bar.over i{background:#ff453a}
+.us-sub{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
+.us-note{margin:14px 4px 10px;font-size:12.5px}
+.us-up{width:100%;margin-top:4px}
+.us-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15.5px;text-align:left}
+.us-row svg{width:22px;height:22px;flex:0 0 22px;color:var(--muted)}
+.us-row span{flex:1}
+.us-row .chev{width:18px;height:18px;flex:0 0 18px;color:var(--faint)}
+.us-link{display:block;margin-top:8px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:13.5px;font-weight:600;padding:4px 0}
+#dBal{cursor:pointer}
 .umenu-scrim{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.28);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fadeIn .2s ease}
 .umenu{position:fixed;z-index:81;min-width:250px;max-width:calc(100vw - 32px);background:rgba(28,28,32,.94);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:8px;box-shadow:0 18px 50px rgba(0,0,0,.55);transform-origin:top right;animation:umIn .28s cubic-bezier(.2,.9,.25,1.15)}
 .umenu.up{transform-origin:bottom right}
@@ -875,7 +923,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
     <button class="model-btn" id="btnModel" aria-label="Choisir le modèle"><span class="name" id="hdrModel">FSM AI</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
     <button class="spend" id="btnSpend" aria-label="Dépenses de la session" hidden><span id="spendAmt">$0.00</span></button>
     <button class="spend balpill" id="btnBal" aria-label="Abonnement" hidden><span class="conn" id="balConn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span id="balAmt"></span></button>
-    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Dépenses"><div class="bal" id="balBody"></div><p class="note">Dépenses de ta clé FSM AI, tous appareils confondus.</p></div>
+    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Utilisation"><div class="bal" id="balBody"></div><p class="note">Utilisation de ta clé FSM AI, tous appareils confondus.</p><button class="us-link" id="balUsage" type="button">Limites d'utilisation ›</button></div>
     <button class="icon-btn" id="btnNew" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-4 1 1-4Z"/></svg></button>
     <div class="spend-pop" id="spendPop" hidden role="dialog" aria-label="Dépenses de la session">
       <div class="sp-total"><span>Dépensé cette session</span><b id="spendTotal"></b></div>
@@ -899,7 +947,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="tools">
           <button class="tool" id="btnAttach" aria-label="Joindre photos, vidéos ou fichiers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
           <div class="opts" id="opts"></div>
-          <button class="tool voicebtn" id="btnVoice" aria-label="Mode vocal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></button>
+          <button class="tool voicebtn" id="btnVoice" aria-label="Mode vocal" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></button>
           <button class="send" id="btnSend" aria-label="Envoyer"></button>
         </div>
       </div>
@@ -949,6 +997,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
           <option value="elite">Abonnement FSM AI Élite (clé Élite requise)</option>
         </select>
         <div class="plan-info" id="planInfo" hidden></div>
+        <button class="us-row" id="btnUsage" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Limites d'utilisation</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
       <div class="field">
         <label for="xaiKey">Clé API xAI (modèles Grok en direct)</label>
@@ -970,7 +1019,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <small>Sans clé, les images viennent déjà de Wikipédia, Wikimedia Commons, Openverse, des musées (The Met, Art Institute of Chicago, Cleveland) et de la NASA. Avec une clé gratuite Pexels ou Unsplash, les réponses ont aussi accès à leurs millions de photos.</small></div>
       <label class="check"><input type="checkbox" id="illus"><span><b>Illustrer les réponses</b><br><span class="note">Les réponses s'enrichissent de 2 à 5 vraies images issues de grandes banques d'images publiques (Wikipédia, Wikimedia Commons, Openverse, musées, NASA, Fandom), et d'une synthèse en gros chiffres quand le sujet s'y prête.</span></span></label>
       <label class="check"><input type="checkbox" id="fileHints"><span><b>Fichiers téléchargeables</b><br><span class="note">Demande au modèle de nommer chaque fichier produit pour l'afficher avec un bouton de téléchargement.</span></span></label>
-      <button class="btn ghost" id="btnVoiceSettings" type="button">Réglages du mode vocal</button>
+      <button class="btn ghost" id="btnVoiceSettings" type="button" hidden>Réglages du mode vocal</button>
       <div class="st-sec"><h3>Intelligence</h3>
         <label class="check"><input type="checkbox" id="stRouter"><span><b>Routeur automatique</b><br><span class="note">À chaque message, l'app choisit un modèle éco, standard ou max selon la difficulté. Sous chaque réponse, la flèche relance avec un modèle plus puissant.</span></span></label>
         <label class="check"><input type="checkbox" id="stPython"><span><b>Outil de calcul Python</b><br><span class="note">Les modèles exécutent du vrai code pour calculer juste, analyser tes fichiers (CSV, Excel…) et tracer des graphiques. Premier chargement ≈ 10 s.</span></span></label>
@@ -1014,7 +1063,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
     <div class="sheet-h"><h2 id="fbTitle">FSM BOT</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
       <div class="bothead"><span class="botic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg></span><p>Ton agent personnel : veilles automatiques, tâches et mémoire, commandes préparées (Uber, repas, courses).</p></div>
-      <div class="row"><button class="btn" id="fbChat" style="flex:1">Discuter</button><button class="btn" id="fbVoice" style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg> Vocal</button></div>
+      <div class="row"><button class="btn" id="fbChat" style="flex:1">Discuter</button><button class="btn" id="fbVoice" hidden style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg> Vocal</button></div>
       <div class="fb-live" id="fbLive" hidden><span class="dot ok"></span><span>Le mode vocal permanent est actif.</span><button class="btn ghost" id="fbVoiceStop" type="button">L'éteindre</button></div>
       <div class="field"><label for="fbModel">Cerveau de FSM BOT</label><select class="sel" id="fbModel"></select><small>« Automatique » prend le meilleur modèle agent disponible. Les veilles utilisent un modèle économique.</small></div>
       <div class="field"><label for="fbAgent">Agent vocal</label><select class="sel" id="fbAgent"></select><small>Le cerveau, la voix et l'écoute du mode vocal. « Automatique » choisit le plus performant disponible.</small></div>
@@ -1081,6 +1130,13 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   </div>
 </div>
 
+<!-- Limites d'utilisation -->
+<div class="scrim" id="usageSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="usTitle">
+    <div class="sheet-h"><h2 id="usTitle">Limites d'utilisation</h2><div class="us-acts"><button class="icon-btn" id="usRefresh" aria-label="Actualiser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
+    <div class="sheet-b" id="usBody"></div>
+  </div>
+</div>
 <!-- Projet -->
 <div class="scrim" id="projSheet" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pjTitle">
@@ -1714,7 +1770,7 @@ function renderPlan(){
   const lim = S.set.plan === 'unlimited' ? `<b>Illimité</b> · Aucun plafond · Accès à tous les modèles` : p.limit ? `<b>${p.limit} $/mois</b> · Accès à tous les modèles` : `<b>Gratuit</b> · Modèles gratuits uniquement · 1 modèle de génération d'images (le moins cher) · Pas de génération de vidéos`;
   const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
   const spent = ki ? ki.used : spentMonth(), cap = ki ? ki.limit : p.limit;
-  const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${fmtUsd(spent)} sur ${cap} $${ki && ki.remaining != null ? ' · reste ' + fmtUsd(Math.max(0, ki.remaining)) : ''}${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
+  const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${usedPct(spent, cap)} de ton abonnement utilisé${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
   const balBlock = (ki || S.set.plan === 'unlimited') && balanceHtml() ? `<div class="bal">${balanceHtml()}</div>` : '';
   const auto = S.set.planAuto ? `<div class="pl-row"><span>Détection</span><span>Reconnu automatiquement grâce à ta clé</span></div>` : '';
   el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}${p.auto ? '' : `<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div>`}<div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèle</span><span><b>${esc(brand().name)}</b> · ${esc(brand().desc)}${['elite', 'unlimited'].includes(S.set.plan) ? '' : ' ' + esc(UPSELL)}</span></div>` : ''}${used}`;
@@ -1740,7 +1796,7 @@ $('#btnWipeOk').addEventListener('click', async () => {
   S.index = []; LS.set('relais.index', []); S.conv = null; renderThread(); closeSheets(); toast('Conversations effacées.');
 });
 
-function closeSheets(){ ['#modelSheet','#settingsSheet','#gallerySheet','#voiceSheet','#botSheet','#connSheet','#fsmSheet','#agentSheet','#projSheet','#drawer'].forEach(x => $(x).hidden = true); }
+function closeSheets(){ ['#usageSheet','#modelSheet','#settingsSheet','#gallerySheet','#voiceSheet','#botSheet','#connSheet','#fsmSheet','#agentSheet','#projSheet','#drawer'].forEach(x => $(x).hidden = true); }
 document.querySelectorAll('.scrim').forEach(s => s.addEventListener('click', e => { if (e.target === s || e.target.closest('[data-close]')) closeSheets(); }));
 $('#drawer').addEventListener('click', e => { if (e.target.id === 'drawer') closeSheets(); });
 document.addEventListener('keydown', e => {
@@ -1775,14 +1831,65 @@ async function openConv(id){
   const c = S.live.get(id) || await DB.get('conv:' + id);
   if (!c){ toast("Cette conversation n'est plus disponible dans ce navigateur."); S.index = S.index.filter(x => x.id !== id); LS.set('relais.index', S.index); renderConvs(); return; }
   c._unread = false; S.live.set(c.id, c);
+  if (!c._busy) reviveStuck(c);
   S.conv = c; closeSheets(); renderThread(); scrollEnd(true);
 }
+/* Réponse restée en suspens (application fermée pendant la requête) : les vidéos reprennent, le reste propose de réessayer */
+const INTERRUPTED = "La réponse a été interrompue (application fermée ou connexion coupée). Touche Réessayer pour la relancer.";
+function reviveStuck(c){
+  let changed = false;
+  for (const m of c.messages){
+    if (m.role !== 'assistant' || m._live) continue;
+    if (m.job && !m.videos?.length && !m.error){ resumeJob(m, c); continue; }
+    if (m.status){ m.status = ''; if (!m.images?.length && !m.videos?.length) m.error = INTERRUPTED; changed = true; }
+  }
+  if (changed) saveConv(c);
+}
+async function resumeJob(m, c){
+  if (m._resuming) return;
+  Object.defineProperty(m, '_resuming', { value: true, writable: true, configurable: true });
+  const i = c.messages.indexOf(m), user = c.messages.slice(0, i).reverse().find(x => x.role === 'user') || { atts: [] };
+  Object.defineProperty(m, '_job', { value: { url: m.job.url, t0: m.job.t0 || Date.now() }, writable: true, configurable: true });
+  Object.defineProperty(m, '_live', { value: true, writable: true, configurable: true });
+  Object.defineProperty(m, '_conv', { value: c, configurable: true });
+  m.mode = 'video'; m.status = 'Reprise de la génération…'; m.videos = m.videos || [];
+  paint(m);
+  try{ await runVideo(m, user, new AbortController().signal); }
+  catch(e){ m.error = e?.message || String(e); }
+  finally{
+    m.status = ''; m._live = false; m._resuming = false; delete m.job;
+    paint(m); await saveConv(c);
+    if (S.conv !== c && m.videos?.length){ c._unread = true; toast(`Votre vidéo est prête dans « ${c.title} »`); }
+  }
+}
+/* Retour dans l'application : une réponse muette depuis plus de 12 s a sûrement perdu sa connexion pendant la mise en veille → reconnexion immédiate */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  for (const c of S.live.values()){
+    if (!c._busy) continue;
+    const a = c.messages[c.messages.length - 1];
+    if (a?.role === 'assistant' && a._live && typeof a._beat === 'function' && Date.now() - a._beat() > 12000) a._kick?.();
+  }
+});
+/* Au démarrage : les vidéos lancées avant la fermeture de l'application reprennent en arrière-plan */
+setTimeout(async () => {
+  for (const x of (S.index || []).slice(0, 15)){
+    try{
+      const c = S.live.get(x.id) || await DB.get('conv:' + x.id); if (!c) continue;
+      if (c.messages.some(m => m.role === 'assistant' && m.job && !m.videos?.length && !m.error)){ S.live.set(c.id, c); reviveStuck(c); }
+    }catch(e){}
+  }
+}, 2500);
 function renderConvs(){
   const el = $('#convs');
   if (!S.index.length){ el.innerHTML = '<div class="empty">Aucune conversation enregistrée.</div>'; return; }
   const fmt = t => new Date(t).toLocaleString('fr-FR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
   const ids = new Set(S.index.map(x => x.id));
   const extra = [...S.live.values()].filter(c => !ids.has(c.id) && c.messages.length).map(c => ({ id:c.id, title:c.title, t:c.t || Date.now() }));
+  const all = extra.concat(S.index), pins = all.filter(c => c.pinned), rest = all.filter(c => !c.pinned);
+  const row = c => { const lc = S.live.get(c.id); return `<div class="conv${S.conv?.id === c.id ? ' on' : ''}"><button class="t" data-open="${c.id}"><span class="tt">${c.pinned ? '<i class="cv-pin"></i>' : ''}${lc?._busy ? '<i class="cv-run"></i>' : lc?._unread ? '<i class="cv-new"></i>' : ''}${esc(c.title)}</span><span class="td">${fmt(c.t)}</span></button><button class="del" data-del="${c.id}">Suppr.</button></div>`; };
+  el.innerHTML = (pins.length ? `<div class="conv-h">Épinglés</div>${pins.map(row).join('')}<div class="conv-h">Récents</div>` : '') + rest.map(row).join('');
+  return;
   el.innerHTML = extra.concat(S.index).map(c => { const lc = S.live.get(c.id); return `<div class="conv${S.conv?.id === c.id ? ' on' : ''}"><button class="t" data-open="${c.id}"><span class="tt">${lc?._busy ? '<i class="cv-run"></i>' : lc?._unread ? '<i class="cv-new"></i>' : ''}${esc(c.title)}</span><span class="td">${fmt(c.t)}</span></button><button class="del" data-del="${c.id}">Suppr.</button></div>`; }).join('');
 }
 $('#convs').addEventListener('click', async e => {
@@ -1802,6 +1909,7 @@ $('#btnNew2').addEventListener('click', startNew);
 /* ---------- Pièces jointes ---------- */
 const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|jsonl|xml|ya?ml|html?|css|scss|js|mjs|cjs|ts|tsx|jsx|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|bash|zsh|ps1|sql|toml|ini|cfg|conf|env|log|tex|r|lua|dart|vue|svelte|srt|vtt|ics)$/i;
 function kindOf(a){
+  if (a.kd) return a.kd;
   const t = a.type || '', n = (a.name || '').toLowerCase();
   if (t.startsWith('image/') || /\.(png|jpe?g|gif|webp|heic|avif|bmp)$/.test(n)) return 'image';
   if (t.startsWith('video/') || /\.(mp4|mov|webm|mpeg|mpg|m4v)$/.test(n)) return 'video';
@@ -1851,7 +1959,11 @@ const fmtTC = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(
 function loadImg(src){ return new Promise((res, rej) => { const i = new Image(); i.decoding = 'async'; i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
 async function normImage(f){
   const raw = await readAs(f, 'readAsDataURL');
-  if (/image\/(gif|svg)/i.test(f.type || '')) return { data: raw };
+  if (/image\/gif/i.test(f.type || '')) return { data: raw };
+  if (/image\/svg/i.test(f.type || '') || /\.svg$/i.test(f.name || '')){
+    /* SVG : converti en PNG pour les modèles (qui ne lisent pas le SVG comme image), le code source est gardé à côté */
+    try{ const i = await loadImg(raw); const w = i.naturalWidth || 1024, h = i.naturalHeight || 1024, sc = Math.min(4, 2048 / Math.max(w, h)); const c = document.createElement('canvas'); c.width = Math.round(w * sc); c.height = Math.round(h * sc); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(i, 0, 0, c.width, c.height); return { data: c.toDataURL('image/png'), w: c.width, h: c.height, type: 'image/png' }; }catch(e){ return { data: raw }; }
+  }
   try{
     let w, h, src;
     try{ src = await createImageBitmap(f, { imageOrientation: 'from-image' }); w = src.width; h = src.height; }
@@ -1875,10 +1987,330 @@ async function imgDims(a){
   try{ const i = await loadImg(a.data); a.w = i.naturalWidth; a.h = i.naturalHeight; }catch(e){}
   return a;
 }
+
+/* =====================================================================
+   FICHIERS UNIVERSELS : tout format accepté, contenu extrait pour que le modèle l'analyse
+   Word, Excel, PowerPoint, OpenDocument, EPUB, ZIP, RTF, PDF, SVG, code et texte de toute extension,
+   et pour les autres binaires : signature, métadonnées et chaînes lisibles.
+   ===================================================================== */
+const MAX_ATT_TEXT = 300000;          // caractères envoyés au modèle par fichier
+const FMT_LABEL = { docx:'document Word', doc:'document Word', xlsx:'classeur Excel', xlsm:'classeur Excel', xls:'classeur Excel', pptx:'présentation PowerPoint', odt:'document OpenDocument', ods:'classeur OpenDocument', odp:'présentation OpenDocument', epub:'livre EPUB', zip:'archive ZIP', rtf:'document RTF', pdf:'document PDF', svg:'image vectorielle SVG', csv:'tableau CSV', tsv:'tableau TSV', html:'page HTML', htm:'page HTML', json:'données JSON', xml:'document XML' };
+const extOf = n => (String(n || '').toLowerCase().match(/\.([a-z0-9]{1,8})$/) || [])[1] || '';
+/* Le contenu ressemble-t-il à du texte ? (aucun octet nul, très peu de caractères de contrôle) */
+function looksText(u8){
+  const n = Math.min(u8.length, 16384); if (!n) return true;
+  if ((u8[0] === 0xFF && u8[1] === 0xFE) || (u8[0] === 0xFE && u8[1] === 0xFF)) return true;
+  let bad = 0;
+  for (let i = 0; i < n; i++){ const c = u8[i]; if (c === 0) return false; if (c < 9 || (c > 13 && c < 32)) bad++; }
+  return bad / n < 0.02;
+}
+function decodeText(u8){
+  if (u8[0] === 0xFF && u8[1] === 0xFE) return new TextDecoder('utf-16le').decode(u8.subarray(2));
+  if (u8[0] === 0xFE && u8[1] === 0xFF) return new TextDecoder('utf-16be').decode(u8.subarray(2));
+  /* UTF-8 strict d'abord ; s'il échoue, c'est un ancien encodage (Windows-1252 / Latin-1, fréquent pour les CSV Excel) */
+  try{ return new TextDecoder('utf-8', { fatal: true }).decode(u8).replace(/^\uFEFF/, ''); }
+  catch(e){ try{ return new TextDecoder('windows-1252').decode(u8); }catch(e2){ return new TextDecoder('utf-8').decode(u8); } }
+}
+async function inflateRaw(u8){
+  const ds = new DecompressionStream('deflate-raw');
+  return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer());
+}
+/* Lecture d'une archive ZIP (et des formats qui en sont : docx, xlsx, pptx, odt, epub…) */
+function zipList(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 66000); i--){ if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; } }
+  if (eocd < 0) throw new Error('archive illisible');
+  const count = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true);
+  const out = [], td = new TextDecoder();
+  for (let k = 0; k < count && p + 46 <= u8.length; k++){
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), size = dv.getUint32(p + 24, true);
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const name = td.decode(u8.subarray(p + 46, p + 46 + nl));
+    p += 46 + nl + el + cl;
+    if (name.endsWith('/')) continue;
+    out.push({ name, size, csize, method, get: async () => {
+      const lnl = dv.getUint16(off + 26, true), lel = dv.getUint16(off + 28, true), st = off + 30 + lnl + lel;
+      const raw = u8.subarray(st, st + csize);
+      if (method === 0) return raw;
+      if (method === 8) return inflateRaw(raw);
+      throw new Error('compression non gérée');
+    } });
+  }
+  return out;
+}
+const xmlDec = s => String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&amp;/g, '&');
+const stripTags = s => xmlDec(String(s).replace(/<[^>]+>/g, ''));
+const tidy = s => s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+async function zipText(entries, name){ const e = entries.find(x => x.name === name); return e ? decodeText(await e.get()) : ''; }
+function docxXmlText(xml){
+  return tidy(stripTags(xml.replace(/<w:tab\/>/g, '\t').replace(/<w:br[^>]*\/>/g, '\n').replace(/<\/w:tc>/g, ' | ').replace(/<\/w:tr>/g, '\n').replace(/<\/w:p>/g, '\n')));
+}
+function colIdx(ref){ const m = String(ref).match(/^([A-Z]+)/); if (!m) return 0; let n = 0; for (const ch of m[1]) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; }
+const csvCell = v => /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+async function xlsxText(entries){
+  const ss = [];
+  const sx = await zipText(entries, 'xl/sharedStrings.xml');
+  for (const m of sx.matchAll(/<si>([\s\S]*?)<\/si>/g)) ss.push(xmlDec([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(x => x[1]).join('')));
+  const wb = await zipText(entries, 'xl/workbook.xml');
+  const names = [...wb.matchAll(/<sheet [^>]*name="([^"]*)"/g)].map(m => xmlDec(m[1]));
+  const sheets = entries.filter(e => /^xl\/worksheets\/sheet\d+\.xml$/.test(e.name)).sort((a, b) => +a.name.match(/(\d+)\.xml/)[1] - +b.name.match(/(\d+)\.xml/)[1]);
+  const parts = [];
+  for (let i = 0; i < sheets.length; i++){
+    const xml = decodeText(await sheets[i].get()), rows = [];
+    for (const r of xml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)){
+      if (rows.length >= 5000){ rows.push('[… lignes suivantes non incluses]'); break; }
+      const cells = [];
+      for (const c of r[1].matchAll(/<c ([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)){
+        const at = c[1], body = c[2] || '', ref = (at.match(/r="([A-Z]+\d+)"/) || [])[1], t = (at.match(/t="(\w+)"/) || [])[1];
+        let v = (body.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        if (t === 's') v = ss[+v] ?? '';
+        else if (t === 'inlineStr') v = xmlDec([...body.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(x => x[1]).join(''));
+        else if (t === 'b') v = v === '1' ? 'VRAI' : 'FAUX';
+        else v = v != null ? xmlDec(v) : '';
+        const f = (body.match(/<f[^>]*>([\s\S]*?)<\/f>/) || [])[1];
+        if (f && v === '') v = '=' + xmlDec(f);
+        cells[ref ? colIdx(ref) : cells.length] = v;
+      }
+      rows.push(Array.from(cells, x => csvCell(String(x ?? ''))).join(','));
+    }
+    parts.push(`### Feuille « ${names[i] || 'Feuille ' + (i + 1)} »\n` + rows.join('\n'));
+  }
+  return parts.join('\n\n');
+}
+async function pptxText(entries){
+  const slides = entries.filter(e => /^ppt\/slides\/slide\d+\.xml$/.test(e.name)).sort((a, b) => +a.name.match(/(\d+)\.xml/)[1] - +b.name.match(/(\d+)\.xml/)[1]);
+  const out = [];
+  for (let i = 0; i < slides.length; i++){
+    const xml = decodeText(await slides[i].get());
+    const paras = [...xml.matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)].map(p => xmlDec([...p[1].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(x => x[1]).join(''))).filter(Boolean);
+    const notesE = entries.find(e => e.name === `ppt/notesSlides/notesSlide${i + 1}.xml`);
+    let notes = '';
+    if (notesE){ const nx = decodeText(await notesE.get()); notes = [...nx.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(x => xmlDec(x[1])).join(' ').trim(); }
+    out.push(`### Diapositive ${i + 1}\n${paras.join('\n')}${notes ? '\nNotes : ' + notes : ''}`);
+  }
+  return out.join('\n\n');
+}
+function odfText(xml){
+  return tidy(stripTags(xml.replace(/<text:tab\/>/g, '\t').replace(/<text:line-break\/>/g, '\n').replace(/<\/table:table-cell>/g, ' | ').replace(/<\/table:table-row>/g, '\n').replace(/<\/text:(p|h)>/g, '\n').replace(/<draw:page [^>]*draw:name="([^"]*)"[^>]*>/g, '\n### $1\n')));
+}
+function htmlText(html){
+  return tidy(stripTags(String(html).replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|h\d|li|tr|section|article)>/gi, '\n').replace(/<\/t[dh]>/gi, ' | ')));
+}
+function rtfText(s){
+  return tidy(s.replace(/\\par[d]?/g, '\n').replace(/\\'([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\u(-?\d+)\??/g, (_, d) => String.fromCharCode((+d + 65536) % 65536)).replace(/\{\\\*[^{}]*\}/g, '').replace(/\\[a-z]+-?\d* ?/gi, '').replace(/[{}]/g, ''));
+}
+function binSummary(u8, name, type){
+  const hex = Array.from(u8.subarray(0, 48), b => b.toString(16).padStart(2, '0')).join(' ');
+  let strs = '', cur = '';
+  for (let i = 0; i < Math.min(u8.length, 4e6) && strs.length < 4000; i++){
+    const c = u8[i];
+    if (c >= 32 && c < 127) cur += String.fromCharCode(c);
+    else { if (cur.length >= 6) strs += cur + '\n'; cur = ''; }
+  }
+  const sig = [[/^25 50 44 46/, 'PDF'], [/^50 4b 03 04/, 'ZIP / Office'], [/^7f 45 4c 46/, 'exécutable ELF (Linux)'], [/^4d 5a/, 'exécutable Windows (EXE/DLL)'], [/^cf fa ed fe|^ca fe ba be/, 'exécutable macOS'], [/^1f 8b/, 'archive GZIP'], [/^52 61 72 21/, 'archive RAR'], [/^37 7a bc af/, 'archive 7-Zip'], [/^53 51 4c 69 74 65/, 'base de données SQLite'], [/^d0 cf 11 e0/, 'ancien format Office (doc/xls/ppt)'], [/^00 00 00 .. 66 74 79 70/, 'conteneur MP4/MOV/HEIC']].find(([re]) => re.test(hex));
+  return `Fichier binaire « ${name} » (${type || 'type inconnu'}, ${fmtSize(u8.length)})${sig ? ', format détecté : ' + sig[1] : ''}.\nSignature (48 premiers octets, hexadécimal) : ${hex}\n${strs ? 'Chaînes lisibles trouvées dans le fichier :\n' + strs.slice(0, 4000) : 'Aucune chaîne lisible.'}`;
+}
+/* PDF : texte extrait sur l'appareil (pdf.js), pour que le contenu reste dans la conversation */
+let pdfjsP = null;
+function loadPdfJs(){
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!pdfjsP) pdfjsP = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => { try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); }catch(e){ rej(e); } };
+    s.onerror = () => { pdfjsP = null; rej(new Error('pdf.js indisponible')); };
+    document.head.appendChild(s);
+  });
+  return pdfjsP;
+}
+async function pdfText(u8){
+  const lib = await loadPdfJs();
+  const doc = await lib.getDocument({ data: u8 }).promise, out = [];
+  let total = 0;
+  for (let i = 1; i <= doc.numPages && total < MAX_ATT_TEXT; i++){
+    const pg = await doc.getPage(i), tc = await pg.getTextContent();
+    let line = '', lastY = null, txt = '';
+    for (const it of tc.items){ const y = it.transform?.[5]; if (lastY != null && Math.abs(y - lastY) > 2){ txt += line.trim() + '\n'; line = ''; } line += it.str + (it.hasEOL ? '\n' : ' '); lastY = y; }
+    txt += line.trim();
+    out.push(`### Page ${i}\n${tidy(txt)}`); total += txt.length;
+  }
+  return { text: out.join('\n\n'), pages: doc.numPages };
+}
+/* Extraction principale : renseigne a.text (contenu lisible), a.fmt (format), a.inner (images d'une archive) */
+async function extractFile(f, a){
+  const ext = extOf(a.name), u8 = new Uint8Array(await f.arrayBuffer());
+  const zipSig = u8[0] === 0x50 && u8[1] === 0x4b && u8[2] === 0x03 && u8[3] === 0x04;
+  a.fmt = FMT_LABEL[ext] || (ext ? 'fichier .' + ext : 'fichier');
+  try{
+    if (zipSig){
+      const entries = zipList(u8), has = n => entries.some(e => e.name === n);
+      if (has('word/document.xml')){ a.fmt = 'document Word'; a.text = docxXmlText(await zipText(entries, 'word/document.xml')); return; }
+      if (has('xl/workbook.xml')){ a.fmt = 'classeur Excel'; a.text = await xlsxText(entries); a.table = true; return; }
+      if (entries.some(e => /^ppt\/slides\/slide\d+\.xml$/.test(e.name))){ a.fmt = 'présentation PowerPoint'; a.text = await pptxText(entries); return; }
+      if (has('content.xml') && has('mimetype')){ a.text = odfText(await zipText(entries, 'content.xml')); return; }
+      if (has('META-INF/container.xml') && entries.some(e => /\.x?html?$/i.test(e.name))){
+        a.fmt = 'livre EPUB'; let t = '';
+        for (const e of entries.filter(e => /\.x?html?$/i.test(e.name)).sort((x, y) => x.name.localeCompare(y.name, undefined, { numeric: true }))){ t += htmlText(decodeText(await e.get())) + '\n\n'; if (t.length > MAX_ATT_TEXT) break; }
+        a.text = tidy(t); return;
+      }
+      /* archive ZIP : liste complète + contenu des fichiers texte + quelques images */
+      a.fmt = 'archive ZIP';
+      const lines = [`Archive de ${entries.length} fichier${entries.length > 1 ? 's' : ''} :`, ...entries.slice(0, 400).map(e => `- ${e.name} (${fmtSize(e.size)})`)];
+      let budget = MAX_ATT_TEXT; a.inner = [];
+      for (const e of entries){
+        if (budget <= 0) break;
+        const ie = extOf(e.name);
+        if (/^(png|jpe?g|gif|webp)$/.test(ie) && e.size < 6e6 && a.inner.length < 6){
+          try{ const b = await e.get(); a.inner.push({ name: e.name, data: await readAs(new Blob([b], { type: 'image/' + (ie === 'jpg' ? 'jpeg' : ie) }), 'readAsDataURL') }); }catch(err){}
+          continue;
+        }
+        if (e.size > 2e6 || /^(png|jpe?g|gif|webp|mp[34]|mov|zip|exe|dll|so|bin|pdf|woff2?|ttf|otf|ico)$/.test(ie)) continue;
+        try{ const b = await e.get(); if (!looksText(b)) continue; const t = decodeText(b).slice(0, Math.min(budget, 60000)); budget -= t.length; lines.push(`\n--- ${e.name} ---\n${t}`); }catch(err){}
+      }
+      a.text = lines.join('\n'); return;
+    }
+    if (ext === 'rtf' || (u8[0] === 0x7b && decodeText(u8.subarray(0, 6)) === '{\\rtf1')){ a.fmt = 'document RTF'; a.text = rtfText(decodeText(u8)); return; }
+    if (looksText(u8)){
+      const t = decodeText(u8);
+      a.text = t; a.fmt = FMT_LABEL[ext] || (ext ? 'fichier texte .' + ext : 'fichier texte');
+      if (/^(csv|tsv)$/.test(ext)) a.table = true;
+      return;
+    }
+    a.text = binSummary(u8, a.name, a.type);
+  }catch(e){ a.text = binSummary(u8, a.name, a.type) + `\n(Lecture détaillée impossible : ${e.message || e}.)`; }
+}
+/* Bloc envoyé au modèle pour un fichier dont le contenu a été extrait */
+function attTextBlock(a){
+  const t = String(a.text || ''), cut = t.length > MAX_ATT_TEXT;
+  return `\n\n--- Fichier joint : ${a.name} (${a.fmt || 'fichier'}, ${fmtSize(a.size || 0)}) ---\n${cut ? t.slice(0, MAX_ATT_TEXT) + `\n[… contenu tronqué : ${MAX_ATT_TEXT.toLocaleString('fr-FR')} caractères sur ${t.length.toLocaleString('fr-FR')}]` : t}\n--- Fin de ${a.name} ---`;
+}
+
+/* =====================================================================
+   FICHIERS RENVOYÉS PAR LE MODÈLE : un bloc nommé .docx ou .xlsx devient un vrai fichier Office
+   ===================================================================== */
+const xe = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function mdRuns(line){
+  const out = []; const re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g; let last = 0, m;
+  while ((m = re.exec(line))){ if (m.index > last) out.push({ t: line.slice(last, m.index) }); const s = m[0]; out.push(s.startsWith('**') ? { t: s.slice(2, -2), b: true } : s.startsWith('`') ? { t: s.slice(1, -1), code: true } : { t: s.slice(1, -1), i: true }); last = m.index + s.length; }
+  if (last < line.length) out.push({ t: line.slice(last) });
+  return out.map(r => `<w:r><w:rPr>${r.b ? '<w:b/>' : ''}${r.i ? '<w:i/>' : ''}${r.code ? '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>' : ''}${r.sz ? '' : ''}</w:rPr><w:t xml:space="preserve">${xe(r.t)}</w:t></w:r>`).join('');
+}
+function mdToDocxXml(md){
+  const lines = String(md).replace(/\r/g, '').split('\n'), body = [];
+  const para = (inner, ppr) => `<w:p>${ppr ? '<w:pPr>' + ppr + '</w:pPr>' : ''}${inner}</w:p>`;
+  for (let i = 0; i < lines.length; i++){
+    const l = lines[i];
+    if (/^\s*\|.*\|\s*$/.test(l)){
+      const rows = []; while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ if (!/^\s*\|[\s:|-]+\|\s*$/.test(lines[i])) rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim())); i++; } i--;
+      body.push(`<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/><w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(s => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`).join('')}</w:tblBorders></w:tblPr>${rows.map((r, ri) => `<w:tr>${r.map(c => `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${para(ri === 0 ? mdRuns('**' + c.replace(/\*\*/g, '') + '**') : mdRuns(c))}</w:tc>`).join('')}</w:tr>`).join('')}</w:tbl>`);
+      body.push(para(''));
+      continue;
+    }
+    const h = l.match(/^(#{1,6})\s+(.*)$/);
+    if (h){ const sz = [40, 32, 28, 26, 24, 22][h[1].length - 1]; body.push(para(`<w:r><w:rPr><w:b/><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xe(h[2].replace(/\*\*/g, ''))}</w:t></w:r>`, '<w:spacing w:before="240" w:after="120"/>')); continue; }
+    const li = l.match(/^(\s*)[-*•]\s+(.*)$/);
+    if (li){ body.push(para(`<w:r><w:t xml:space="preserve">•\t</w:t></w:r>${mdRuns(li[2])}`, `<w:ind w:left="${360 + li[1].length * 180}" w:hanging="360"/>`)); continue; }
+    const ol = l.match(/^(\s*)(\d+)[.)]\s+(.*)$/);
+    if (ol){ body.push(para(`<w:r><w:t xml:space="preserve">${ol[2]}.\t</w:t></w:r>${mdRuns(ol[3])}`, `<w:ind w:left="${360 + ol[1].length * 180}" w:hanging="360"/>`)); continue; }
+    if (/^\s*(---|\*\*\*)\s*$/.test(l)){ body.push(para('', '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="999999"/></w:pBdr>')); continue; }
+    body.push(para(mdRuns(l)));
+  }
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+}
+const te8 = s => new TextEncoder().encode(s);
+async function buildDocx(md){
+  return makeZip([
+    { path:'[Content_Types].xml', data: te8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>') },
+    { path:'_rels/.rels', data: te8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>') },
+    { path:'word/document.xml', data: te8(mdToDocxXml(md)) }
+  ]);
+}
+/* Tableau : CSV, TSV, point-virgule ou tableau Markdown ; plusieurs feuilles avec « ### Feuille « Nom » » */
+function parseDelim(text){
+  const lines = String(text).replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
+  if (lines.some(l => /^\s*\|.*\|\s*$/.test(l))) return lines.filter(l => /^\s*\|.*\|\s*$/.test(l) && !/^\s*\|[\s:|-]+\|\s*$/.test(l)).map(l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim().replace(/\*\*/g, '')));
+  const sample = lines.slice(0, 5).join('\n');
+  const d = (sample.match(/\t/g) || []).length > (sample.match(/,/g) || []).length ? '\t' : (sample.match(/;/g) || []).length > (sample.match(/,/g) || []).length ? ';' : ',';
+  return lines.map(l => { const out = []; let cur = '', q = false; for (let i = 0; i < l.length; i++){ const c = l[i]; if (q){ if (c === '"' && l[i + 1] === '"'){ cur += '"'; i++; } else if (c === '"') q = false; else cur += c; } else if (c === '"') q = true; else if (c === d){ out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out; });
+}
+function colName(i){ let s = ''; i++; while (i > 0){ const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+async function buildXlsx(text){
+  const secs = String(text).split(/^#{2,3}\s*Feuille\s*[«"]?\s*([^»"\n]+?)\s*[»"]?\s*$/m);
+  const sheets = [];
+  if (secs.length > 1){ for (let i = 1; i < secs.length; i += 2) sheets.push({ name: secs[i].slice(0, 31).replace(/[\\/?*[\]:]/g, ' '), rows: parseDelim(secs[i + 1]) }); }
+  else sheets.push({ name: 'Feuille 1', rows: parseDelim(text) });
+  const files = [
+    { path:'[Content_Types].xml', data: te8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`) },
+    { path:'_rels/.rels', data: te8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
+    { path:'xl/workbook.xml', data: te8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s, i) => `<sheet name="${xe(s.name || 'Feuille ' + (i + 1))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`) },
+    { path:'xl/_rels/workbook.xml.rels', data: te8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`) },
+    { path:'xl/styles.xml', data: te8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf fontId="0"/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>') }
+  ];
+  sheets.forEach((s, i) => {
+    const rows = s.rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => {
+      const ref = colName(ci) + (ri + 1), st = ri === 0 ? ' s="1"' : '';
+      v = String(v ?? '').trim();
+      if (v.startsWith('=') && v.length > 1) return `<c r="${ref}"${st}><f>${xe(v.slice(1))}</f></c>`;
+      const num = v.replace(/ |\s/g, '').replace(/,(\d+)$/, '.$1');
+      if (/^-?\d+(\.\d+)?$/.test(num) && !/^0\d/.test(num)) return `<c r="${ref}"${st}><v>${num}</v></c>`;
+      return `<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+    }).join('')}</row>`).join('');
+    files.push({ path: `xl/worksheets/sheet${i + 1}.xml`, data: te8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`) });
+  });
+  return makeZip(files);
+}
+const OFFICE_MIME = { docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+/* Contenu d'un fichier produit par le modèle, prêt à télécharger (conversion Office si besoin) */
+async function producedBlob(name, code){
+  const ext = extOf(name);
+  if (ext === 'docx'){ const z = await buildDocx(code); return new Blob([z], { type: OFFICE_MIME.docx }); }
+  if (ext === 'xlsx' || ext === 'xls'){ const z = await buildXlsx(code); return new Blob([z], { type: OFFICE_MIME.xlsx }); }
+  return new Blob([code], { type: (MIME[ext] || 'text/plain') + ';charset=utf-8' });
+}
+
+/* =====================================================================
+   AFFICHER UNE PIÈCE JOINTE : toucher le fichier l'ouvre (aperçu, code, tableau, PDF, audio)
+   ===================================================================== */
+function findAtt(id){
+  const p = S.pending.find(a => a.id === id); if (p) return p;
+  for (const m of S.conv?.messages || []) for (const a of m.atts || []) if (a.id === id) return a;
+  return null;
+}
+async function attBlob(a){ if (a.blob) return a.blob; if (a.data) return dataUrlToBlob(a.data); return new Blob([a.text || ''], { type: 'text/plain;charset=utf-8' }); }
+async function openAtt(a){
+  const k = kindOf(a), ext = extOf(a.name);
+  if (k === 'image') return openViewer([{ kind:'image', src: a.data, name: a.name.replace(/\.[^.]+$/, ''), att: a }], 0);
+  if (k === 'video') return openViewer([{ kind:'video', src: a.data || blobSrc(a.blob), name: a.name.replace(/\.[^.]+$/, ''), att: a }], 0);
+  if (k === 'audio') return openViewer([{ kind:'audio', src: a.data, name: a.name, att: a }], 0);
+  if (k === 'pdf'){
+    try{ const u = URL.createObjectURL(await attBlob(a)); const w = window.open(u, '_blank'); if (!w) location.href = u; }catch(e){ toast('Aperçu du PDF impossible.'); }
+    return;
+  }
+  const items = [];
+  if (/^html?$/.test(ext) && a.text) items.push({ kind:'html', doc: a.text, name: a.name, att: a });
+  if (a.inner?.length) a.inner.forEach(im => items.push({ kind:'image', src: im.data, name: im.name, att: a }));
+  items.push({ kind:'text', name: a.name, text: a.text || '(contenu illisible)', table: a.table || /^(csv|tsv)$/.test(ext), fmt: a.fmt, att: a });
+  openViewer(items, 0);
+}
+function textViewHtml(it){
+  if (it.table){
+    const secs = String(it.text).split(/^#{2,3}\s*(Feuille[^\n]*)$/m);
+    const blocks = secs.length > 1 ? Array.from({ length: (secs.length - 1) / 2 }, (_, i) => [secs[1 + i * 2], secs[2 + i * 2]]) : [[null, it.text]];
+    return `<div class="vtext"><div class="vt-h"><b>${esc(it.name)}</b><span>${esc(it.fmt || '')}</span></div>${blocks.map(([h, body]) => { const rows = parseDelim(body).slice(0, 400); return `${h ? `<div class="vt-sh">${esc(h.replace(/[«»]/g, ''))}</div>` : ''}<div class="vt-tbl"><table>${rows.map((r, i) => `<tr>${r.map(c => i ? `<td>${esc(c)}</td>` : `<th>${esc(c)}</th>`).join('')}</tr>`).join('')}</table></div>`; }).join('')}</div>`;
+  }
+  const t = String(it.text);
+  return `<div class="vtext"><div class="vt-h"><b>${esc(it.name)}</b><span>${esc(it.fmt || '')}${t.length > 400000 ? ' · aperçu des 400 000 premiers caractères' : ''}</span></div><pre class="vt-pre">${esc(t.slice(0, 400000))}</pre></div>`;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-openatt]'); if (!c || e.target.closest('[data-rm]')) return;
+  const a = findAtt(c.dataset.openatt); if (a){ e.preventDefault(); openAtt(a); }
+});
+
 async function addFiles(list){
   for (const f of list){
     const k = kindOf(f);
-    const limit = k === 'video' ? 2048 : 30;
+    const limit = k === 'video' ? 2048 : 100;
     if (f.size > limit * 1048576){ toast(`${f.name} dépasse ${limit >= 1024 ? limit / 1024 + ' Go' : limit + ' Mo'}, il n'a pas été ajouté.`); continue; }
     try{
       const a = { id: uid(), name: f.name || 'fichier', type: f.type || '', size: f.size };
@@ -1892,10 +2324,20 @@ async function addFiles(list){
         }
       } else if (k === 'image'){
         /* Photo remise dans le bon sens (orientation iPhone), redimensionnée à 2048 px max : le modèle voit exactement ce que voit l'utilisateur */
+        if (/svg/i.test(f.type || '') || /\.svg$/i.test(a.name)){ a.text = await readAs(f, 'readAsText'); a.fmt = 'image vectorielle SVG'; }
         const n = await normImage(f);
         a.data = n.data; if (n.w){ a.w = n.w; a.h = n.h; } if (n.type){ a.type = n.type; a.size = Math.round(n.data.length * 0.75); if (n.type === 'image/jpeg') a.name = a.name.replace(/\.(heic|heif|png|webp|jpe?g)$/i, '') + '.jpg'; }
-      } else a.data = await readAs(f, 'readAsDataURL');
-      if (k === 'text') a.text = await readAs(f, 'readAsText');
+      } else if (k === 'pdf'){
+        a.data = await readAs(f, 'readAsDataURL'); a.fmt = 'document PDF';
+        /* texte du PDF extrait sur l'appareil, en arrière-plan : il reste disponible pour toute la suite de la conversation */
+        const ep = f.arrayBuffer().then(b => pdfText(new Uint8Array(b))).then(r => { a.text = r.text; a.pages = r.pages; }).catch(() => {});
+        Object.defineProperty(a, '_extractP', { value: ep, enumerable: false });
+      } else {
+        /* texte, code, Office, OpenDocument, EPUB, ZIP, RTF, binaire… : contenu extrait pour le modèle */
+        if (f.size <= 60 * 1048576) a.data = await readAs(f, 'readAsDataURL');
+        await extractFile(f, a);
+        if (k !== 'audio') a.kd = 'text';
+      }
       S.pending.push(a);
     }catch(e){ toast('Lecture impossible : ' + f.name); }
   }
@@ -1906,7 +2348,7 @@ function blobSrc(b){ if (!b) return ''; if (!BLOB_URLS.has(b)) BLOB_URLS.set(b, 
 function attChip(a, removable){
   const k = kindOf(a);
   const th = k === 'image' ? `<img src="${esc(safeSrc(a.data))}" alt="">` : k === 'video' ? `<video src="${esc(a.data || blobSrc(a.blob))}#t=0.1" muted playsinline preload="metadata"></video>` : esc((a.name.split('.').pop() || k).slice(0, 4));
-  return `<div class="att"><span class="th">${th}</span><span class="nm"><b>${esc(a.name)}</b><span>${fmtSize(a.size || 0)}</span></span>${removable ? `<button class="x" data-rm="${a.id}" aria-label="Retirer ${esc(a.name)}">×</button>` : ''}</div>`;
+  return `<div class="att" data-openatt="${esc(a.id)}" role="button" tabindex="0" aria-label="Ouvrir ${esc(a.name)}"><span class="th">${th}</span><span class="nm"><b>${esc(a.name)}</b><span>${fmtSize(a.size || 0)}</span></span>${removable ? `<button class="x" data-rm="${a.id}" aria-label="Retirer ${esc(a.name)}">×</button>` : ''}</div>`;
 }
 function renderPending(){
   const el = $('#pending'); el.hidden = !S.pending.length;
@@ -2005,10 +2447,10 @@ function userParts(m, light){
   const parts = [];
   if (light){
     /* message ancien : le texte complet, les pièces jointes résumées (elles ont déjà été vues) */
-    for (const a of m.atts || []){ const k = kindOf(a); txt += k === 'text' ? `\n\n--- Fichier joint (déjà lu) : ${a.name} ---\n${clip(a.text || '', 3000)}` : `\n\n[Pièce jointe déjà analysée plus haut : ${a.name} (${k})]`; }
+    for (const a of m.atts || []){ const k = kindOf(a); txt += a.text && k !== 'image' ? `\n\n--- Fichier joint (déjà lu en entier plus haut, extrait) : ${a.name} (${a.fmt || k}) ---\n${clip(a.text || '', 4000)}` : `\n\n[Pièce jointe déjà analysée plus haut : ${a.name} (${k})]`; }
     return [{ type:'text', text: txt.trim() || '(pièce jointe)' }];
   }
-  for (const a of m.atts || []) if (kindOf(a) === 'text') txt += `\n\n--- Fichier joint : ${a.name} ---\n${a.text}\n--- Fin de ${a.name} ---`;
+  for (const a of m.atts || []){ const k = kindOf(a); if ((k === 'text' || (k === 'image' && a.text)) && a.text != null) txt += attTextBlock(a); }
   if (txt.trim()) parts.push({ type:'text', text: txt.trim() });
   for (const a of m.atts || []){
     const k = kindOf(a);
@@ -2022,7 +2464,10 @@ function userParts(m, light){
       else parts.push({ type:'text', text:`[Vidéo « ${a.name} » de ${fmtSize(a.size || 0)} : trop lourde pour être envoyée au modèle et ses images n'ont pas pu être extraites. Dis-le à l'utilisateur et propose-lui d'envoyer un extrait de moins de 20 Mo.]` });
     }
     else if (k === 'audio') parts.push({ type:'input_audio', input_audio:{ data:a.data.split(',')[1], format:audioFmt(a) } });
-    else if (k === 'pdf' || k === 'file') parts.push({ type:'file', file:{ filename:a.name, file_data:a.data } });
+    /* PDF : son texte extrait sur l'appareil part directement (plus rapide et sans frais de lecture) ; PDF scanné sans texte : envoyé tel quel */
+    else if (k === 'pdf'){ if (a.text && a.text.replace(/###\s*Page\s*\d+/g, '').trim().length >= Math.max(40, 25 * (a.pages || 1))) parts.push({ type:'text', text: attTextBlock({ ...a, fmt: `document PDF de ${a.pages || '?'} page${a.pages > 1 ? 's' : ''}` }).trim() }); else parts.push({ type:'file', file:{ filename:a.name, file_data:a.data } }); }
+    else if (k === 'file'){ if (a.text) parts.push({ type:'text', text: attTextBlock(a).trim() }); else if (a.data) parts.push({ type:'file', file:{ filename:a.name, file_data:a.data } }); }
+    if (a.inner?.length){ parts.push({ type:'text', text:`Images contenues dans ${a.name} :` }); for (const im of a.inner) parts.push({ type:'image_url', image_url:{ url: im.data } }); }
   }
   if (!parts.length) parts.push({ type:'text', text:'(fichier joint)' });
   return parts;
@@ -2073,6 +2518,8 @@ const FILE_HINT2 = `FICHIERS ET CODE
 - Chaque fichier va dans un bloc de code dont la ligne d'ouverture contient le langage puis le nom du fichier, par exemple \`\`\`python analyse.py. Un bloc par fichier, contenu toujours complet et directement utilisable.
 - Code : propre, commenté sobrement, sans erreur de syntaxe ; relis-le mentalement comme si tu l'exécutais. Puis explique en quelques lignes comment l'utiliser.
 - Jeu, animation ou page interactive : un seul fichier \`\`\`html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale, pas d'alert()), adapté au téléphone (commandes tactiles et clavier, mise à l'échelle de l'écran), qui démarre tout seul. Écris d'abord le HTML et le CSS, puis le JavaScript : l'utilisateur voit le jeu se construire en direct puis peut y jouer dans la conversation.
+- Fichiers joints : tu reçois leur contenu complet, déjà extrait par l'application (texte, code de tout langage, pages HTML, PDF page par page, Word, feuilles Excel en CSV, diapositives PowerPoint, OpenDocument, EPUB, contenu des archives ZIP, et pour les autres binaires leur signature et leurs chaînes lisibles). Analyse-les entièrement et précisément ; compare-les, regroupe-les ou croise-les si plusieurs sont joints. Ne dis jamais que tu ne peux pas ouvrir un format.
+- Fichier modifié ou créé : renvoie-le EN ENTIER dans un bloc nommé avec le nom du fichier (même nom que l'original sauf demande contraire). Word : bloc \`\`\`markdown nom.docx (titres #, listes, **gras**, tableaux |) converti en vrai document Word. Excel : bloc \`\`\`csv nom.xlsx (une ligne d'en-tête, formules commençant par = acceptées ; plusieurs feuilles avec une ligne « ### Feuille « Nom » » avant chacune) converti en vrai classeur. Tout autre format texte (html, css, js, py, json, xml, md, csv, svg, sql…) : bloc avec son extension. L'utilisateur télécharge le fichier en un geste.
 - Projet en plusieurs fichiers : nomme chaque bloc avec son chemin (\`\`\`css css/style.css, \`\`\`javascript js/app.js) et écris sur une ligne seule [[zip: nom-du-projet]] ; l'application crée l'archive ZIP téléchargeable.`;
 
 function buildSystem(conv, catId){
@@ -2120,6 +2567,22 @@ function addSources(asst, ann){
 }
 
 /* ---------- Envoi ---------- */
+function lastUserText(conv){ const u = [...(conv?.messages || [])].reverse().find(m => m.role === 'user'); return String(u?.apiText || u?.text || ''); }
+/* La demande a-t-elle besoin d'une recherche web ? (actualité, prix, horaires, chiffres récents, personnes/entreprises, sources demandées) */
+var WEB_NEED_RE = /(sources?\b|avec (des )?liens|référence(s)? (précises|vérifiables)|vérifie (sur|en ligne)|d'après internet|sur (le )?web|site officiel|qui est [A-ZÉ]|c'est qui|que s'est-il passé|dernier(e)?s? (nouvelles|infos|chiffres|résultats|sorties?|versions?|mises? à jour)|sorti(e)? (en|le)|lancé(e)? (en|le)|statistiques? (de|du|sur|récentes)|chiffres? (récents|officiels|de 20)|taux (de|d')|inflation|population (de|du|actuelle)|record (du|de)|classement|palmarès|prochain(e)?s? (match|élection|sortie|date)|calendrier|horaires|adresse (de|du)|numéro de téléphone|avis (sur|clients)|meilleur(e)?s? .{0,30}(20\d\d|actuel|du moment)|comparatif (des|de)|décret|réglementation (actuelle|en vigueur)|élection|président (de|du|actuel)|premier ministre|gouvernement (actuel|de)|cours de (l'action|bourse|la crypto)|bitcoin|match|score|météo)/i;
+function needsWeb(text, asst){
+  if (asst?.web || asst?.route?.web) return true;
+  const t = String(text || '');
+  if (t.length < 12 || SMALLTALK_RE.test(t) || APPTALK_RE.test(t)) return false;
+  if ((typeof CODE_RE !== 'undefined' && CODE_RE.test(t)) && !/doc(umentation)?|version|api/i.test(t)) return false;
+  return SEARCH_RE.test(t) || WEB_NEED_RE.test(t) || /\b20[2-3]\d\b/.test(t);
+}
+/* Réflexion utile ? (raisonnement, calcul, analyse, code, demande longue ou complexe) — pas pour les échanges simples */
+function needsReasoning(text, asst){
+  const t = String(text || '');
+  if (asst?.route?.tier === 'eco' || t.length < 20 || SMALLTALK_RE.test(t)) return false;
+  return REASON_RE.test(t) || (typeof CODE_RE !== 'undefined' && CODE_RE.test(t)) || t.length > 280 || /(analyse|compare|stratégie|plan|pourquoi|démontre|calcule|optimise|explique en détail|étape par étape|résous|évalue|argumente|synthèse|rapport)/i.test(t);
+}
 async function runChat(asst, signal, conv){
   conv = conv || asst._conv || S.conv;
   const mode = asst.mode, msgs = [];
@@ -2145,25 +2608,44 @@ async function runChat(asst, signal, conv){
     const body = { model: asst.model, messages: msgs, stream: true, temperature: +S.set.temperature, usage:{ include: true } };
     const voiceWeb = S.voiceActive && S.set.voiceWeb !== false && !isXai(asst.model);
     const serverWeb = voiceWeb && (!info || hasParam(info, 'tools'));
-    const webOn = (S.set.web || asst.web) && mode === 'chat' && !freeOnly();
-    if ((webOn && !serverWeb) || (voiceWeb && !serverWeb)) body.plugins = [{ id:'web' }];
+    /* Recherche web : activée par défaut, mais lancée seulement quand la demande en a besoin (actualité, prix, faits récents, sources…),
+       et une seule fois par réponse : sinon chaque message attendrait une recherche inutile de plusieurs secondes */
+    const webOn = (asst.web || (S.set.web && needsWeb(lastUserText(conv), asst))) && mode === 'chat' && !freeOnly() && round === 0;
+    if ((webOn && !serverWeb) || (voiceWeb && !serverWeb && round === 0)) body.plugins = [{ id:'web' }];
+    if (mode === 'chat' || mode === 'chat+image') body.provider = { sort:'latency' };
     const canReason = !info || hasParam(info, 'reasoning') || hasParam(info, 'include_reasoning');
     const polReason = typeof planPolicy === 'function' && planPolicy().reason;
-    if (canReason && mode === 'chat' && (S.set.reasoning || asst.reason || polReason || asst.route?.tier === 'max') && !S.voiceActive) body.reasoning = { effort:'medium' };
+    /* Réflexion : activée par défaut pour les demandes qui la méritent ; une salutation ou une question simple répond tout de suite */
+    const deep = asst.reason || polReason || asst.route?.tier === 'max';
+    if (canReason && mode === 'chat' && !S.voiceActive && (deep || (S.set.reasoning && needsReasoning(lastUserText(conv), asst)))) body.reasoning = { effort: deep ? 'medium' : 'low' };
     if (mode === 'chat+image'){ body.modalities = ['image', 'text']; const asp = asst.imgAspect || S.set.imgAspect; if (asp && asp !== 'auto') body.image_config = { aspect_ratio: asp }; }
     if (tools.length) body.tools = tools.map(toolSpec);
     if (serverWeb) body.tools = (body.tools || []).concat([
       { type:'openrouter:web_search', parameters:{ engine:'auto', max_results:5, search_context_size:'low' } },
       { type:'openrouter:datetime', parameters:{ timezone: tz } }
     ]);
-    const res = await fetch(API + '/chat/completions', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal });
+    /* Veille de connexion : si plus rien n'arrive (réseau coupé, appli mise en arrière-plan), on coupe et on se reconnecte
+       au lieu de rester bloqué sur « Connexion… » */
+    const ctl = new AbortController(), onAb = () => ctl.abort(); signal?.addEventListener('abort', onAb);
+    let beat = Date.now(), stalled = false, gotHead = false, calls = [], roundText = '', reqCost = null, reqEst = false;
+    const wd = setInterval(() => { if (Date.now() - beat > (gotHead ? 50000 : 90000)){ stalled = true; ctl.abort(); } }, 2500);
+    Object.defineProperty(asst, '_beat', { value: () => beat, writable: true, configurable: true, enumerable: false });
+    Object.defineProperty(asst, '_kick', { value: () => { stalled = true; ctl.abort(); }, writable: true, configurable: true, enumerable: false });
+    try{
+    let res;
+    try{ res = await fetch(API + '/chat/completions', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal: ctl.signal }); }
+    catch(e){ if (stalled && !signal?.aborted) throw new TypeError('Connexion interrompue (network)'); throw e; }
+    gotHead = true; beat = Date.now();
     if (!res.ok) throw await apiError(res);
     asst.status = round ? 'Le modèle continue…' : 'Le modèle répond…'; paint(asst);
-    const calls = []; let roundText = '', reqCost = null, reqEst = false;
+    calls = []; roundText = ''; reqCost = null; reqEst = false;
     if (round && asst.text && !/\n\n$/.test(asst.text)) asst.text += '\n\n';
     const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '';
     for (;;){
-      const { done, value } = await reader.read(); if (done) break;
+      let rd;
+      try{ rd = await reader.read(); }catch(e){ if (stalled && !signal?.aborted) throw new TypeError('Connexion interrompue (network)'); throw e; }
+      const { done, value } = rd; if (done) break;
+      beat = Date.now();
       buf += dec.decode(value, { stream:true });
       let k;
       while ((k = buf.indexOf('\n')) >= 0){
@@ -2188,6 +2670,7 @@ async function runChat(asst, signal, conv){
         schedulePaint(asst);
       }
     }
+    }finally{ clearInterval(wd); signal?.removeEventListener('abort', onAb); }
     if (reqCost != null){ asst.cost = (+asst.cost || 0) + reqCost; if (reqEst) asst.estimated = true; }
     const real = calls.filter(c => c && c.name && TOOLS.some(t => t.name === c.name));
     if (!real.length) break;
@@ -2258,6 +2741,8 @@ async function runVideo(asst, user, signal){
     pollUrl = job.polling_url ? (job.polling_url.startsWith('http') ? job.polling_url : 'https://openrouter.ai' + job.polling_url) : API + '/videos/' + job.id;
     t0 = Date.now();
     Object.defineProperty(asst, '_job', { value: { url: pollUrl, t0 }, writable: true, enumerable: false, configurable: true });
+    /* gardé dans la conversation : si l'application est fermée, la vidéo reprend toute seule à la réouverture */
+    asst.job = { url: pollUrl, t0 }; { const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
   }
   const FR = { pending:"En file d'attente", in_progress:'Génération en cours' };
   while (job.status !== 'completed'){
@@ -2267,12 +2752,13 @@ async function runVideo(asst, user, signal){
     asst.status = `${FR[job.status] || 'Génération'} · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
     await sleep(5000, signal);
     let r;
-    try{ r = await fetch(pollUrl, orAuthOk(pollUrl) ? { headers: hdr(), signal } : { signal }); }
-    catch(err){ if (!isNetErr(err)) throw err; asst.status = NET_MSG; paint(asst); await waitOnline(signal, 8000); continue; }
+    try{ r = await fetchT(pollUrl, orAuthOk(pollUrl) ? { headers: hdr(), signal } : { signal }, 30000); }
+    catch(err){ if (!isNetErr(err) && !err.timeout) throw err; asst.status = NET_MSG; paint(asst); await waitOnline(signal, 8000); continue; }
     if (!r.ok) throw await apiError(r);
     job = await r.json();
   }
   asst.status = 'Téléchargement de la vidéo…'; paint(asst);
+  delete asst.job;
   const list = job.unsigned_urls?.length ? job.unsigned_urls : [];
   for (let i = 0; i < Math.max(list.length, (job.urls || []).length); i++){
     try{
@@ -2338,43 +2824,100 @@ const UM_IC = {
   get copy(){ return IC.copy; },
   share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l5 5-5 5"/><path d="M20 10h-8a7 7 0 0 0-7 7v2"/></svg>',
   select:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h13a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6"/><path d="M9 9h6M9 13h6M9 17h3"/><circle cx="5" cy="4" r="1.6" fill="currentColor"/><circle cx="19" cy="20.5" r="1.6" fill="currentColor"/></svg>',
-  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>'
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 4 3v2H6v-2l4-3z"/><path d="M12 15v6"/></svg>',
+  rename:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+  folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  delete:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>'
 };
 function userMsgById(id){ return S.conv?.messages.find(m => m.id === id && m.role === 'user'); }
-function closeUMenu(){ document.querySelectorAll('.umenu,.umenu-scrim,.umenu-ghost').forEach(n => n.remove()); document.querySelectorAll('.bubble.pressed').forEach(b => b.classList.remove('pressed')); }
-function openUMenu(bub){
-  const m = userMsgById(bub.dataset.umid); if (!m) return;
+function msgOfNode(node){ for (const [id, el] of els) if (el.contains(node)) return S.conv?.messages.find(m => m.id === id) || null; return null; }
+function closeUMenu(){ document.querySelectorAll('.umenu,.umenu-scrim,.umenu-ghost').forEach(n => n.remove()); document.querySelectorAll('.pressed').forEach(b => b.classList.remove('pressed')); }
+/* Menu contextuel façon iOS : flou derrière, élément touché net au-dessus, options sous le doigt */
+function showMenu({ node, ghost, point, items, onPick }){
   closeUMenu(); clearSelecting();
   try{ navigator.vibrate?.(12); }catch(e){}
-  bub.classList.add('pressed');
+  node?.classList.add('pressed');
   const scrim = document.createElement('div'); scrim.className = 'umenu-scrim';
   const menu = document.createElement('div'); menu.className = 'umenu'; menu.setAttribute('role', 'menu');
-  const items = [['copy', 'Copier'], ['share', 'Envoyer vers'], ['select', 'Sélectionner le texte'], ...(S.conv?.bot ? [] : [['edit', 'Modifier']])];
-  menu.innerHTML = items.map(([k, l]) => `<button type="button" role="menuitem" data-um="${k}">${UM_IC[k]}<span>${l}</span></button>`).join('');
-  /* la bulle reste nette au-dessus du flou, comme sur iOS */
-  const r = bub.getBoundingClientRect();
-  const ghost = bub.cloneNode(true); ghost.className = 'bubble umenu-ghost'; ghost.removeAttribute('data-umid');
-  Object.assign(ghost.style, { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px' });
-  document.body.append(scrim, ghost, menu);
+  menu.innerHTML = items.map(it => it === '-' ? '<i class="um-sep"></i>' : `<button type="button" role="menuitem" data-um="${it.k}"${it.danger ? ' class="danger"' : ''}>${UM_IC[it.icon || it.k] || ''}<span>${esc(it.label)}</span></button>`).join('');
+  const parts = [scrim];
+  let r = node ? node.getBoundingClientRect() : null;
+  if (ghost && node && r.height < innerHeight * 0.6){
+    const g = node.cloneNode(true); g.classList.add('umenu-ghost'); g.classList.remove('pressed'); g.removeAttribute('data-umid');
+    Object.assign(g.style, { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px' });
+    parts.push(g);
+  } else if (point) r = { top: point.y - 8, bottom: point.y + 8, left: point.x, right: point.x + 120 };
+  document.body.append(...parts, menu);
   const mh = menu.offsetHeight, mw = menu.offsetWidth, vh = innerHeight;
-  const below = r.bottom + 10 + mh < vh - 90;
-  menu.style.top = (below ? r.bottom + 10 : Math.max(12, r.top - 10 - mh)) + 'px';
-  menu.style.left = Math.max(16, Math.min(innerWidth - mw - 16, r.right - mw)) + 'px';
+  const below = r.bottom + 10 + mh < vh - 24;
+  menu.style.top = Math.max(12, below ? r.bottom + 10 : r.top - 10 - mh) + 'px';
+  menu.style.left = Math.max(16, Math.min(innerWidth - mw - 16, ghost ? (node.closest('.msg.user') ? r.right - mw : r.left) : r.left - mw / 2)) + 'px';
   if (!below) menu.classList.add('up');
   scrim.addEventListener('click', closeUMenu);
-  menu.addEventListener('click', async e => {
-    const b = e.target.closest('[data-um]'); if (!b) return;
-    const k = b.dataset.um; closeUMenu();
-    if (k === 'copy') toast((await copyText(m.text)) ? 'Message copié' : 'Copie impossible');
-    else if (k === 'share'){
-      if (navigator.share){ try{ await navigator.share({ text: m.text }); }catch(err){} }
-      else toast((await copyText(m.text)) ? 'Partage indisponible ici : message copié' : 'Partage indisponible');
-    }
+  scrim.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  menu.addEventListener('click', e => { const b = e.target.closest('[data-um]'); if (!b) return; closeUMenu(); onPick(b.dataset.um); });
+}
+async function shareText(t){ if (navigator.share){ try{ await navigator.share({ text: t }); }catch(err){} } else toast((await copyText(t)) ? 'Partage indisponible ici : texte copié' : 'Partage indisponible'); }
+function openUMenu(bub, point){
+  const isUser = !!bub.closest('.msg.user');
+  const m = isUser ? userMsgById(bub.dataset.umid) : msgOfNode(bub); if (!m) return;
+  const text = m.text || bub.innerText || '';
+  const items = [{ k:'copy', label:'Copier' }, { k:'share', label:'Envoyer vers' }, { k:'select', label:'Sélectionner le texte' }, ...(isUser && !S.conv?.bot ? [{ k:'edit', label:'Modifier' }] : [])];
+  showMenu({ node: bub, ghost: isUser, point, items, onPick: async k => {
+    if (k === 'copy') toast((await copyText(text)) ? (isUser ? 'Message copié' : 'Réponse copiée') : 'Copie impossible');
+    else if (k === 'share') shareText(text);
     else if (k === 'select') selectBubble(bub);
     else if (k === 'edit') startEdit(m);
-  });
+  } });
 }
-function clearSelecting(){ document.querySelectorAll('.bubble.selecting').forEach(b => b.classList.remove('selecting')); }
+/* ----- Appui long sur un fil de discussion : épingler, renommer, ranger dans un dossier, supprimer ----- */
+async function convAction(id, k){
+  const ix = S.index.find(x => x.id === id);
+  const conv = S.live.get(id) || await DB.get('conv:' + id);
+  const saveAll = async () => { LS.set('relais.index', S.index); if (conv){ S.live.has(id) ? saveConv(conv) : await DB.set('conv:' + id, conv); } renderConvs(); try{ renderProjects(); }catch(e){} };
+  if (k === 'pin'){ if (ix){ ix.pinned = !ix.pinned; await saveAll(); toast(ix.pinned ? 'Discussion épinglée' : 'Discussion désépinglée'); } return; }
+  if (k === 'rename'){
+    const v = await ask({ title:'Renommer la discussion', body:`<input id="rnIn" class="rn-in" type="text" maxlength="80" value="${esc(ix?.title || conv?.title || '')}" autocomplete="off">`, buttons:[{ label:'Enregistrer', value:'ok' }, { label:'Annuler', value:null, ghost:true }] });
+    const t = (document.getElementById('rnIn')?.value || '').trim();
+    if (v === 'ok' && t){ if (ix) ix.title = t; if (conv) conv.title = t; await saveAll(); }
+    return;
+  }
+  if (k === 'folder'){
+    const cur = ix?.project || conv?.project || '';
+    const btns = S.projects.map(p => ({ label: (p.id === cur ? '✓ ' : '') + p.name, value: 'p:' + p.id }));
+    btns.push({ label:'+ Nouveau dossier', value:'new', ghost:true });
+    if (cur) btns.push({ label:'Retirer du dossier', value:'none', ghost:true });
+    btns.push({ label:'Annuler', value:null, ghost:true });
+    let v = await ask({ title:'Ajouter à un dossier', body: S.projects.length ? '<p class="note">Les discussions d\'un dossier partagent ses instructions et ses documents.</p>' : '<p class="note">Aucun dossier pour l\'instant : crée le premier.</p>', buttons: btns });
+    if (!v) return;
+    if (v === 'new'){
+      const ok = await ask({ title:'Nouveau dossier', body:'<input id="rnIn" class="rn-in" type="text" maxlength="60" placeholder="Nom du dossier" autocomplete="off">', buttons:[{ label:'Créer', value:'ok' }, { label:'Annuler', value:null, ghost:true }] });
+      const name = (document.getElementById('rnIn')?.value || '').trim();
+      if (ok !== 'ok' || !name) return;
+      const pj = { id: uid(), name, instr: '', docs: [], t: Date.now() }; S.projects.unshift(pj); saveProjects(); v = 'p:' + pj.id;
+    }
+    const pid = v === 'none' ? undefined : v.slice(2);
+    if (ix){ if (pid) ix.project = pid; else delete ix.project; }
+    if (conv){ if (pid) conv.project = pid; else delete conv.project; }
+    await saveAll(); toast(pid ? 'Ajoutée au dossier « ' + (S.projects.find(p => p.id === pid)?.name || '') + ' »' : 'Retirée du dossier');
+    return;
+  }
+  if (k === 'delete'){
+    const v = await ask({ title:'Supprimer la discussion ?', body:`<p>« ${esc(ix?.title || conv?.title || 'Discussion')} » sera supprimée de cet appareil.</p>`, buttons:[{ label:'Supprimer', value:'ok', danger:true }, { label:'Annuler', value:null, ghost:true }] });
+    if (v !== 'ok') return;
+    S.live.get(id)?._abort?.abort(); S.live.delete(id); await DB.del('conv:' + id);
+    S.index = S.index.filter(x => x.id !== id); LS.set('relais.index', S.index);
+    if (S.conv?.id === id) newConv();
+    renderConvs();
+  }
+}
+function openConvMenu(row){
+  const id = row.querySelector('[data-open]')?.dataset.open; if (!id) return;
+  const ix = S.index.find(x => x.id === id);
+  showMenu({ node: row, ghost: true, items: [{ k:'pin', label: ix?.pinned ? 'Désépingler' : 'Épingler' }, '-', { k:'rename', label:'Renommer' }, { k:'folder', label:'Ajouter à un dossier' }, '-', { k:'delete', label:'Supprimer', danger:true }], onPick: k => convAction(id, k) });
+}
+function clearSelecting(){ document.querySelectorAll('.selecting').forEach(b => b.classList.remove('selecting')); }
 function selectBubble(bub){
   bub.classList.add('selecting');
   try{ const rg = document.createRange(); rg.selectNodeContents(bub); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); }catch(e){}
@@ -2412,15 +2955,19 @@ document.getElementById('editCancel')?.addEventListener('click', () => endEdit(t
 (() => {
   let timer = 0, sx = 0, sy = 0, target = null, fired = false;
   const cancel = () => { clearTimeout(timer); timer = 0; if (target && !fired) target.classList.remove('pressed'); target = null; };
+  const LP_SEL = '.msg.user .bubble[data-umid], .msg.assistant .md, #convs .conv';
   document.addEventListener('touchstart', e => {
-    const b = e.target.closest?.('.msg.user .bubble[data-umid]'); if (!b || b.classList.contains('selecting') || e.touches.length > 1) return;
+    const b = e.target.closest?.(LP_SEL); if (!b || b.classList.contains('selecting') || e.touches.length > 1) return;
+    if (e.target.closest('a, button.act, .pv, .code, pre, iframe, video, img, input, textarea') && !b.matches('#convs .conv')) return;
     target = b; fired = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-    timer = setTimeout(() => { fired = true; timer = 0; openUMenu(b); }, 450);
+    timer = setTimeout(() => { fired = true; timer = 0; b.matches('#convs .conv') ? openConvMenu(b) : openUMenu(b, { x: sx, y: sy }); }, 450);
   }, { passive: true });
   document.addEventListener('touchmove', e => { if (!timer) return; const t = e.touches[0]; if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) cancel(); }, { passive: true });
-  document.addEventListener('touchend', e => { if (fired){ e.preventDefault?.(); } cancel(); }, { passive: false });
+  document.addEventListener('touchend', e => { if (fired){ e.preventDefault?.(); e.stopPropagation?.(); } cancel(); }, { passive: false });
+  /* le clic qui suit un appui long ne doit pas ouvrir la discussion */
+  document.addEventListener('click', e => { if (fired && e.target.closest?.(LP_SEL)){ e.preventDefault(); e.stopPropagation(); fired = false; } }, true);
   document.addEventListener('touchcancel', cancel, { passive: true });
-  document.addEventListener('contextmenu', e => { const b = e.target.closest?.('.msg.user .bubble[data-umid]'); if (!b || b.classList.contains('selecting')) return; e.preventDefault(); openUMenu(b); });
+  document.addEventListener('contextmenu', e => { const b = e.target.closest?.(LP_SEL); if (!b || b.classList.contains('selecting')) return; e.preventDefault(); b.matches('#convs .conv') ? openConvMenu(b) : openUMenu(b, { x: e.clientX, y: e.clientY }); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeUMenu(); if (S.editing) endEdit(true); } });
 })();
 async function send(){
@@ -2554,7 +3101,8 @@ async function run(user, conv, model, cat, route){
   try{
     const tried = []; let attempt = 0, net = 0, fixed = false;
     /* grosse vidéo : on attend (au plus 20 s) que ses images clés soient prêtes */
-    { const fps = (user.atts || []).map(a => a._framesP).filter(Boolean); if (fps.length && cat !== 'videoedit' && (user.atts || []).some(a => !a.frames && a._framesP)){ asst.status = 'Préparation de la vidéo…'; paint(asst); await Promise.race([Promise.all(fps), sleep(20000)]); } }
+    { const wait = (user.atts || []).filter(a => (a._framesP && !a.frames) || (a._extractP && !a.text));
+      if (wait.length && cat !== 'videoedit'){ asst.status = wait.some(a => a._framesP) ? 'Préparation de la vidéo…' : 'Lecture du document…'; paint(asst); await Promise.race([Promise.all(wait.map(a => a._framesP || a._extractP)), sleep(20000)]); } }
     for (;;){
       try{
         const x = isXai(asst.model);
@@ -2609,7 +3157,7 @@ async function run(user, conv, model, cat, route){
     { const seen = new Set(); asst.images = asst.images.filter(im => { const k = String(im.url).length + ':' + String(im.url).slice(-200); if (seen.has(k)) return false; seen.add(k); return true; }); }
     const hadMedia = asst.images.length || asst.videos.length;
     asst._live = false; if (hadMedia){ asst._fresh = true; setTimeout(() => { asst._fresh = false; }, 1600); }
-    if (+asst.cost > 0) addSpend(asst.cost, isXai(asst.model) ? 'xai' : 'openrouter', asst.estimated);
+    if (+asst.cost > 0){ addSpend(asst.cost, isXai(asst.model) ? 'xai' : 'openrouter', asst.estimated); usageAdd(+asst.cost, asst.cat); }
     paint(asst); await saveConv(conv);
     if (!asst.error && !asst.stopped && !S.voiceActive) autoIllustrate(asst, user);
     if (!isXai(asst.model)) setTimeout(() => fetchKeyInfo(asst.error ? true : false), 1500);
@@ -3187,7 +3735,7 @@ function msgFiles(m){
     if (!k.startsWith(m.id + ':')) continue;
     i++;
     if (!c.named && !c.path) continue;
-    add(c.path || c.fname || dlName(k), async () => new TextEncoder().encode(c.code));
+    { const pth = c.path || c.fname || dlName(k); add(pth, async () => new Uint8Array(await (await producedBlob(pth, c.code)).arrayBuffer())); }
   }
   (m.files || []).forEach(f => add(f.name, async () => new Uint8Array(await (await dataUrlToBlob(f.data)).arrayBuffer())));
   (m.images || []).forEach((im, j) => add(`images/image-${j + 1}.${extFromMime((String(im.url).match(/^data:([^;,]+)/) || [])[1] || 'image/png')}`, async () => new Uint8Array(await (await fetch(im.url)).arrayBuffer())));
@@ -3485,8 +4033,8 @@ $('#col').addEventListener('click', async e => {
   }
   if (act === 'dl'){
     const c = CODE.get(b.dataset.k); if (!c) return;
-    const name = dlName(b.dataset.k); const ext = name.split('.').pop().toLowerCase();
-    return saveBlob(new Blob([c.code], { type: (MIME[ext] || 'text/plain') + ';charset=utf-8' }), name);
+    const name = dlName(b.dataset.k);
+    return producedBlob(name, c.code).then(bl => saveBlob(bl, name)).catch(err => toast('Création du fichier impossible : ' + (err.message || err)));
   }
   const m = S.conv?.messages.find(x => x.id === b.dataset.mid);
   if (!m) return;
@@ -3531,6 +4079,7 @@ async function saveBlob(blob, name){
 }
 async function saveMedia(it){
   if (!it) return;
+  if (it.att && (it.kind === 'text' || it.kind === 'audio' || it.kind === 'html')){ try{ await saveBlob(await attBlob(it.att), it.att.name); }catch(e){ toast('Téléchargement impossible.'); } return; }
   try{
     const blob = it.blob || await (await fetch(it.src)).blob();
     await saveBlob(blob, it.name + '.' + extFromMime(blob.type || (it.kind === 'video' ? 'video/mp4' : 'image/png')));
@@ -3543,9 +4092,11 @@ function openViewer(items, i){ if (!items?.length) return; V.items = items; V.i 
 function showV(){
   const it = V.items[V.i]; if (!it) return;
   if (it.kind === 'html'){ $('#vStage').innerHTML = ''; $('#vStage').appendChild(makeFrame(it.doc)); }
+  else if (it.kind === 'text') $('#vStage').innerHTML = textViewHtml(it);
+  else if (it.kind === 'audio') $('#vStage').innerHTML = `<div class="vaudio"><b>${esc(it.name)}</b><audio controls autoplay src="${esc(it.src)}"></audio></div>`;
   else $('#vStage').innerHTML = it.kind === 'video' ? `<video controls playsinline autoplay src="${esc(it.src)}"></video>` : `<img src="${esc(it.src)}" alt="">`;
   zReset();
-  $('#vCount').textContent = V.items.length > 1 ? (V.i + 1) + ' / ' + V.items.length : ({ video:'Vidéo', html:'Aperçu' }[it.kind] || 'Image');
+  $('#vCount').textContent = V.items.length > 1 ? (V.i + 1) + ' / ' + V.items.length : ({ video:'Vidéo', html:'Aperçu', audio:'Audio', text: it.fmt ? it.fmt.charAt(0).toUpperCase() + it.fmt.slice(1) : 'Fichier' }[it.kind] || 'Image');
   $('#vPrev').hidden = $('#vNext').hidden = V.items.length < 2;
 }
 function stepV(d){ if (V.items.length < 2) return; V.i = (V.i + d + V.items.length) % V.items.length; showV(); }
@@ -3557,7 +4108,7 @@ $('#vDl').addEventListener('click', () => saveMedia(V.items[V.i]));
 let tX = 0, tY = 0;
 $('#vStage').addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, { passive:true });
 $('#vStage').addEventListener('touchend', e => {
-  if (V.items[V.i]?.kind === 'html' || Z.s > 1.02 || Z.gest) return;
+  if (['html', 'text', 'audio'].includes(V.items[V.i]?.kind) && V.items.length < 2 || V.items[V.i]?.kind === 'html' || Z.s > 1.02 || Z.gest) return;
   const dx = e.changedTouches[0].clientX - tX, dy = e.changedTouches[0].clientY - tY;
   if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) stepV(dx < 0 ? 1 : -1);
   else if (dy > 110 && Math.abs(dy) > Math.abs(dx)) closeViewer();
@@ -3976,7 +4527,11 @@ function voiceBrain(){
 }
 function updateVcModel(){ try{ updateVcPipe(); }catch(e){} const ag = curAgent(); $('#vcModelName').textContent = (ag ? ag.name + ' · ' : '') + bare(shortName(voiceBrain())); }
 
+/* Mode vocal désactivé temporairement (en cours d'amélioration) */
+const VOICE_DISABLED = true;
+try{ if (S.bot?.voiceOn){ S.bot.voiceOn = false; saveBot(); } }catch(e){}
 async function openVoice(){
+  if (VOICE_DISABLED){ toast('Le mode vocal revient bientôt.'); return; }
   ensureVoiceDefaults();
   const needOR = !isXai(S.set.model) || !['browser'].includes(S.set.voiceStt) || S.set.voiceTts !== 'device';
   if (needOR && !S.key){ openSettings(true); toast('Ajoute ta clé API FSM AI pour utiliser le mode vocal.'); return; }
@@ -4416,6 +4971,7 @@ $('#agList').addEventListener('click', async e => {
 $('#vsAgents').addEventListener('click', () => { $('#voiceSheet').hidden = true; openAgents(); });
 /* ----- Vocal permanent de FSM BOT ----- */
 async function startBotVoice(){
+  if (VOICE_DISABLED){ toast('Le mode vocal revient bientôt.'); return; }
   if (!S.key){ openSettings(true); toast('Ajoute ta clé API FSM AI pour le vocal de FSM BOT.'); return; }
   if (!S.conv?.bot) startBot();
   closeSheets();
@@ -4423,6 +4979,7 @@ async function startBotVoice(){
   await openVoice();
 }
 async function resumeBotVoice(){
+  if (VOICE_DISABLED){ if (S.bot.voiceOn){ S.bot.voiceOn = false; saveBot(); } return; }
   let c = S.conv?.bot ? S.conv : null;
   if (!c && S.bot.voiceConv) c = await DB.get('conv:' + S.bot.voiceConv);
   if (c){ S.conv = c; renderThread(); } else startBot();
@@ -4594,6 +5151,18 @@ async function runXaiVideo(asst, user, signal){
 /* ================= Dépenses de la session ================= */
 S.spend = (() => { try{ return JSON.parse(sessionStorage.getItem('fsm.spend')) || null; }catch(e){ return null; } })() || { total:0, n:0, by:{}, est:false };
 const fmtUsd = x => '$' + (!x ? '0.00' : x < 0.01 ? x.toFixed(4) : x < 1 ? x.toFixed(3) : x.toFixed(2));
+/* Répartition de l'usage par type (sur cet appareil), par semaine UTC */
+function weekKeyUTC(){ const m = nextMondayUTC(); m.setUTCDate(m.getUTCDate() - 7); return m.toISOString().slice(0, 10); }
+const USAGE_GROUP = { image:'img', photoedit:'edit', video:'video', videoedit:'montage', audio:'audio' };
+const USAGE_LABEL = { chat:'Discussions, recherches et documents', img:"Création d'images", edit:'Retouches photo', video:'Vidéos', montage:'Montage vidéo', audio:'Audio' };
+function usageAdd(usd, cat){
+  if (!(usd > 0)) return;
+  const u = LS.get('fsm.usage', { w:{} }), w = weekKeyUTC(), g = USAGE_GROUP[cat] || 'chat';
+  u.w[w] = u.w[w] || {}; u.w[w][g] = (u.w[w][g] || 0) + usd;
+  u.w = Object.fromEntries(Object.keys(u.w).sort().slice(-8).map(k => [k, u.w[k]]));
+  LS.set('fsm.usage', u);
+  if (!document.getElementById('usageSheet')?.hidden) renderUsage();
+}
 function addSpend(usd, prov, est){
   usd = +usd; if (!(usd > 0)) return;
   ledgerAdd(usd);
@@ -6128,7 +6697,7 @@ function fetchKeyInfo(force){
       const remaining = d.limit_remaining != null ? +d.limit_remaining : (eb && eb.remaining_usd != null ? +eb.remaining_usd : null);
       const monthly = d.limit_reset === 'monthly';
       const used = limit != null ? (remaining != null ? Math.max(0, limit - remaining) : +(monthly ? d.usage_monthly : d.usage) || 0) : +(d.usage_monthly || 0);
-      S.keyInfo = { k: keyTag(k), limit, remaining, used, reset: d.limit_reset || null, monthly: +(d.usage_monthly || 0), t: Date.now() };
+      S.keyInfo = { k: keyTag(k), limit, remaining, used, reset: d.limit_reset || null, monthly: +(d.usage_monthly || 0), weekly: +(d.usage_weekly || 0), daily: +(d.usage_daily || 0), t: Date.now() };
       LS.set('fsm.keyinfo', S.keyInfo);
       keyInfoAt = Date.now();
       S.keyState = 'ok';
@@ -6158,7 +6727,7 @@ function applyKeyPlan(){
   try{ renderPlan(); }catch(e){}
   renderBalance();
   if (!S.conv?.messages?.length) try{ renderThread(); }catch(e){}
-  if (keyExhausted() && !S._exhaustToast){ S._exhaustToast = 1; toast(limitMsg(true)); }
+  if ((keyExhausted() || weekExhausted()) && !S._exhaustToast){ S._exhaustToast = 1; toast(limitMsg(true)); }
 }
 function renderKeyStat(){
   try{ renderBalance(); }catch(e){}
@@ -6176,7 +6745,17 @@ function renderKeyStat(){
   el.className = 'keystat ' + cls; el.innerHTML = h ? '<i></i><span>' + h + '</span>' : ''; el.hidden = !h;
 }
 function keyExhausted(){ const ki = S.keyInfo; return !!(ki && ki.limit != null && ki.limit > 0 && ki.remaining != null && ki.remaining <= 0.005); }
-function keyUsedRatio(){ const ki = S.keyInfo; return ki && ki.limit > 0 ? Math.min(2, ki.used / ki.limit) : null; }
+/* Limite hebdomadaire : 30 % du crédit de l'abonnement par semaine (UTC, du lundi au lundi), pour ne pas épuiser le mois en quelques jours.
+   Le plafond mensuel reste imposé par OpenRouter sur la clé. */
+const WEEK_SHARE = 0.30;
+function weekQuota(){ const ki = S.keyInfo; return ki && ki.limit > 0 && ['entreprise', 'competence', 'elite'].includes(S.set.plan) ? ki.limit * WEEK_SHARE : 0; }
+function weekRatio(){ const q = weekQuota(); return q ? (S.keyInfo.weekly || 0) / q : null; }
+function weekExhausted(){ const r = weekRatio(); return r != null && r >= 1 && !keyExhausted(); }
+function keyUsedRatio(){ const ki = S.keyInfo; if (!(ki && ki.limit > 0)) return null; return Math.min(2, Math.max(ki.used / ki.limit, weekRatio() || 0)); }
+function nextMondayUTC(){ const d = new Date(), n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); n.setUTCDate(n.getUTCDate() + ((8 - n.getUTCDay()) % 7 || 7)); return n; }
+function nextMonthUTC(){ const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)); }
+function nextDayUTC(){ const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)); }
+const fmtReset = dt => dt.toLocaleString('fr-FR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' });
 function resetText(){
   const r = S.keyInfo?.reset;
   if (r === 'monthly'){ const d = new Date(); const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)); return ` Elle se renouvelle le 1er ${n.toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}.`; }
@@ -6186,11 +6765,12 @@ function resetText(){
 }
 function limitMsg(fallback){
   const p = PLANS[S.set.plan];
+  if (weekExhausted()) return `Limite hebdomadaire de ton abonnement${p ? ' ' + p.key : ''} atteinte. Elle se réinitialise ${fmtReset(nextMondayUTC())}.` + (fallback ? ' En attendant, les modèles gratuits prennent le relais.' : '');
   const base = `Limite mensuelle de ton abonnement${p ? ' ' + p.key : ''} atteinte${S.keyInfo?.limit ? ' (' + S.keyInfo.limit + ' $)' : ''}.` + resetText();
   return base + (fallback ? ' En attendant, les modèles gratuits prennent le relais.' : '');
 }
 /* La limite atteinte bascule le routeur sur les modèles gratuits */
-function freeOnly(){ return isFreePlan() || keyExhausted(); }
+function freeOnly(){ return isFreePlan() || keyExhausted() || weekExhausted(); }
 
 function resetShort(){
   const r = S.keyInfo?.reset;
@@ -6198,16 +6778,52 @@ function resetShort(){
   if (r === 'weekly') return 'Renouvellement lundi'; if (r === 'daily') return 'Renouvellement demain';
   return '';
 }
+/* Part de l'abonnement utilisée, en pourcentage (le montant en dollars n'est plus affiché) */
+function usedPct(used, cap){ const p = cap > 0 ? used / cap * 100 : 0; return p <= 0 ? '0 %' : p < 1 ? 'moins de 1 %' : Math.min(100, Math.round(p)) + ' %'; }
 function balanceHtml(compact){
   const ki = S.keyInfo, p = PLANS[S.set.plan];
   if (S.set.plan === 'free') return `<div class="bal-sub">Abonnement Free · Modèles gratuits uniquement</div>`;
   if (ki && ki.limit > 0){
     const used = ki.used || 0;
-    return `${budgetBar(used, ki.limit)}<div class="bal-sub">${fmtUsd(used)} utilisés sur ${ki.limit} $${p ? ' · ' + esc(p.key) : ''}${resetShort() ? ' · ' + resetShort() : ''}</div>`;
+    return `${budgetBar(used, ki.limit)}<div class="bal-sub">${usedPct(used, ki.limit)} de ton abonnement utilisé${p ? ' · ' + esc(p.key) : ''}${resetShort() ? ' · ' + resetShort() : ''}</div>`;
   }
   if (ki) return `<div class="bal-sub">${fmtUsd(ki.monthly || 0)} utilisés ce mois-ci${p ? ' · ' + esc(p.key) : ''}</div>`;
   return '';
 }
+/* ----- Onglet « Limites d'utilisation » : tout en pourcentage, jamais de montant ----- */
+function usCard(title, ratio, sub){
+  const pc = Math.max(0, ratio || 0) * 100;
+  const txt = pc <= 0 ? '0 % utilisé' : pc < 1 ? 'moins de 1 % utilisé' : Math.min(100, Math.round(pc)) + ' % utilisé';
+  return `<div class="us-card"><div class="us-top"><b>${esc(title)}</b><span>${txt}</span></div><div class="us-bar${pc >= 100 ? ' over' : pc >= 80 ? ' warn' : ''}"><i style="width:${Math.min(100, pc).toFixed(1)}%"></i></div>${sub ? `<div class="us-sub">${sub}</div>` : ''}</div>`;
+}
+function renderUsage(){
+  const el = document.getElementById('usBody'); if (!el) return;
+  const ki = S.keyInfo, p = PLANS[S.set.plan];
+  if (!S.key){ el.innerHTML = '<p class="note">Ajoute ta clé FSM AI dans les réglages pour voir ton utilisation.</p>'; return; }
+  if (S.set.plan === 'unlimited'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Illimité</b><span>Aucune limite</span></div><div class="us-sub">Ta clé n'a pas de plafond : aucune limite hebdomadaire ni mensuelle.</div></div>`; return; }
+  if (S.set.plan === 'free'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Free</b><span>Modèles gratuits</span></div><div class="us-sub">Les modèles gratuits n'ont pas de limite de crédit. Pour la vidéo et les modèles les plus puissants, passe à un abonnement supérieur.</div></div><button class="btn us-up" data-usup>Voir les abonnements</button>`; return; }
+  if (!ki || !(ki.limit > 0)){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; fetchKeyInfo(true).then(() => renderUsage()); return; }
+  const q = weekQuota(), wr = weekRatio() || 0, mr = Math.min(1.5, (ki.used || 0) / ki.limit), dr = q ? (ki.daily || 0) / q : 0;
+  const u = LS.get('fsm.usage', { w:{} }).w[weekKeyUTC()] || {};
+  const groups = Object.entries(u).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const upd = ki.t ? new Date(ki.t).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '';
+  el.innerHTML = `
+    <div class="us-sec">Limite hebdomadaire</div>
+    ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : les modèles gratuits prennent le relais. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
+    ${usCard("Aujourd'hui", dr, `Part de ta limite hebdomadaire utilisée aujourd'hui · réinitialisation ${nextDayUTC().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}`)}
+    <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
+    ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : les modèles gratuits prennent le relais. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
+    <div class="us-sec">Répartition de la semaine <small>sur cet appareil</small></div>
+    ${groups.length ? groups.map(([g, v]) => usCard(USAGE_LABEL[g] || g, q ? v / q : 0, '')).join('') : '<div class="us-card"><div class="us-sub">Pas encore d\'utilisation cette semaine sur cet appareil.</div></div>'}
+    <p class="note us-note">Les pourcentages « Cette semaine », « Aujourd'hui » et « Ce mois-ci » comptent toute l'utilisation de ta clé, sur tous tes appareils. La limite hebdomadaire correspond à ${Math.round(WEEK_SHARE * 100)} % de ton abonnement : elle évite d'épuiser le mois en quelques jours.${upd ? ' Mis à jour à ' + upd + '.' : ''}</p>
+    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
+}
+function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
+document.getElementById('btnUsage')?.addEventListener('click', openUsage);
+document.getElementById('balUsage')?.addEventListener('click', e => { e.stopPropagation(); $('#balPop').hidden = true; openUsage(); });
+document.getElementById('dBal')?.addEventListener('click', openUsage);
+document.getElementById('usRefresh')?.addEventListener('click', async () => { const b = $('#usRefresh'); b.classList.add('spin'); await fetchKeyInfo(true); renderUsage(); setTimeout(() => b.classList.remove('spin'), 500); });
+document.addEventListener('click', e => { if (e.target.closest('[data-usup]')){ closeSheets(); try{ openModelSheet(); }catch(err){} } });
 function renderBalance(){
   const el = document.getElementById('dBal');
   const h = S.key ? balanceHtml(true) : '';
