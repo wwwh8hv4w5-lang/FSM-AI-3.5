@@ -2894,7 +2894,7 @@ async function runImage(asst, user, signal){
   { const asp = asst.imgAspect || S.set.imgAspect; if (asp && asp !== 'auto') body.aspect_ratio = asp; }
   const refs = (user.atts || []).filter(a => kindOf(a) === 'image');
   if (refs.length) body.input_references = await Promise.all(refs.map(async a => ({ type:'image_url', image_url:{ url: await lightImg(a.data, 2048) } })));
-  asst.status = "Création de l'image…"; paint(asst);
+  asst.status = 'Réflexion en cours…'; paint(asst);
   const res = await fetchT(API + '/images', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal }, 240000);
   if (!res.ok) throw await apiError(res);
   const j = await res.json();
@@ -3340,7 +3340,7 @@ async function run(user, conv, model, cat, route){
             asst.text = ''; asst.images = []; asst.sources = []; asst.steps = []; asst.reasoning = ''; asst.web = false; asst.reason = false;
             asst.route = { ...(asst.route || {}), cat: fx.cat, why: 'création de l\'image demandée' };
             { const im = (user.atts || []).find(a => kindOf(a) === 'image' && a.data); asst._src = im ? im.data : ''; }
-            asst.status = fx.cat === 'photoedit' ? 'Retouche de la photo…' : "Création de l'image…";
+            asst.status = fx.cat === 'photoedit' ? 'Retouche de la photo…' : 'Réflexion en cours…';
             paint(user); paint(asst); saveConv(conv);
             continue;
           }
@@ -4185,17 +4185,17 @@ function genRatio(m, kind){
 }
 function genCardHtml(m, kind){
   const ar = genRatio(m, kind), wide = +ar.split('/')[0] > +ar.split('/')[1];
-  const title = { image: "Création de l'image", edit: 'Retouche de la photo', video: 'Génération de la vidéo', montage: 'Montage de la vidéo' }[kind];
+  const title = { image: 'Réflexion en cours', edit: 'Retouche de la photo', video: 'Génération de la vidéo', montage: 'Montage de la vidéo' }[kind];
   const pc = kind === 'montage' ? (String(m.status).match(/(\d+)\s*%/) || [])[1] : null;
   const sub = String(m.status || '').replace(/\s*·\s*\d+\s*min\s*\d+\s*s$/, '').replace(/…$/, '');
   const t0 = m._t0 || m.t || Date.now();
   const src = kind === 'edit' && m._src ? `<img class="gc-src" src="${esc(m._src)}" alt="">` : '<div class="gc-mesh"></div>';
-  return `<div class="gencard${wide ? ' wide' : ''}" style="--ar:${ar}" data-kind="${kind}" data-t0="${t0}" role="status" aria-label="${esc(title)} en cours">
+  return `<div class="gencard${wide ? ' wide' : ''}" style="--ar:${ar}" data-kind="${kind}" data-t0="${t0}" role="status" aria-label="${esc(/en cours$/.test(title) ? title : title + ' en cours')}">
     ${src}<div class="gc-grid"></div><div class="gc-scan"></div><div class="gc-noise"></div>
     <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div><div class="gc-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span>${GEN_MARK}</div>
       <div class="gc-bar${pc != null ? ' det' : ''}"${pc != null ? ` style="--p:${pc}%"` : ''}><i></i></div>
-      ${kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Création de l'image|Création de l'image avec Grok|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
+      ${kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Réflexion en cours|Création de l'image|Création de l'image avec Grok|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
 }
 const VIDEO_LATER = 'Revenez plus tard, votre vidéo est en cours de préparation.';
 let genTick = 0;
@@ -5486,7 +5486,7 @@ async function runXaiImage(asst, user, signal){
   const body = { model: xid(asst.model), prompt: user.apiText || user.text || 'Une image', n: 1, response_format:'b64_json' };
   if (S.set.imgAspect && S.set.imgAspect !== 'auto') body.aspect_ratio = S.set.imgAspect;
   if ((user.atts || []).some(a => kindOf(a) === 'image')) asst.text = "La retouche de photo n'est pas disponible ici avec l'API xAI : l'image jointe a été ignorée.";
-  asst.status = "Création de l'image avec Grok…"; paint(asst);
+  asst.status = 'Réflexion en cours…'; paint(asst);
   const res = await xfetch(XAI + '/images/generations', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
   if (!res.ok) throw await apiError(res);
   const j = await res.json();
@@ -8974,10 +8974,11 @@ async function runProductTests(){
   ok('contenu sensible écarté', !illSafe({ title:'nude fairy', tags:'nsfw erotic', site:'Openverse' }) && !illRelevant({ title:'nude fairy', tags:'nsfw', site:'Openverse', art:true }, 'fée'));
   const artSrc = Function.prototype.toString.call(openverseArtHits) + COMMONS_ART_CATS.join(' ');
   ok('sources fantaisie sans clé', ILL_ART_SOURCES.includes('Openverse · illustration') && ILL_ART_SOURCES.includes('Wikimedia Commons · illustration') && /category=illustration,digitized_artwork/.test(artSrc) && /license_type=commercial/.test(artSrc) && /mature=false/.test(artSrc) && /Fantasy_art/.test(artSrc) && /Fairy_tale_illustrations/.test(artSrc) && /Digital_art/.test(artSrc) && /Cartoons/.test(artSrc) && FSM_IMAGE_KEYS.pexels === '' && FSM_IMAGE_KEYS.unsplash === '');
-  const imgCard = genCardHtml({ status: "Création de l'image", imgAspect: '1:1', t: Date.now() - 9000 }, 'image');
+  const imgCard = genCardHtml({ status: 'Réflexion en cours…', imgAspect: '1:1', t: Date.now() - 9000 }, 'image');
   const vidCard = genCardHtml({ status: 'Génération de la vidéo', vidAspect: '16:9' }, 'video');
   const devCard = devCardHtml('canvas', 'html');
   ok('image sans compteur', imgCard.includes('class="gc-mark"') && !imgCard.includes('gc-time') && imgCard.includes('gc-bar') && !/\d+:\d{2}/.test(imgCard));
+  ok('image : réflexion en cours', /<span class="gc-title">Réflexion en cours<\/span>/.test(imgCard) && !/Création de l'image/.test(imgCard) && !/Réflexion en cours · /.test(imgCard) && /aria-label="Réflexion en cours"/.test(imgCard) && !/en cours en cours/.test(imgCard) && !/Création de l'image/.test(genCardHtml({ status: "Création de l'image avec Grok…" }, 'image')) && !/ · /.test(genCardHtml({ status: "Création de l'image avec Grok…" }, 'image').split('gc-msg')[1] || ''));
   ok('vidéo sans compteur', vidCard.includes('class="gc-mark"') && !vidCard.includes('gc-time') && vidCard.includes('class="gc-bar"') && /Revenez plus tard/.test(vidCard));
   ok('code sans compteur', devCard.includes('class="gc-mark"') && !devCard.includes('gc-time') && devCard.includes('gc-bar'));
   const host = document.createElement('div');
