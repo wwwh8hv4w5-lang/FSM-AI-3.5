@@ -6793,7 +6793,7 @@ function balanceHtml(compact){
 /* ----- Onglet « Limites d'utilisation » : tout en pourcentage, jamais de montant ----- */
 function usCard(title, ratio, sub){
   const pc = Math.max(0, ratio || 0) * 100;
-  const txt = pc <= 0 ? '0 % utilisé' : pc < 1 ? 'moins de 1 % utilisé' : Math.min(100, Math.round(pc)) + ' % utilisé';
+  const txt = pc <= 0 ? '0 % utilisé' : pc < 1 ? 'moins de 1 % utilisé' : Math.min(100, Math.round(pc)) + ' % utilisé';
   return `<div class="us-card"><div class="us-top"><b>${esc(title)}</b><span>${txt}</span></div><div class="us-bar${pc >= 100 ? ' over' : pc >= 80 ? ' warn' : ''}"><i style="width:${Math.min(100, pc).toFixed(1)}%"></i></div>${sub ? `<div class="us-sub">${sub}</div>` : ''}</div>`;
 }
 function renderUsage(){
@@ -6803,19 +6803,13 @@ function renderUsage(){
   if (S.set.plan === 'unlimited'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Illimité</b><span>Aucune limite</span></div><div class="us-sub">Ta clé n'a pas de plafond : aucune limite hebdomadaire ni mensuelle.</div></div>`; return; }
   if (S.set.plan === 'free'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Free</b><span>Modèles gratuits</span></div><div class="us-sub">Les modèles gratuits n'ont pas de limite de crédit. Pour la vidéo et les modèles les plus puissants, passe à un abonnement supérieur.</div></div><button class="btn us-up" data-usup>Voir les abonnements</button>`; return; }
   if (!ki || !(ki.limit > 0)){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; fetchKeyInfo(true).then(() => renderUsage()); return; }
-  const q = weekQuota(), wr = weekRatio() || 0, mr = Math.min(1.5, (ki.used || 0) / ki.limit), dr = q ? (ki.daily || 0) / q : 0;
-  const u = LS.get('fsm.usage', { w:{} }).w[weekKeyUTC()] || {};
-  const groups = Object.entries(u).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const wr = weekRatio() || 0, mr = Math.min(1.5, (ki.used || 0) / ki.limit);
   const upd = ki.t ? new Date(ki.t).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '';
   el.innerHTML = `
-    <div class="us-sec">Limite hebdomadaire</div>
-    ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : les modèles gratuits prennent le relais. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
-    ${usCard("Aujourd'hui", dr, `Part de ta limite hebdomadaire utilisée aujourd'hui · réinitialisation ${nextDayUTC().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}`)}
     <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
+    ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : les modèles gratuits prennent le relais. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : les modèles gratuits prennent le relais. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
-    <div class="us-sec">Répartition de la semaine <small>sur cet appareil</small></div>
-    ${groups.length ? groups.map(([g, v]) => usCard(USAGE_LABEL[g] || g, q ? v / q : 0, '')).join('') : '<div class="us-card"><div class="us-sub">Pas encore d\'utilisation cette semaine sur cet appareil.</div></div>'}
-    <p class="note us-note">Les pourcentages « Cette semaine », « Aujourd'hui » et « Ce mois-ci » comptent toute l'utilisation de ta clé, sur tous tes appareils. La limite hebdomadaire correspond à ${Math.round(WEEK_SHARE * 100)} % de ton abonnement : elle évite d'épuiser le mois en quelques jours.${upd ? ' Mis à jour à ' + upd + '.' : ''}</p>
+    <p class="note us-note">Ces pourcentages comptent toute l'utilisation de ta clé, sur tous tes appareils. La limite de la semaine correspond à ${Math.round(WEEK_SHARE * 100)} % de ton abonnement : elle évite d'épuiser le mois en quelques jours.${upd ? ' Mis à jour à ' + upd + '.' : ''}</p>
     ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
 }
 function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
