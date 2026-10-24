@@ -405,7 +405,7 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .us-bar.warn i{background:#ff9f0a}
 .us-bar.over i{background:#ff453a}
 .us-sub{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
-.us-note{margin:14px 4px 10px;font-size:12.5px}
+.us-note{margin:14px 4px 10px;font:400 12.5px/1.45 var(--f-body);color:var(--faint)}
 .us-up{width:100%;margin-top:4px}
 .us-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15.5px;text-align:left}
 .us-row svg{width:22px;height:22px;flex:0 0 22px;color:var(--muted)}
@@ -905,6 +905,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .vfam-h{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:2px 4px}
 .vfam-h span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
 .vinc{font-size:15px;font-weight:600;color:var(--ink);padding:2px 4px 10px}
+.vnote{margin:2px 4px 16px;font:400 12.5px/1.45 var(--f-body);color:var(--faint)}
 .vrow em{font-style:normal;color:var(--faint)}
 
 .devcard{width:min(100%,520px);margin:4px 0 12px}
@@ -7380,7 +7381,8 @@ function renderUsage(){
     ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images continuent avec le modèle le plus économique. La vidéo reprend au renouvellement. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
     ${unlockBtnHtml()}
-    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
+    ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}
+    <p class="us-note">Les niveaux plus puissants, le Web et la Réflexion font avancer le forfait un peu plus vite. Ton pourcentage reste le repère.</p>`;
 }
 function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
 document.getElementById('btnUsage')?.addEventListener('click', openUsage);
@@ -7774,7 +7776,7 @@ function variantRowsHtml(){
     return `<div class="vfam"><div class="vfam-h">Gamme ${esc(f)}${own ? '' : ` <span>· incluse avec ton abonnement</span>`}</div>`
       + vs.map(v => `<button class="mrow auto vrow${cur && v.id === cur.id ? ' on' : ''}" data-variant="${v.id}"><span class="l1"><span class="mn">${esc(v.name)}</span>${v.def && own ? '<span class="rec">Par défaut</span>' : v.lvl % 3 ? `<span class="rec">${v.lvl % 3 === 1 ? 'PRO' : 'MAX'}</span>` : ''}</span><span class="mid auto-d">${esc(v.desc)}</span></button>`).join('')
       + '</div>';
-  }).join('');
+  }).join('') + '<p class="vnote">Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.</p>';
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-variant]'); if (!b) return;
@@ -7989,7 +7991,7 @@ function offerLevelHint(v){
   if (S.set.web && S.set.reasoning){ seen[v.id] = 1; LS.set('fsm.levelhint', seen); return false; }
   const name = v.id === 'corser55' ? 'CORSER 5.5 PRO' : 'CORSER 6.0 MAX';
   const el = $('#levelHint'); if (!el) return false;
-  $('#levelHintText').textContent = 'Pour tirer le meilleur de ' + name + ', tu peux activer le web et la réflexion.';
+  $('#levelHintText').textContent = 'Pour tirer le meilleur de ' + name + ', tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.';
   el.dataset.level = v.id; el.hidden = false;
   return true;
 }
@@ -8454,6 +8456,7 @@ async function runProductTests(){
   ok('second déblocage refusé', applyUnlock() === false && canUnlock().why === 'used');
   renderUsage();
   ok('bouton grisé', /Déblocage déjà utilisé ce mois-ci/.test($('#usBody').innerText || ''));
+  ok('note limites', ($('#usBody').innerText || '').includes('Les niveaux plus puissants, le Web et la Réflexion font avancer le forfait un peu plus vite. Ton pourcentage reste le repère.'));
   window.__fsmNow = Date.parse('2026-11-01T00:00:00Z');
   ok('nouveau mois UTC', canUnlock().ok === true);
   window.__fsmNow = Date.parse('2026-10-24T12:00:00Z');
@@ -8673,12 +8676,13 @@ async function runProductTests(){
       LS.set('fsm.levelhint', {});
       S.set.plan = 'entreprise'; S.set.web = false; S.set.reasoning = false;
       const v55 = VARIANTS.find(v => v.id === 'corser55'), v60 = VARIANTS.find(v => v.id === 'corser60');
-      ok('popup pro', offerLevelHint(v55) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 5.5 PRO, tu peux activer le web et la réflexion.' && /Activer/.test($('#levelHintGo').textContent) && $('#levelHintClose').textContent === 'Fermer');
+      ok('popup pro', offerLevelHint(v55) === true && $('#levelHint').hidden === false && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 5.5 PRO, tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.' && /Activer/.test($('#levelHintGo').textContent) && $('#levelHintClose').textContent === 'Fermer');
+      ok('note variantes', variantRowsHtml().includes('Les niveaux plus puissants, le Web et la Réflexion font avancer ton forfait un peu plus vite.'));
       $('#levelHintClose').click();
       ok('fermer conserve les choix', $('#levelHint').hidden === true && S.set.web === false && S.set.reasoning === false);
       ok('popup une seule fois', offerLevelHint(v55) === false && $('#levelHint').hidden === true);
       S.set.web = true; S.set.reasoning = false;
-      ok('popup max une fois par niveau', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 6.0 MAX, tu peux activer le web et la réflexion.');
+      ok('popup max une fois par niveau', offerLevelHint(v60) === true && $('#levelHintText').textContent === 'Pour tirer le meilleur de CORSER 6.0 MAX, tu peux activer le web et la réflexion. Cela fait avancer le forfait un peu plus vite, et tu peux les laisser éteints.');
       $('#levelHintGo').click();
       ok('activer n\'éteint pas le web déjà choisi', S.set.web === true && S.set.reasoning === true && $('#levelHint').hidden === true);
       ok('max ne revient pas', offerLevelHint(v60) === false && $('#levelHint').hidden === true);
