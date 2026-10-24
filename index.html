@@ -1259,8 +1259,8 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 <div class="drop" id="drop" hidden>Dépose tes fichiers ici</div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
 <script>
 "use strict";
 const API = 'https://openrouter.ai/api/v1';
@@ -1824,7 +1824,11 @@ async function saveConv(conv){
   c.t = Date.now();
   const data = Object.fromEntries(Object.entries(c).filter(([k]) => !k.startsWith('_')));
   await DB.set('conv:' + c.id, data);
-  S.index = [{ id:c.id, title:c.title, t:c.t, project:c.project }].concat(S.index.filter(x => x.id !== c.id)).slice(0, 200);
+  /* L'épingle vit dans l'index, pas dans la conversation : la recopier, sinon chaque message la retire. */
+  const prev = S.index.find(x => x.id === c.id);
+  const row = { id:c.id, title:c.title, t:c.t, project:c.project };
+  if (prev?.pinned) row.pinned = true;
+  S.index = [row].concat(S.index.filter(x => x.id !== c.id)).slice(0, 200);
   LS.set('relais.index', S.index);
 }
 async function openConv(id){
@@ -1890,8 +1894,6 @@ function renderConvs(){
   const all = extra.concat(S.index), pins = all.filter(c => c.pinned), rest = all.filter(c => !c.pinned);
   const row = c => { const lc = S.live.get(c.id); return `<div class="conv${S.conv?.id === c.id ? ' on' : ''}"><button class="t" data-open="${c.id}"><span class="tt">${c.pinned ? '<i class="cv-pin"></i>' : ''}${lc?._busy ? '<i class="cv-run"></i>' : lc?._unread ? '<i class="cv-new"></i>' : ''}${esc(c.title)}</span><span class="td">${fmt(c.t)}</span></button><button class="del" data-del="${c.id}">Suppr.</button></div>`; };
   el.innerHTML = (pins.length ? `<div class="conv-h">Épinglés</div>${pins.map(row).join('')}<div class="conv-h">Récents</div>` : '') + rest.map(row).join('');
-  return;
-  el.innerHTML = extra.concat(S.index).map(c => { const lc = S.live.get(c.id); return `<div class="conv${S.conv?.id === c.id ? ' on' : ''}"><button class="t" data-open="${c.id}"><span class="tt">${lc?._busy ? '<i class="cv-run"></i>' : lc?._unread ? '<i class="cv-new"></i>' : ''}${esc(c.title)}</span><span class="td">${fmt(c.t)}</span></button><button class="del" data-del="${c.id}">Suppr.</button></div>`; }).join('');
 }
 $('#convs').addEventListener('click', async e => {
   const o = e.target.closest('[data-open]'); if (o) return openConv(o.dataset.open);
@@ -2114,20 +2116,34 @@ function binSummary(u8, name, type){
   return `Fichier binaire « ${name} » (${type || 'type inconnu'}, ${fmtSize(u8.length)})${sig ? ', format détecté : ' + sig[1] : ''}.\nSignature (48 premiers octets, hexadécimal) : ${hex}\n${strs ? 'Chaînes lisibles trouvées dans le fichier :\n' + strs.slice(0, 4000) : 'Aucune chaîne lisible.'}`;
 }
 /* PDF : texte extrait sur l'appareil (pdf.js), pour que le contenu reste dans la conversation */
+/* pdf.js 3.11.174 : CVE-2024-4367 (exécution de JS via une police). isEvalSupported:false coupe ce chemin.
+   Le build UMD s'arrête à la 3.11 ; l'intégrité (SRI) fige le fichier servi par le CDN. */
+const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const PDFJS_SRI = 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e';
+const PDFJS_WORKER_SRI = 'sha384-SnzOobpRMLXZ52iJvZm/C0fYw0OQemTXzTjIsdsfMcrCtCEe9qgzxTd3RSklO5x2';
 let pdfjsP = null;
 function loadPdfJs(){
-  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-  if (!pdfjsP) pdfjsP = new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    s.onload = () => { try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; res(window.pdfjsLib); }catch(e){ rej(e); } };
-    s.onerror = () => { pdfjsP = null; rej(new Error('pdf.js indisponible')); };
-    document.head.appendChild(s);
-  });
+  if (window.pdfjsLib?.GlobalWorkerOptions?.workerSrc) return Promise.resolve(window.pdfjsLib);
+  if (!pdfjsP) pdfjsP = (async () => {
+    if (!window.pdfjsLib) await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = PDFJS_BASE + 'pdf.min.js'; s.integrity = PDFJS_SRI; s.crossOrigin = 'anonymous';
+      s.onload = res; s.onerror = () => rej(new Error('pdf.js indisponible'));
+      document.head.appendChild(s);
+    });
+    if (!window.pdfjsLib) throw new Error('pdf.js indisponible');
+    if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc){
+      const r = await fetch(PDFJS_BASE + 'pdf.worker.min.js', { integrity: PDFJS_WORKER_SRI, credentials: 'omit' });
+      if (!r.ok) throw new Error('pdf.js indisponible');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: 'text/javascript' }));
+    }
+    return window.pdfjsLib;
+  })().catch(e => { pdfjsP = null; throw e; });
   return pdfjsP;
 }
 async function pdfText(u8){
   const lib = await loadPdfJs();
-  const doc = await lib.getDocument({ data: u8 }).promise, out = [];
+  const doc = await lib.getDocument({ data: u8, isEvalSupported: false }).promise, out = [];
   let total = 0;
   for (let i = 1; i <= doc.numPages && total < MAX_ATT_TEXT; i++){
     const pg = await doc.getPage(i), tc = await pg.getTextContent();
@@ -2285,7 +2301,7 @@ async function openAtt(a){
   if (k === 'video') return openViewer([{ kind:'video', src: a.data || blobSrc(a.blob), name: a.name.replace(/\.[^.]+$/, ''), att: a }], 0);
   if (k === 'audio') return openViewer([{ kind:'audio', src: a.data, name: a.name, att: a }], 0);
   if (k === 'pdf'){
-    try{ const u = URL.createObjectURL(await attBlob(a)); const w = window.open(u, '_blank'); if (!w) location.href = u; }catch(e){ toast('Aperçu du PDF impossible.'); }
+    try{ const u = URL.createObjectURL(await attBlob(a)); const w = window.open(u, '_blank'); if (w){ try{ w.opener = null; }catch(e){} } else location.href = u; }catch(e){ toast('Aperçu du PDF impossible.'); }
     return;
   }
   const items = [];
@@ -2879,7 +2895,7 @@ function openUMenu(bub, point){
 async function convAction(id, k){
   const ix = S.index.find(x => x.id === id);
   const conv = S.live.get(id) || await DB.get('conv:' + id);
-  const saveAll = async () => { LS.set('relais.index', S.index); if (conv){ S.live.has(id) ? saveConv(conv) : await DB.set('conv:' + id, conv); } renderConvs(); try{ renderProjects(); }catch(e){} };
+  const saveAll = async () => { LS.set('relais.index', S.index); if (conv){ if (S.live.has(id)) await saveConv(conv); else await DB.set('conv:' + id, conv); } renderConvs(); try{ renderProjects(); }catch(e){} };
   if (k === 'pin'){ if (ix){ ix.pinned = !ix.pinned; await saveAll(); toast(ix.pinned ? 'Discussion épinglée' : 'Discussion désépinglée'); } return; }
   if (k === 'rename'){
     const v = await ask({ title:'Renommer la discussion', body:`<input id="rnIn" class="rn-in" type="text" maxlength="80" value="${esc(ix?.title || conv?.title || '')}" autocomplete="off">`, buttons:[{ label:'Enregistrer', value:'ok' }, { label:'Annuler', value:null, ghost:true }] });
@@ -3329,6 +3345,8 @@ function loadPv(pv){
 function mountPreviews(root){ root.querySelectorAll('.pv[data-k]').forEach(pv => { if (pv.dataset.on) return; pv.dataset.on = '1'; loadPv(pv); }); root.querySelectorAll('.livepv').forEach(el => { if (!el.querySelector('iframe')) liveRefresh(el); }); }
 window.addEventListener('message', e => {
   const d = e.data; if (!d || typeof d !== 'object' || !d.fsmPv) return;
+  /* Seuls les aperçus sandboxes de cette page peuvent signaler une erreur (pas un autre onglet). */
+  if (![...document.querySelectorAll('iframe')].some(f => f.contentWindow === e.source)) return;
   document.querySelectorAll('.pv[data-k]').forEach(pv => {
     if (pv.dataset.k !== d.fsmPv) return;
     const er = pv.querySelector('.pv-err'); if (!er || !er.hidden) return;
@@ -5503,9 +5521,10 @@ function nextRunOf(w, from){
   const d = new Date(now); d.setSeconds(0, 0); d.setHours(hh || 0, mm || 0);
   if (w.freq === 'weekly'){
     const day = w.day ?? new Date(w.created || now).getDay();
-    while (d.getDay() !== day || d.getTime() <= now) d.setDate(d.getDate() + 1);
+    /* Jour invalide ou date cassée : ne pas boucler sans fin (l'onglet se figeait à chaque minute). */
+    for (let n = 0; n < 21 && (d.getDay() !== day || d.getTime() <= now); n++) d.setDate(d.getDate() + 1);
   } else if (d.getTime() <= now) d.setDate(d.getDate() + 1);
-  return d.getTime();
+  return isFinite(d.getTime()) ? d.getTime() : now + 864e5;
 }
 function pickCheapModel(){
   const prefs = [/^openai\/gpt-\d[\w.-]*(luna|mini)(?![\w.-]*pro)/, /^anthropic\/claude-haiku/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts))/, /^deepseek\/deepseek-v[\d.]+-flash/];
@@ -6234,17 +6253,24 @@ function estimateCost(item, cat){
   return c;
 }
 let askResolve = null;
+function closeAsk(value){
+  if (!askResolve){ $('#askSheet').hidden = true; return; }
+  $('#askSheet').hidden = true; const r = askResolve; askResolve = null; r(value);
+}
 function ask({ title, body, buttons }){
   return new Promise(res => {
+    if (askResolve){ const prev = askResolve; askResolve = null; prev(null); }
     askResolve = res;
     $('#askTitle').textContent = title; $('#askBody').innerHTML = body;
     $('#askBtns').innerHTML = buttons.map((b, i) => `<button class="btn${b.ghost ? ' ghost' : ''}${b.danger ? ' danger' : ''}" data-ask="${i}">${esc(b.label)}</button>`).join('');
     $('#askBtns').dataset.vals = JSON.stringify(buttons.map(b => b.value));
     $('#askSheet').hidden = false;
+    const field = $('#askBody').querySelector('input, textarea'); if (field) setTimeout(() => { try{ field.focus(); field.select?.(); }catch(e){} }, 30);
   });
 }
-$('#askBtns').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (!b) return; const v = JSON.parse($('#askBtns').dataset.vals)[+b.dataset.ask]; $('#askSheet').hidden = true; const r = askResolve; askResolve = null; r?.(v); });
-$('#askSheet').addEventListener('click', e => { if (e.target.id === 'askSheet' || e.target.closest('[data-askclose]')){ $('#askSheet').hidden = true; const r = askResolve; askResolve = null; r?.(null); } });
+$('#askBtns').addEventListener('click', e => { const b = e.target.closest('[data-ask]'); if (!b) return; const v = JSON.parse($('#askBtns').dataset.vals)[+b.dataset.ask]; closeAsk(v); });
+$('#askSheet').addEventListener('click', e => { if (e.target.id === 'askSheet' || e.target.closest('[data-askclose]')) closeAsk(null); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#askSheet').hidden){ e.preventDefault(); e.stopPropagation(); closeAsk(null); } }, true);
 async function budgetGate(est){
   if (overBudget(est)){
     const lines = [];
