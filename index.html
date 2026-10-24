@@ -403,7 +403,7 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .us-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15.5px;text-align:left}
 .us-row svg{width:22px;height:22px;flex:0 0 22px;color:var(--muted)}
 .us-row span{flex:1}
-.us-top-row{margin:0 0 16px;font-weight:600}
+.us-key-row{margin:0 0 16px;font-weight:600}
 .us-row .chev{width:18px;height:18px;flex:0 0 18px;color:var(--faint)}
 .us-link{display:block;margin-top:8px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:13.5px;font-weight:600;padding:4px 0}
 #dBal{cursor:pointer}
@@ -981,13 +981,13 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ssTitle">
     <div class="sheet-h"><h2 id="ssTitle">Réglages</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
-      <button class="us-row us-top-row" id="btnUsage" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Limites d'utilisation</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
       <div class="field">
         <label for="apiKey">Clé API FSM AI</label>
         <div class="row"><input id="apiKey" type="password" placeholder="Colle ta clé FSM AI" autocomplete="off" spellcheck="false"><button class="btn ghost" id="btnShowKey" type="button">Afficher</button></div>
         <div class="keystat" id="keyStat" hidden></div>
         <small>Une clé API FSM AI est nécessaire pour utiliser l'application. Elle t'est fournie avec ton abonnement FSM AI (Free, Entreprise, Compétence ou Élite) : choisis-le ci-dessous puis colle ta clé ici. Elle reste enregistrée sur cet appareil.</small>
       </div>
+      <button class="us-row us-key-row" id="btnUsage" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Limites d'utilisation</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
       <div class="field">
         <label for="planSel">Statut</label>
         <select class="sel" id="planSel">
@@ -6810,7 +6810,6 @@ function renderUsage(){
     <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
     ${usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : les modèles gratuits prennent le relais. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`)}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : les modèles gratuits prennent le relais. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
-    <p class="note us-note">Ces pourcentages comptent toute l'utilisation de ta clé, sur tous tes appareils. La limite de la semaine correspond à ${Math.round(WEEK_SHARE * 100)} % de ton abonnement : elle évite d'épuiser le mois en quelques jours.${upd ? ' Mis à jour à ' + upd + '.' : ''}</p>
     ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
 }
 function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
@@ -6821,7 +6820,7 @@ document.getElementById('usRefresh')?.addEventListener('click', async () => { co
 document.addEventListener('click', e => { if (e.target.closest('[data-usup]')){ closeSheets(); try{ openModelSheet(); }catch(err){} } });
 function renderBalance(){
   const el = document.getElementById('dBal');
-  const h = S.key ? balanceHtml(true) : '';
+  const h = S.key && S.set.plan === 'unlimited' ? balanceHtml(true) : ''; /* volet : plus d'affichage de consommation côté clients */
   if (el){ el.hidden = !h; el.innerHTML = h; }
   const pill = document.getElementById('btnBal'); if (!pill) return;
   const ki = S.keyInfo, has = !!(S.key && ki && ki.k === keyTag(S.key));
