@@ -1017,11 +1017,6 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <textarea id="sysPrompt" placeholder="ex. Réponds en français, de façon concise."></textarea>
         <small>Ajoutées à chaque conversation, en plus de celles de la catégorie.</small>
       </div>
-      <div class="field">
-        <label for="temp">Température : <span id="tempVal" class="mono"></span></label>
-        <input id="temp" type="range" min="0" max="2" step="0.1">
-        <small>Bas = réponses stables et précises. Haut = plus de variété.</small>
-      </div>
       <div class="field"><label>Banques d'images (facultatif)</label>
         <div class="row"><input id="ikPexels" type="password" placeholder="Clé Pexels" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><input id="ikUnsplash" type="password" placeholder="Clé Unsplash" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"></div>
         <small>Sans clé, les images viennent déjà de Wikipédia, Wikimedia Commons, Openverse, des musées (The Met, Art Institute of Chicago, Cleveland) et de la NASA. Avec une clé gratuite Pexels ou Unsplash, les réponses ont aussi accès à leurs millions de photos.</small></div>
@@ -1311,17 +1306,25 @@ const DB = (() => {
 })();
 
 /* ---------- État ---------- */
-const DEFAULTS = { model:'openrouter/auto', category:'chat', system:'', temperature:0.7, web:false, reasoning:false, fileHints:true, illus:true,
+const DEFAULTS = { model:'openrouter/auto', category:'chat', system:'', web:false, reasoning:false, fileHints:true, illus:true,
   imgAspect:'1:1', vidDuration:'5', vidRes:'720p', vidAspect:'16:9' };
+function forgetTemperature(obj){
+  if (!obj || !Object.prototype.hasOwnProperty.call(obj, 'temperature')) return false;
+  delete obj.temperature;
+  return true;
+}
+const savedSet = LS.get('relais.settings', {}) || {};
+const hadTemperature = forgetTemperature(savedSet);
 const S = {
   key: LS.get('relais.key', ''),
-  set: Object.assign({}, DEFAULTS, LS.get('relais.settings', {})),
+  set: Object.assign({}, DEFAULTS, savedSet),
   models: LS.get('relais.models', []),
   xaiKey: LS.get('relais.xaikey', ''),
   index: LS.get('relais.index', []),
   conv: null, pending: [], busy: false, abort: null, sheetCat: null, adultOk: LS.get('relais.adult18', false)
 };
 const saveSettings = () => LS.set('relais.settings', S.set);
+if (hadTemperature) saveSettings();
 
 /* ---------- Catégories / présélections ---------- */
 const ins = (m, x) => (m.architecture?.input_modalities || ['text']).includes(x);
@@ -1748,7 +1751,6 @@ function openSettings(focusKey, which){
   $('#planSel').value = S.set.plan || ''; renderPlan();
   renderKeyStat(); fetchKeyInfo(true).then(() => { $('#planSel').value = S.set.plan || ''; renderPlan(); renderKeyStat(); });
   $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; $('#sysPrompt').value = S.set.system;
-  $('#temp').value = S.set.temperature; $('#tempVal').textContent = (+S.set.temperature).toFixed(1);
   $('#fileHints').checked = !!S.set.fileHints;
   $('#illus').checked = S.set.illus !== false;
   { const k = LS.get('fsm.imgkeys', {}) || {}; $('#ikPexels').value = k.pexels || ''; $('#ikUnsplash').value = k.unsplash || ''; }
@@ -1792,7 +1794,6 @@ $('#apiKey').addEventListener('input', e => { S.key = e.target.value.trim(); LS.
   if (S.key.length >= 20) keyDeb = setTimeout(() => fetchKeyInfo(true), 350); refreshKeyFp(); });
 $('#btnShowKey').addEventListener('click', e => { const i = $('#apiKey'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; e.target.textContent = show ? 'Masquer' : 'Afficher'; });
 $('#sysPrompt').addEventListener('input', e => { S.set.system = e.target.value; saveSettings(); });
-$('#temp').addEventListener('input', e => { S.set.temperature = +e.target.value; $('#tempVal').textContent = (+e.target.value).toFixed(1); saveSettings(); });
 $('#fileHints').addEventListener('change', e => { S.set.fileHints = e.target.checked; saveSettings(); });
 $('#illus').addEventListener('change', e => { S.set.illus = e.target.checked; saveSettings(); });
 ['ikPexels', 'ikUnsplash'].forEach(id => $('#' + id).addEventListener('input', () => { LS.set('fsm.imgkeys', { pexels: $('#ikPexels').value.trim(), unsplash: $('#ikUnsplash').value.trim() }); for (const [k, v] of ILL) if (v === null) ILL.delete(k); }));
@@ -2777,7 +2778,7 @@ async function runChat(asst, signal, conv){
   { const pp = projPdfParts(conv); if (pp.length){ const fu = msgs.find(x => x.role === 'user'); if (fu) fu.content = pp.concat(fu.content); } }
   asst.steps = asst.steps || [];
   for (let round = 0; round < 8; round++){
-    const body = { model: asst.model, messages: msgs, stream: true, temperature: +S.set.temperature, usage:{ include: true } };
+    const body = { model: asst.model, messages: msgs, stream: true, usage:{ include: true } };
     const voiceWeb = S.voiceActive && S.set.voiceWeb !== false && !isXai(asst.model);
     const serverWeb = voiceWeb && (!info || hasParam(info, 'tools'));
     /* Recherche web : activée par défaut, mais lancée seulement quand la demande en a besoin (actualité, prix, faits récents, sources…),
@@ -5283,7 +5284,7 @@ function xaiHistory(asst){
 async function runXaiChat(asst, signal){
   const msgs = xaiHistory(asst);
   if (S.set.web || asst.web) return runXaiSearch(asst, msgs, signal);
-  const body = { model: xid(asst.model), messages: msgs, stream: true, temperature: +S.set.temperature, stream_options:{ include_usage: true } };
+  const body = { model: xid(asst.model), messages: msgs, stream: true, stream_options:{ include_usage: true } };
   const res = await xfetch(XAI + '/chat/completions', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
   if (!res.ok) throw await apiError(res);
   asst.status = 'Grok répond…'; paint(asst);
@@ -5312,7 +5313,7 @@ async function runXaiSearch(asst, msgs, signal){
   asst.status = 'Recherche sur le web et sur X…'; paint(asst);
   const input = msgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content
     : m.content.map(p => p.type === 'text' ? { type:'input_text', text:p.text } : { type:'input_image', image_url: p.image_url.url }) }));
-  const body = { model: xid(asst.model), input, tools:[{ type:'web_search' }, { type:'x_search' }], temperature: +S.set.temperature };
+  const body = { model: xid(asst.model), input, tools:[{ type:'web_search' }, { type:'x_search' }] };
   const res = await xfetch(XAI + '/responses', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
   if (!res.ok) throw await apiError(res);
   const j = await res.json();
@@ -6280,9 +6281,9 @@ function corserVariant(){
   return v && v.fam === 'CORSER' ? v : null;
 }
 /* Gamme CORSER seulement. NEURAL, OMEGA et les médias restent sur le routeur général.
-   5.0 : tout le code sur le DeepSeek V4.1 Flash le plus récent, puis les autres modèles éco de code.
-   PRO et MAX : le code s'arrête à Sonnet. MAX ne prend pas Opus pour le code.
-   Petite demande : DeepSeek V4.1 Flash, sinon Haiku, y compris en PRO et MAX.
+   Petite demande (code ou texte, les trois niveaux) : Haiku le plus récent, DeepSeek V4.1 Flash seulement en repli.
+   5.0 : le code normal et complexe reste sur le DeepSeek V4.1 Flash le plus récent, puis les autres modèles éco de code.
+   PRO et MAX : le code qui n'est pas une petite demande s'arrête à Sonnet. MAX ne prend pas Opus pour le code.
    Texte hors code en MAX : le routeur actuel, Opus compris sur une demande exigeante. */
 function corserRoute(text, atts, conv, cat, d, forceTier){
   const v = corserVariant();
@@ -6291,21 +6292,22 @@ function corserRoute(text, atts, conv, cat, d, forceTier){
   const pok = m => forceTier || priceOkForPlan(m);
   const small = !forceTier && isSmallAsk(text, atts);
   const note = s => (d.why ? d.why + ' · ' : '') + s;
-  if (cat === 'code' && (v.id === 'corser50' || small)){
+  if (small){
+    const prefs = cat === 'code' ? TIER_PREF.code.eco : TIER_PREF.generic.eco;
+    const m = pickNewest([CORSER_HAIKU_RE, CORSER_FLASH_RE, ...prefs], nd, pok);
+    if (!m) return null;
+    return { model: m.id, tier: 'eco', why: note('CORSER · petite demande') };
+  }
+  if (cat === 'code' && v.id === 'corser50'){
     const m = pickNewest([CORSER_FLASH_RE, ...TIER_PREF.code.eco], nd, pok);
     if (!m) return null;
-    return { model: m.id, tier: 'eco', why: note(v.id === 'corser50' ? 'CORSER 5.0 · code' : 'CORSER · petite demande') };
+    return { model: m.id, tier: 'eco', why: note('CORSER 5.0 · code') };
   }
   if (cat === 'code'){
     const std = TIER_PREF.code.standard.filter(re => !/opus/i.test(String(re)));
     const m = pickNewest([CORSER_SONNET_RE, ...std, ...TIER_PREF.code.eco], nd, pok);
     if (!m) return null;
     return { model: m.id, tier: 'standard', why: note(v.id === 'corser60' ? 'CORSER MAX · code plafonné à Sonnet' : 'CORSER PRO · code') };
-  }
-  if (small){
-    const m = pickNewest([CORSER_FLASH_RE, CORSER_HAIKU_RE, ...TIER_PREF.generic.eco], nd, pok);
-    if (!m) return null;
-    return { model: m.id, tier: 'eco', why: note('CORSER · petite demande') };
   }
   return null;
 }
@@ -8413,6 +8415,21 @@ async function runProductTests(){
   $('#settingsSheet').hidden = false;
   const top = document.querySelector('#settingsSheet .field')?.innerText || '';
   ok('réglages du haut intacts', /Clé API FSM AI/.test(top) && !!$('#apiKey') && $('#btnShowKey')?.textContent === 'Afficher' && /Une clé API FSM AI est nécessaire/.test(top) && /Limites d'utilisation/.test($('#btnUsage')?.innerText || ''));
+  ok('curseur température retiré', !$('#temp') && !$('#tempVal') && !/Température/.test($('#settingsSheet')?.innerText || '') && !('temperature' in DEFAULTS));
+  ok('chat sans température forcée', !/S\.set\.temperature/.test(Function.prototype.toString.call(runChat) + Function.prototype.toString.call(runXaiChat) + Function.prototype.toString.call(runXaiSearch)));
+  ok('températures internes conservées', /temperature:\s*0\.2/.test(Function.prototype.toString.call(runWatch)) && /temperature:\s*0\.2/.test(Function.prototype.toString.call(runVideoEdit)) && /temperature:\s*0[,}]/.test(Function.prototype.toString.call(classifyRemote)));
+  {
+    const bag = { temperature: 1.4, web: true, system: 'garde' };
+    ok('température enregistrée oubliée', forgetTemperature(bag) === true && !('temperature' in bag) && bag.web === true && bag.system === 'garde' && forgetTemperature(bag) === false);
+    const prev = LS.get('relais.settings', {});
+    LS.set('relais.settings', Object.assign({}, S.set, { temperature: 1.8 }));
+    const again = LS.get('relais.settings', {});
+    forgetTemperature(again);
+    LS.set('relais.settings', again);
+    ok('localStorage sans température', !('temperature' in LS.get('relais.settings', {})));
+    LS.set('relais.settings', prev);
+    delete S.set.temperature;
+  }
   $('#usageSheet').hidden = false; renderUsage();
   $('#modelSheet').hidden = false; try{ enforceClientMode(); openModelSheet(); }catch(e){}
   const money = visibleMoneyHits();
@@ -8449,9 +8466,9 @@ async function runProductTests(){
       ['code normal', codeNormal], ['code complexe', complexe], ['texte', texte], ['texte exigeant', exigeant]
     ];
     const want = {
-      corser50:{ petite:FLASH, 'petite question':FLASH, 'petite fonction':FLASH, 'petite correction':FLASH, 'code normal':FLASH, 'code complexe':FLASH, texte:HAIKU, 'texte exigeant':SONNET },
-      corser55:{ petite:FLASH, 'petite question':FLASH, 'petite fonction':FLASH, 'petite correction':FLASH, 'code normal':SONNET, 'code complexe':SONNET, texte:SONNET, 'texte exigeant':SONNET },
-      corser60:{ petite:FLASH, 'petite question':FLASH, 'petite fonction':FLASH, 'petite correction':FLASH, 'code normal':SONNET, 'code complexe':SONNET, texte:SONNET, 'texte exigeant':OPUS }
+      corser50:{ petite:HAIKU, 'petite question':HAIKU, 'petite fonction':HAIKU, 'petite correction':HAIKU, 'code normal':FLASH, 'code complexe':FLASH, texte:HAIKU, 'texte exigeant':SONNET },
+      corser55:{ petite:HAIKU, 'petite question':HAIKU, 'petite fonction':HAIKU, 'petite correction':HAIKU, 'code normal':SONNET, 'code complexe':SONNET, texte:SONNET, 'texte exigeant':SONNET },
+      corser60:{ petite:HAIKU, 'petite question':HAIKU, 'petite fonction':HAIKU, 'petite correction':HAIKU, 'code normal':SONNET, 'code complexe':SONNET, texte:SONNET, 'texte exigeant':OPUS }
     };
     S.models = catalog;
     S.keyInfo = { limit:18, used:1, weekly:0.1, monthly:1, t:Date.now() };
@@ -8464,6 +8481,15 @@ async function runProductTests(){
         for (const [name, text] of phrases){ const got = go(text).model; if (got !== want[id][name]) bad.push(name + ' → ' + got); }
         ok('routage ' + id, bad.length === 0, bad.join(' | '));
       }
+      S.set.variant = 'corser60';
+      const oldHaiku = row('anthropic/claude-haiku-4', 100, 0.000001);
+      S.models = catalog.concat([oldHaiku]);
+      ok('petite demande : Haiku le plus récent', go('bonjour').model === HAIKU && go('écris une fonction qui additionne deux nombres').model === HAIKU);
+      S.models = catalog.filter(m => !CORSER_HAIKU_RE.test(m.id));
+      S.set.variant = 'corser55';
+      ok('petite demande sans Haiku : Flash', go('bonjour').model === FLASH && go('écris une fonction qui additionne deux nombres').model === FLASH);
+      S.models = catalog; S.set.variant = 'corser50';
+      ok('code 5.0 hors petite demande : Flash', go(codeNormal).model === FLASH && go(complexe).model === FLASH);
       S.set.plan = 'entreprise'; S.set.variant = 'corser55';
       const joint = routeModel('écris une fonction qui additionne deux nombres', [{ name:'a.py', type:'text/plain' }], { messages:[] }, 'code');
       S.set.variant = 'corser50';
