@@ -924,7 +924,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
     <button class="model-btn" id="btnModel" aria-label="Choisir le modèle"><span class="name" id="hdrModel">FSM AI</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
     <button class="spend" id="btnSpend" aria-label="Dépenses de la session" hidden><span id="spendAmt">$0.00</span></button>
     <button class="spend balpill" id="btnBal" aria-label="Abonnement" hidden><span class="conn" id="balConn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span><span id="balAmt"></span></button>
-    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Utilisation"><div class="bal" id="balBody"></div><p class="note">Utilisation de ta clé FSM AI, tous appareils confondus.</p><button class="us-link" id="balUsage" type="button">Limites d'utilisation ›</button></div>
+    <div class="spend-pop" id="balPop" hidden role="dialog" aria-label="Utilisation"><div class="bal" id="balBody"></div><button class="us-link" id="balUsage" type="button">Limites d'utilisation ›</button></div>
     <button class="icon-btn" id="btnNew" aria-label="Nouvelle conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-4 1 1-4Z"/></svg></button>
     <div class="spend-pop" id="spendPop" hidden role="dialog" aria-label="Dépenses de la session">
       <div class="sp-total"><span>Dépensé cette session</span><b id="spendTotal"></b></div>
@@ -6842,19 +6842,21 @@ function renderBalance(){
   const pill = document.getElementById('btnBal'); if (!pill) return;
   const ki = S.keyInfo, has = !!(S.key && ki && ki.k === keyTag(S.key));
   const st = !S.key ? '' : S.keyState === 'wait' ? 'wait' : S.keyState === 'bad' ? 'bad' : S.keyState === 'err' ? (has ? 'off' : 'bad') : has ? 'ok' : 'wait';
+  const p = PLANS[S.set.plan];
+  const name = st === 'bad' ? 'Clé invalide' : p ? p.key : st === 'wait' ? 'Connexion…' : (st ? 'Connecté' : 'Connectée');
   if (!st){ pill.hidden = true; $('#balPop').hidden = true; }
   else {
-    const p = PLANS[S.set.plan];
-    const name = st === 'bad' ? 'Clé invalide' : p ? p.key : st === 'wait' ? 'Connexion…' : 'Connecté';
     pill.hidden = false; $('#balAmt').textContent = name;
     pill.dataset.conn = st;
     const r = has && ki.limit > 0 ? ki.used / ki.limit : 0;
     pill.classList.remove('warn', 'over');
     pill.setAttribute('aria-label', (p ? 'Abonnement ' + p.key : 'Abonnement') + (st === 'ok' ? ', clé connectée' : st === 'wait' ? ', connexion en cours' : st === 'off' ? ', hors ligne' : ', clé refusée'));
   }
-  $('#balBody').innerHTML = h;
+  /* Popup seulement : nom du forfait, et la barre de la clé connectée (usage / plafond) sans le texte. Pas de barre si la clé ou son info manque. Le volet (h) ne change pas. */
+  const bar = has && ki.limit > 0 ? budgetBar(ki.used || 0, ki.limit) : '';
+  $('#balBody').innerHTML = `<div class="bal-top"><span>Clé du compte</span><b>${esc(name)}</b></div>${bar}`;
 }
-$('#btnBal').addEventListener('click', e => { e.stopPropagation(); if ($('#btnBal').dataset.conn === 'bad'){ openSettings(true); return; } renderBalance(); if (!$('#balBody').innerHTML.trim()) $('#balBody').innerHTML = '<div class="bal-top"><span>Clé du compte</span><b>Connectée</b></div>'; $('#balPop').hidden = !$('#balPop').hidden; if (!$('#balPop').hidden) fetchKeyInfo(); });
+$('#btnBal').addEventListener('click', e => { e.stopPropagation(); if ($('#btnBal').dataset.conn === 'bad'){ openSettings(true); return; } renderBalance(); if (!$('#balBody').innerHTML.trim()) $('#balBody').innerHTML = '<div class="bal-top"><span>Clé du compte</span><b>' + esc($('#balAmt').textContent || (PLANS[S.set.plan] || {}).key || 'Connectée') + '</b></div>'; $('#balPop').hidden = !$('#balPop').hidden; if (!$('#balPop').hidden) fetchKeyInfo(); });
 document.addEventListener('click', e => { if (!$('#balPop').hidden && !e.target.closest('#balPop')) $('#balPop').hidden = true; });
 
 
