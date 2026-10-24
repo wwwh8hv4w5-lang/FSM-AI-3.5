@@ -1030,7 +1030,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       </div>
       <div class="field"><label>Banques d'images (facultatif)</label>
         <div class="row"><input id="ikPexels" type="password" placeholder="Clé Pexels" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><input id="ikUnsplash" type="password" placeholder="Clé Unsplash" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"></div>
-        <small>Sans clé, les images viennent déjà de Wikipédia, Wikimedia Commons, Openverse, des musées (The Met, Art Institute of Chicago, Cleveland) et de la NASA. Avec une clé gratuite Pexels ou Unsplash, les réponses ont aussi accès à leurs millions de photos.</small></div>
+        <small>Sans clé, les images viennent déjà de Wikipédia, Wikimedia Commons, Openverse, des musées (The Met, Art Institute of Chicago, Cleveland) et de la NASA. Le fantastique et les dessins passent en plus par les illustrations d'Openverse et de Wikimedia Commons. Avec une clé gratuite Pexels ou Unsplash, les réponses ont aussi accès à leurs millions de photos.</small></div>
       <label class="check"><input type="checkbox" id="illus"><span><b>Illustrer les réponses</b><br><span class="note">Les réponses s'enrichissent de 2 à 5 vraies images issues de grandes banques d'images publiques (Wikipédia, Wikimedia Commons, Openverse, musées, NASA, Fandom), et d'une synthèse en gros chiffres quand le sujet s'y prête.</span></span></label>
       <label class="check"><input type="checkbox" id="fileHints"><span><b>Fichiers téléchargeables</b><br><span class="note">Demande au modèle de nommer chaque fichier produit pour l'afficher avec un bouton de téléchargement.</span></span></label>
       <button class="btn ghost" id="btnVoiceSettings" type="button" hidden>Réglages du mode vocal</button>
@@ -3749,21 +3749,40 @@ async function wikiHits(lang, q){
   const r = await fetch(u); if (!r.ok) return [];
   return mwPages(await r.json()).map(p => wikiCard(p, base, site)).filter(Boolean).slice(0, 3);
 }
-async function commonsHits(q){
-  const u = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrsearch=${enc(q + ' filetype:bitmap')}&gsrlimit=8&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=900`;
+const SENSITIVE_RE = /nsfw|nude|nudes|naked|\bnus?\b|\bnues?\b|[ée]rotique|erotic|\bporn\b|hentai|explicit|genital|p[ée]nis|vagin|nipple|sexuel/i;
+function illSafe(r){ return !!r && !SENSITIVE_RE.test([r.title, r.caption, r.tags, r.site].join(' ')); }
+function commonsCard(p, site, art){
+  const info = p.imageinfo?.[0];
+  if (!info || !/image\/(jpeg|png|webp|gif)/.test(info.mime || '') || BAD_IMG.test(p.title || '')) return null;
+  const meta = info.extmetadata || {};
+  const plain = v => String(v || '').replace(/<[^>]+>/g, ' ');
+  const card = { src: info.thumburl || info.url, page: info.descriptionurl, title: String(p.title || '').replace(/^File:|\.\w+$/g, '').replace(/_/g, ' '), caption: plain(meta.ImageDescription?.value), tags: plain(meta.Categories?.value), site, art: !!art };
+  return illSafe(card) ? card : null;
+}
+async function commonsQuery(q, site, art){
+  const u = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrsearch=${enc(q)}&gsrlimit=4&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=900`;
   const j = await (await fetch(u)).json();
-  return mwPages(j).filter(x => /image\/(jpeg|png|webp|gif)/.test(x.imageinfo?.[0]?.mime || '') && !BAD_IMG.test(x.title || '')).slice(0, 4).map(p => {
-    const info = p.imageinfo[0], meta = info.extmetadata || {};
-    const plain = v => String(v || '').replace(/<[^>]+>/g, ' ');
-    return { src: info.thumburl || info.url, page: info.descriptionurl, title: String(p.title || '').replace(/^File:|\.\w+$/g, '').replace(/_/g, ' '), caption: plain(meta.ImageDescription?.value), tags: plain(meta.Categories?.value), site: 'Wikimedia Commons' };
-  });
+  return mwPages(j).map(p => commonsCard(p, site, art)).filter(Boolean);
+}
+async function commonsHits(q){ return commonsQuery(q + ' filetype:bitmap', 'Wikimedia Commons', false); }
+const COMMONS_ART_CATS = ['Fantasy_art', 'Fairy_tale_illustrations', 'Digital_art', 'Illustrations', 'Cartoons'];
+async function commonsArtHits(q){
+  const lists = await Promise.all(COMMONS_ART_CATS.map(c => commonsQuery(q + ' filetype:bitmap incategory:' + c, 'Wikimedia Commons · illustration', true).catch(() => [])));
+  const seen = new Set(), out = [];
+  for (const r of lists.flat()){ if (!r?.src || seen.has(r.src)) continue; seen.add(r.src); out.push(r); if (out.length >= 4) break; }
+  return out;
+}
+function openverseCard(p, q, art){
+  const card = { src: p.url || p.thumbnail, page: p.foreign_landing_url || p.url, title: p.title || q, caption: p.title || '', tags: (p.tags || []).map(t => t.name || t).join(' '), site: (art ? 'Openverse · illustration' : 'Openverse') + (p.source ? ' · ' + p.source : ''), art: !!art };
+  return illSafe(card) ? card : null;
 }
 async function openverseHits(q){
   const j = await (await fetch(`https://api.openverse.org/v1/images/?q=${enc(q)}&page_size=6&mature=false`)).json();
-  return (j.results || []).filter(x => (x.url || x.thumbnail) && !BAD_IMG.test(x.title || '')).slice(0, 4).map(p => ({
-    src: p.url || p.thumbnail, page: p.foreign_landing_url || p.url, title: p.title || q, caption: p.title || '',
-    tags: (p.tags || []).map(t => t.name || t).join(' '), site: 'Openverse' + (p.source ? ' · ' + p.source : '')
-  }));
+  return (j.results || []).filter(x => (x.url || x.thumbnail) && !BAD_IMG.test(x.title || '')).slice(0, 4).map(p => openverseCard(p, q, false)).filter(Boolean);
+}
+async function openverseArtHits(q){
+  const j = await (await fetch(`https://api.openverse.org/v1/images/?q=${enc(q)}&page_size=6&mature=false&category=illustration,digitized_artwork&license_type=commercial`)).json();
+  return (j.results || []).filter(x => (x.url || x.thumbnail) && !BAD_IMG.test(x.title || '') && /illustration|digitized_artwork/.test(x.category || '')).slice(0, 4).map(p => openverseCard(p, q, true)).filter(Boolean);
 }
 async function aicHits(q){
   const j = await getJSON(`https://api.artic.edu/api/v1/artworks/search?q=${enc(q)}&fields=id,title,image_id,is_public_domain,term_titles&limit=6`);
@@ -3797,6 +3816,13 @@ async function clevelandHits(q){
   }));
 }
 const ILL_PUBLIC = [q => wikiHits('fr', q), q => wikiHits('en', q), commonsHits, openverseHits, aicHits, metHits, nasaHits, clevelandHits];
+const ILL_ART = [openverseArtHits, commonsArtHits];
+const ILL_ART_SOURCES = ['Openverse · illustration', 'Wikimedia Commons · illustration'];
+const FANTASY_RE = /(?:^|[^\p{L}])(dragons?|licornes?|unicorns?|f[ée]es?|fair(?:y|ies)|elfes?|elves|magiciens?|magiciennes?|sorciers?|sorci[èe]res?|wizards?|witch(?:es)?|magie|magique|enchant\w*|fantastique|fantasy|cr[ée]atures?|monstres?|gobelins?|orcs?|nains?|gnomes?|ph[ée]nix|phoenix|griffons?|griffins?|sir[èe]nes?|mermaids?|vampires?|loups?[- ]garous?|werewolves?|zombies?|dessins?|illustrations?|cartoons?|mangas?|animes?|contes?|fairy[- ]tales?|imaginaire|mythique|mythologie|l[ée]gendes?)(?![\p{L}])/iu;
+function fantasyAsk(text){ return FANTASY_RE.test(String(text || '')); }
+function artQuery(q){
+  return String(q || '').replace(/licornes?/gi, 'unicorn').replace(/f[ée]es?/gi, 'fairy').replace(/sorci[èe]res?/gi, 'witch').replace(/elfes?/gi, 'elf').replace(/griffons?/gi, 'griffin').replace(/sir[èe]nes?/gi, 'mermaid').replace(/ph[ée]nix/gi, 'phoenix');
+}
 function till(p, ms){ return Promise.race([Promise.resolve().then(() => p).catch(() => []), new Promise(res => setTimeout(() => res([]), ms))]); }
 function findIll(q, src, ctx){
   const k = illKey(q, src);
@@ -3805,13 +3831,15 @@ function findIll(q, src, ctx){
     if (!sigToks(q).length) return null;
     const v0 = (qVariants(q)[0] || q).replace(/\s*\([^)]*\)/g, '').trim() || q;
     const sub = subOf(src) || fandomFor(q + ' ' + (src || '') + ' ' + (ctx || ''));
+    const art = fantasyAsk(v0 + ' ' + (ctx || ''));
     const jobs = ILL_PUBLIC.map(fn => till(fn(v0), ILL_MS));
+    if (art) for (const fn of ILL_ART) jobs.push(till(fn(artQuery(v0)), ILL_MS));
     if (sub) jobs.push(till(fandomImg(sub, v0).then(r => r ? [r] : []).catch(() => []), ILL_MS));
     const lists = await Promise.all(jobs);
-    const cands = lists.flat().filter(r => r && r.src && !BROKEN_IMG.has(r.src));
+    const cands = lists.flat().filter(r => r && r.src && !BROKEN_IMG.has(r.src) && illSafe(r));
     const ok = [];
     await Promise.all(cands.map(async r => { try{ if (await probeImg(r.src, 2200)) ok.push(r); }catch(e){} }));
-    return bestIll(ok, q);
+    return bestIll(ok, q, art);
   })().then(r => { ILL.set(k, r); saveIll(); return r; });
   ILL.set(k, pr); return pr;
 }
@@ -3862,23 +3890,29 @@ function tokHit(w, bag){
   }
   return false;
 }
+const ILL_SYN = { fee:'fairy', fees:'fairies', licorne:'unicorn', licornes:'unicorn', sorciere:'witch', sorcier:'wizard', elfe:'elf', elfes:'elves', phenix:'phoenix', sirene:'mermaid', griffon:'griffin', gobelin:'goblin', magicien:'wizard', magicienne:'witch' };
+function tokHitQ(w, bag){ return tokHit(w, bag) || !!(ILL_SYN[w] && tokHit(ILL_SYN[w], bag)); }
 function illRank(r, q){
   const qt = sigToks(q);
-  if (!r || !qt.length) return 0;
+  if (!r || !qt.length || !illSafe(r)) return 0;
   const title = sigToks(r.title || '');
   const rest = sigToks([r.caption, r.tags, decodeURIComponent(String(r.page || '').split('/').pop() || '')].join(' '));
   const bag = new Set([...title, ...rest]);
-  const n = qt.filter(w => tokHit(w, bag)).length;
+  const n = qt.filter(w => tokHitQ(w, bag)).length;
   if (!n) return 0;
   if (qt.length >= 3 && n / qt.length < 0.5) return 0;
   const titleBag = new Set(title);
-  const titleN = qt.filter(w => tokHit(w, titleBag)).length;
+  const titleN = qt.filter(w => tokHitQ(w, titleBag)).length;
   return titleN * 3 + n;
 }
-function bestIll(list, q){
-  let best = null, score = 0;
-  for (const r of list || []){ const s = illRank(r, q); if (s > score){ score = s; best = r; } }
-  return best;
+function bestIll(list, q, preferArt){
+  let best = null, score = 0, artBest = null, artScore = 0;
+  for (const r of list || []){
+    const s = illRank(r, q);
+    if (s > score){ score = s; best = r; }
+    if (preferArt && r && r.art && s > artScore){ artScore = s; artBest = r; }
+  }
+  return artBest || best;
 }
 function illBlocked(user, asst){
   const ut = String(user?.text || '').trim();
@@ -8931,6 +8965,15 @@ async function runProductTests(){
   ok('source sous l image', /<figcaption>/.test(fig) && /Wikipédia/.test(fig) && /La photosynthèse/.test(fig));
   if (prevIll === undefined) ILL.delete(illK); else ILL.set(illK, prevIll);
   ok('sources publiques sans clé', ['Wikipédia', 'Wikipédia (en)', 'Wikimedia Commons', 'Openverse', 'Art Institute of Chicago', 'The Met (domaine public)', 'NASA Image Library'].every(s => ILL_SOURCES.includes(s)) && FSM_IMAGE_KEYS.pexels === '' && FSM_IMAGE_KEYS.unsplash === '' && ILL_MS <= 4000 && ILL_MS >= 1500 && /Promise\.all/.test(Function.prototype.toString.call(findIll)));
+  ok('fantaisie détectée', fantasyAsk('dessine un dragon') && fantasyAsk('une fée dans un conte') && fantasyAsk('illustration manga') && fantasyAsk('licorne magique') && !fantasyAsk('explique la photosynthèse') && !fantasyAsk('Bonjour'));
+  const photoDragon = { title:'Dragon de Komodo', caption:'Lézard', tags:'reptile', site:'Wikipédia', src:'https://example.com/lizard.jpg', page:'https://fr.wikipedia.org/wiki/Dragon_de_Komodo' };
+  const artDragon = { title:'Dragon', caption:'fantasy illustration', tags:'dragon fairy tale', site:'Openverse · illustration', src:'https://example.com/dragon.jpg', page:'https://openverse.org/image/dragon', art:true };
+  ok('fantaisie privilégie l illustration', bestIll([photoDragon, artDragon], 'dragon', true) === artDragon && bestIll([photoDragon, artDragon], 'dragon') === photoDragon);
+  ok('fantaisie sous le seuil', bestIll([{ title:'Network services', caption:'liste', tags:'screenshot', site:'Openverse · illustration', art:true, src:'https://example.com/net.jpg', page:'https://example.com/net' }], 'dragon', true) == null);
+  ok('fée rapprochée de fairy', illRelevant({ title:'Fairy', caption:'A fairy tale illustration', tags:'fairy', site:'Wikimedia Commons · illustration', art:true }, 'fée') && artQuery('fée des bois') === 'fairy des bois');
+  ok('contenu sensible écarté', !illSafe({ title:'nude fairy', tags:'nsfw erotic', site:'Openverse' }) && !illRelevant({ title:'nude fairy', tags:'nsfw', site:'Openverse', art:true }, 'fée'));
+  const artSrc = Function.prototype.toString.call(openverseArtHits) + COMMONS_ART_CATS.join(' ');
+  ok('sources fantaisie sans clé', ILL_ART_SOURCES.includes('Openverse · illustration') && ILL_ART_SOURCES.includes('Wikimedia Commons · illustration') && /category=illustration,digitized_artwork/.test(artSrc) && /license_type=commercial/.test(artSrc) && /mature=false/.test(artSrc) && /Fantasy_art/.test(artSrc) && /Fairy_tale_illustrations/.test(artSrc) && /Digital_art/.test(artSrc) && /Cartoons/.test(artSrc) && FSM_IMAGE_KEYS.pexels === '' && FSM_IMAGE_KEYS.unsplash === '');
   const imgCard = genCardHtml({ status: "Création de l'image", imgAspect: '1:1', t: Date.now() - 9000 }, 'image');
   const vidCard = genCardHtml({ status: 'Génération de la vidéo', vidAspect: '16:9' }, 'video');
   const devCard = devCardHtml('canvas', 'html');
