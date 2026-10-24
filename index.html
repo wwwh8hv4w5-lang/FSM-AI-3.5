@@ -403,6 +403,7 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .us-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15.5px;text-align:left}
 .us-row svg{width:22px;height:22px;flex:0 0 22px;color:var(--muted)}
 .us-row span{flex:1}
+.us-top-row{margin:0 0 16px;font-weight:600}
 .us-row .chev{width:18px;height:18px;flex:0 0 18px;color:var(--faint)}
 .us-link{display:block;margin-top:8px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:13.5px;font-weight:600;padding:4px 0}
 #dBal{cursor:pointer}
@@ -980,6 +981,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ssTitle">
     <div class="sheet-h"><h2 id="ssTitle">Réglages</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
+      <button class="us-row us-top-row" id="btnUsage" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Limites d'utilisation</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
       <div class="field">
         <label for="apiKey">Clé API FSM AI</label>
         <div class="row"><input id="apiKey" type="password" placeholder="Colle ta clé FSM AI" autocomplete="off" spellcheck="false"><button class="btn ghost" id="btnShowKey" type="button">Afficher</button></div>
@@ -997,7 +999,6 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
           <option value="elite">Abonnement FSM AI Élite (clé Élite requise)</option>
         </select>
         <div class="plan-info" id="planInfo" hidden></div>
-        <button class="us-row" id="btnUsage" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Limites d'utilisation</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
       <div class="field">
         <label for="xaiKey">Clé API xAI (modèles Grok en direct)</label>
@@ -1771,7 +1772,7 @@ function renderPlan(){
   const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
   const spent = ki ? ki.used : spentMonth(), cap = ki ? ki.limit : p.limit;
   const used = cap && !ki ? `<div class="pl-row"><span>${ki ? 'Consommé' : 'Ce mois-ci'}</span><span>${usedPct(spent, cap)} de ton abonnement utilisé${ki ? ' (tous appareils)' : ''}${spent >= cap ? ' · limite atteinte, modèles gratuits en attendant' : spent >= cap * 0.8 ? ' · modèles plus économes jusqu\'au renouvellement' : ''}</span></div>` : '';
-  const balBlock = (ki || S.set.plan === 'unlimited') && balanceHtml() ? `<div class="bal">${balanceHtml()}</div>` : '';
+  const balBlock = ''; /* l'utilisation se consulte dans l'onglet « Limites d'utilisation » */
   const auto = S.set.planAuto ? `<div class="pl-row"><span>Détection</span><span>Reconnu automatiquement grâce à ta clé</span></div>` : '';
   el.innerHTML = `<b>Abonnement ${esc(p.name)}</b>${balBlock}${p.auto ? '' : `<div class="pl-row"><span>Clé requise</span><span>Clé ${esc(p.key)}, à coller dans le champ « Clé API » ci-dessus</span></div>`}<div class="pl-row"><span>Limites d'usage</span><span>${lim}</span></div>${auto}${pol ? `<div class="pl-row"><span>Modèle</span><span><b>${esc(brand().name)}</b> · ${esc(brand().desc)}${['elite', 'unlimited'].includes(S.set.plan) ? '' : ' ' + esc(UPSELL)}</span></div>` : ''}${used}`;
 }
