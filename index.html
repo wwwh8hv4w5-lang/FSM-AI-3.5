@@ -287,7 +287,7 @@ input[type=range]{accent-color:var(--ink);width:100%}
 .dlink svg{width:20px;height:20px;color:var(--muted)}
 .dsec{padding:10px 18px 4px}
 .convs{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 8px 8px;display:flex;flex-direction:column}
-.conv{display:flex;align-items:center;border-radius:12px}
+.conv{display:flex;align-items:center;border-radius:12px;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .conv:hover,.conv.on{background:var(--raised)}
 .conv button.t{flex:1;min-width:0;text-align:left;border:0;background:transparent;padding:10px;min-height:44px}
 .conv .tt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
@@ -2855,7 +2855,8 @@ function showMenu({ node, ghost, point, items, onPick }){
   menu.style.top = Math.max(12, below ? r.bottom + 10 : r.top - 10 - mh) + 'px';
   menu.style.left = Math.max(16, Math.min(innerWidth - mw - 16, ghost ? (node.closest('.msg.user') ? r.right - mw : r.left) : r.left - mw / 2)) + 'px';
   if (!below) menu.classList.add('up');
-  scrim.addEventListener('click', closeUMenu);
+  const openedAt = Date.now();
+  scrim.addEventListener('click', () => { if (Date.now() - openedAt < 450) return; closeUMenu(); }); /* pas de fermeture par le clic du relâchement */
   scrim.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   menu.addEventListener('click', e => { const b = e.target.closest('[data-um]'); if (!b) return; closeUMenu(); onPick(b.dataset.um); });
 }
@@ -2954,20 +2955,21 @@ async function applyEdit(){
 document.getElementById('editCancel')?.addEventListener('click', () => endEdit(true));
 /* Détection de l'appui long (doigt immobile 450 ms), clic droit sur ordinateur */
 (() => {
-  let timer = 0, sx = 0, sy = 0, target = null, fired = false;
+  let timer = 0, sx = 0, sy = 0, target = null, fired = false, guard = 0; /* guard : avale le clic de relâchement après un appui long (iOS) */
   const cancel = () => { clearTimeout(timer); timer = 0; if (target && !fired) target.classList.remove('pressed'); target = null; };
   const LP_SEL = '.msg.user .bubble[data-umid], .msg.assistant .md, #convs .conv';
   document.addEventListener('touchstart', e => {
     const b = e.target.closest?.(LP_SEL); if (!b || b.classList.contains('selecting') || e.touches.length > 1) return;
     if (e.target.closest('a, button.act, .pv, .code, pre, iframe, video, img, input, textarea') && !b.matches('#convs .conv')) return;
     target = b; fired = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-    timer = setTimeout(() => { fired = true; timer = 0; b.matches('#convs .conv') ? openConvMenu(b) : openUMenu(b, { x: sx, y: sy }); }, 450);
+    timer = setTimeout(() => { fired = true; guard = Infinity; timer = 0; b.matches('#convs .conv') ? openConvMenu(b) : openUMenu(b, { x: sx, y: sy }); }, 450);
   }, { passive: true });
   document.addEventListener('touchmove', e => { if (!timer) return; const t = e.touches[0]; if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) cancel(); }, { passive: true });
-  document.addEventListener('touchend', e => { if (fired){ e.preventDefault?.(); e.stopPropagation?.(); } cancel(); }, { passive: false });
+  document.addEventListener('touchend', e => { if (fired){ if (e.cancelable) e.preventDefault(); e.stopPropagation?.(); guard = Date.now() + 500; } cancel(); }, { passive: false });
   /* le clic qui suit un appui long ne doit pas ouvrir la discussion */
-  document.addEventListener('click', e => { if (fired && e.target.closest?.(LP_SEL)){ e.preventDefault(); e.stopPropagation(); fired = false; } }, true);
-  document.addEventListener('touchcancel', cancel, { passive: true });
+  document.addEventListener('click', e => { if (fired && (Date.now() < guard || e.target.closest?.(LP_SEL))){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); fired = false; guard = 0; } }, true);
+  document.addEventListener('touchstart', () => { if (fired && Date.now() >= guard){ fired = false; guard = 0; } }, { passive: true, capture: true });
+  document.addEventListener('touchcancel', () => { if (fired) guard = Date.now() + 500; cancel(); }, { passive: true });
   document.addEventListener('contextmenu', e => { const b = e.target.closest?.(LP_SEL); if (!b || b.classList.contains('selecting')) return; e.preventDefault(); b.matches('#convs .conv') ? openConvMenu(b) : openUMenu(b, { x: e.clientX, y: e.clientY }); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeUMenu(); if (S.editing) endEdit(true); } });
 })();
