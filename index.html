@@ -2588,6 +2588,17 @@ function userParts(m, light){
 /* =====================================================================
    CONSIGNES DE BASE (communes à tous les modèles utilisés par FSM AI)
    ===================================================================== */
+const OUT_GUIDE = `FORMATS (une modalité ; mentionner un visuel ne crée pas d'image ; doute → texte ou code)
+- Question, conversation, conseil, rédaction (mail, lettre, post, article, CV), réécriture, traduction, résumé, analyse d'un texte, d'un PDF ou d'une image jointe, calcul, pédagogie, poème, histoire, paroles : texte clair et concis. Une image jointe se décrit, elle ne se régénère pas.
+- Code, débogage, SQL, tableur, graphique, schéma, mermaid, SVG, interface, maquette simple, jeu (morpion, échecs, snake, quiz, puzzle) : texte ou code jouable (HTML/JS, ASCII, markdown). Jamais une image générée. run_python, run_js ou run_sql seulement si le calcul ou la donnée l'exige.
+- Recherche et actualité : texte, avec sources.
+- Outils (Gmail, Agenda, Drive, GitHub, veille) : prépare l'action, confirmation avant d'envoyer ou d'écrire.
+- Image : seulement si l'utilisateur demande explicitement de créer, dessiner ou générer une image, une photo, une illustration, un logo ou une affiche.
+- Retouche : seulement pour modifier une image déjà fournie.
+- Vidéo : génération ou montage seulement sur demande explicite de vidéo ou d'animation filmée.
+- Santé, droit, finance : informe avec prudence et oriente vers un professionnel.
+- Interdit (piratage, violence, arme, fraude) : refus bref, sans mode d'emploi.
+- Doute réel sur la modalité, l'objectif ou un paramètre indispensable : une seule question courte, avec 2 ou 3 options, puis attends. Pas de question si la demande est claire ou si une hypothèse raisonnable suffit. Aucune image ni vidéo avant la réponse.`;
 function coreSystem(conv){
   const b = typeof brand === 'function' ? brand() : null;
   const name = b ? b.name : 'FSM AI';
@@ -2600,14 +2611,15 @@ function coreSystem(conv){
 
 INTENTION
 - Réponds dans la langue de l'utilisateur, de façon brève et claire.
-- Une tournure familière, une faute ou un accent manquant ne change pas l'intention. « fais-moi un visuel » demande une image. « rappelle-moi tous les lundis » est un rappel, pas une création. Parler d'une image ou d'une vidéo (« une vidéo de 1998 ») n'en demande pas une.
-- Si l'intention est incertaine, réponds en discussion : ne suppose pas une création.
+- Une tournure familière, une faute ou un accent manquant ne change pas l'intention. « fais-moi un visuel » d'un sujet précis demande une image. « rappelle-moi tous les lundis » est un rappel, pas une création. Parler d'une image, d'une vidéo ou d'un jeu n'en génère pas.
 - N'écris jamais ton raisonnement, ni de balise <think> ou <thinking>.
-- run_js exécute du JavaScript isolé, sans page, sans stockage et sans réseau. run_sql interroge un CSV ou un JSON déjà joint (pas de Parquet). Ne les cite que lorsque tu t'en sers.
+- run_js exécute du JavaScript isolé, sans page, sans stockage et sans réseau. run_sql interroge un CSV ou un JSON déjà joint (pas de Parquet). run_python calcule. Ne les cite que lorsque tu t'en sers.
+
+${OUT_GUIDE}
 
 MÉTHODE, À APPLIQUER EN SILENCE AVANT CHAQUE RÉPONSE
 1. Comprendre : relis le dernier message ET tout le fil (sujet en cours, fichiers, images, vidéos, décisions prises, préférences exprimées). Les mots « ça », « celui-là », « la même », « refais », « continue », « la suite » désignent l'élément le plus récent de la conversation qui correspond : identifie-le précisément avant de répondre.
-2. Décider : si la demande est ambiguë mais qu'une interprétation est raisonnable, choisis-la et réalise-la. Ne pose une question que si une information indispensable manque ou si une erreur coûterait cher, et alors une seule question, précise.
+2. Décider : si la demande est claire, ou si une hypothèse raisonnable suffit, réalise-la sans question. Si un vrai doute porte sur la modalité, l'objectif ou un paramètre indispensable, pose une seule question courte, avec 2 ou 3 options, puis attends. Pas de question inutile. Pas d'image ni de vidéo avant la réponse.
 3. Réaliser entièrement : réponse complète, code complet, documents complets. Jamais de « … », de « à compléter », de contenu tronqué, ni de promesse pour plus tard (« je vais… », « je te l'envoie ») : fais-le maintenant, dans cette réponse.
 4. Vérifier avant d'envoyer : exactitude des faits et des calculs, cohérence avec ce qui a été dit plus tôt, respect de toutes les contraintes (longueur, format, langue, ton, public visé).
 
@@ -2644,11 +2656,13 @@ const FILE_HINT2 = `FICHIERS ET CODE
 function buildSystem(conv, catId){
   conv = conv || S.conv;
   const mem = memSystem(), pj = projSystem(conv);
-  if (S.voiceActive) return [VOICE_SYS_FN(), coreSystem(conv).split('\n\nQUALITÉ DES RÉPONSES')[0], pj, S.set.system.trim(), mem].filter(Boolean).join('\n\n');
+  const raw = [...(conv?.messages || [])].reverse().find(m => m.role === 'user');
+  const cue = raw ? outputCue(raw.text || '', raw.atts || []) : '';
+  if (S.voiceActive) return [VOICE_SYS_FN(), coreSystem(conv).split('\n\nQUALITÉ DES RÉPONSES')[0], cue, pj, S.set.system.trim(), mem].filter(Boolean).join('\n\n');
   const c = catById(catId || S.set.category);
   const ill = illusOn(c.id) ? ILLUS_HINT : '';
   const custom = S.set.system.trim() ? "CONSIGNES PERSONNELLES DE L'UTILISATEUR (prioritaires sur le style par défaut) :\n" + S.set.system.trim() : '';
-  return [coreSystem(conv), c.sys ? 'SPÉCIALITÉ DE CETTE DEMANDE : ' + c.sys : '', pj, custom, FILE_HINT2, ill, mem].filter(Boolean).join('\n\n');
+  return [coreSystem(conv), cue, c.sys ? 'SPÉCIALITÉ DE CETTE DEMANDE : ' + c.sys : '', pj, custom, FILE_HINT2, ill, mem].filter(Boolean).join('\n\n');
 }
 function stripThink(s){
   return String(s || '').replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '').replace(/<think(?:ing)?>[\s\S]*$/gi, '');
@@ -5824,7 +5838,7 @@ function botSystem(){
   const f = S.bot.facts.slice(0, 40).map(x => `- [${x.id}] ${x.text}`).join('\n') || '(rien pour l\'instant)';
   const t = S.bot.tasks.filter(x => !x.done).slice(0, 30).map(x => `- [${x.id}] ${x.title}${x.due ? ' (échéance ' + x.due + ')' : ''}`).join('\n') || '(aucune)';
   const w = S.bot.watches.slice(0, 15).map(x => `- [${x.id}] ${x.title} · ${FREQ[x.freq]}${x.active ? '' : ' (en pause)'}`).join('\n') || '(aucune)';
-  return `Tu es FSM BOT, l'agent personnel de l'utilisateur dans FSM AI. Tu agis avec tes outils plutôt que de seulement conseiller : tu mémorises ce qui est utile (memory_save), tu gères ses tâches (task_*), tu programmes des veilles (watch_*) et tu prépares ses commandes (order_ride, order_food, order_groceries). Tu ne commandes et ne paies jamais toi-même : tu prépares, l'utilisateur valide dans l'application officielle. Réponses brèves, dans la langue de l'utilisateur. Un rappel n'est pas une image ni une vidéo. N'écris pas de raisonnement ni de balise <think>. Si l'intention est incertaine, demande une précision au lieu de deviner.
+  return `Tu es FSM BOT, l'agent personnel de l'utilisateur dans FSM AI. Tu agis avec tes outils plutôt que de seulement conseiller : tu mémorises ce qui est utile (memory_save), tu gères ses tâches (task_*), tu programmes des veilles (watch_*) et tu prépares tes commandes (order_ride, order_food, order_groceries). Tu ne commandes et ne paies jamais toi-même : tu prépares, l'utilisateur valide dans l'application officielle. Réponses brèves, dans la langue de l'utilisateur. Un rappel n'est pas une image ni une vidéo. N'écris pas de raisonnement ni de balise <think>. Jeu, schéma ou graphique : texte ou code, jamais une image. Image ou vidéo seulement sur demande explicite. Confirmation avant d'envoyer ou d'écrire. Vrai doute : une seule question courte, avec 2 ou 3 options, puis attends. Pas de question si la demande est claire.
 
 Mémoire :
 ${f}
@@ -6944,20 +6958,45 @@ function planPick(catId, opt){
   return list[0];
 }
 function universalOn(){ return S.set.category === 'chat' && routerOn('chat') && !isXai(S.set.model) && !S.conv?.bot && !S.voiceActive; }
-var GEN_V = "(?:génère|génèr|genere|générer|generer|généré|crée|cree|créer|creer|créé|dessine|dessiner|fais|fait|faire|fabrique|réalise|realise|réaliser|produis|produire|imagine|imaginer|illustre|conçois|concevoir|compose|generate|create|draw|make|paint|peins|render|montre[- ]moi|j'aimerais|je veux|je voudrais|il me faut|donne[- ]moi|dibuja|dibujar|disegna|zeichne|desenha|genera|generar|crea|crear|haz|mach)";
+var GEN_V = "(?:génère|génèr|genere|générer|generer|généré|crée|cree|créer|creer|créé|cria|dessine|dessiner|fais|fait|faire|fabrique|réalise|realise|réaliser|produis|produire|imagine|imaginer|illustre|conçois|concevoir|compose|generate|create|draw|make|paint|peins|render|montre[- ]moi|j'aimerais|j aimerais|je veux|je voudrais|il me faut|donne[- ]moi|dibuja|dibujar|disegna|zeichne|desenha|genera|generar|crea|crear|haz|mach|quiero|quero)";
 var IMG_N = "(?:images?|photos?|illustrations?|dessins?|logos?|affiches?|posters?|visuels?|fonds? d'écran|wallpapers?|icônes?|icones?|pictures?|artworks?|avatars?|stickers?|peintures?|tableaux?|portraits?|bannières?|miniatures?|thumbnails?|flyers?|croquis|esquisses?|caricatures?|mangas? style|pochettes?|couvertures?|mockups?|maquettes? visuelles?|imagen(?:es)?|foto|fotos|dibujo|dibujos|bild|bilder|imagem|imagens)";
 var VID_N = "(?:vidéos?|videos?|clips?|animations?|courts?[- ]métrages?|séquences? vidéo|films? court|spots?|teasers?|bandes?[- ]annonces?|trailers?|reels?|gifs? animés?|vídeos?|peliculas? cortas?|video)";
 var IMG_GEN_RE = new RegExp('(?:^|[^\\p{L}])' + GEN_V + '(?![\\p{L}])[^.?!\\n]{0,60}?(?:^|[^\\p{L}])' + IMG_N + '(?![\\p{L}])', 'iu');
 var VID_GEN_RE = new RegExp('(?:^|[^\\p{L}])' + GEN_V + '(?![\\p{L}])[^.?!\\n]{0,60}?(?:^|[^\\p{L}])' + VID_N + '(?![\\p{L}])', 'iu');
-var IMG_LEAD_RE = new RegExp('^\\s*(?:un|une|des)?\\s*(?:petit|petite|court|courte|joli|jolie)?\\s*' + IMG_N + '\\s+(?:de|d\\s|du|des|representant|montrant|avec|style)', 'iu');
-var VID_LEAD_RE = new RegExp('^\\s*(?:un|une|des)?\\s*(?:petit|petite|court|courte|joli|jolie)?\\s*' + VID_N + '\\s+(?:de|d\\s|du|des|representant|montrant|avec|style|ou)', 'iu');
+var IMG_LEAD_RE = new RegExp('^\\s*(?:un|une|des|una|um|uma|ein|eine)?\\s*(?:petit|petite|court|courte|joli|jolie)?\\s*' + IMG_N + '\\s+(?:de|d\\s|du|des|do|da|von|of|representant|montrant|avec|style)', 'iu');
+var VID_LEAD_RE = new RegExp('^\\s*(?:un|une|des|una|um|uma|ein|eine)?\\s*(?:petit|petite|court|courte|joli|jolie)?\\s*' + VID_N + '\\s+(?:de|d\\s|du|des|do|da|von|of|representant|montrant|avec|style|ou)', 'iu');
 function normIntent(s){
   return String(s || '').replace(/[’'`]/g, ' ').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function ix(re, t){ const n = normIntent(t); re.lastIndex = 0; const a = re.test(t); re.lastIndex = 0; const b = n !== String(t || '').toLowerCase() && re.test(n); re.lastIndex = 0; return a || b; }
+function blocksMedia(t){
+  const n = normIntent(t);
+  if (/\b(mermaid|organigramme|flowchart|wireframe|diagramme|diagrammes|schema|schemas|graphique|graphiques|histogramme|camembert|tableur|tableau des|en tableau)\b/.test(n)) return true;
+  if (/\b(morpion|tic tac toe|tres en raya|jogo da velha|echecs|echec et mat|dames|quiz|puzzle|snake|tetris|pong|plateau)\b/.test(n)) return true;
+  if (/\b(joue|jouer|jouons|play|juguemos|joga)\b/.test(n) && /\b(jeu|game|juego|jogo|morpion|echecs|quiz|puzzle)\b/.test(n)) return true;
+  if (/\b(en ascii|en markdown)\b/.test(n)) return true;
+  return false;
+}
+function needsClarify(text){
+  const n = normIntent(text);
+  const words = n.split(' ').filter(Boolean);
+  if (words.length < 2) return false;
+  if (/\b(un truc|quelque chose|comme tu veux|au choix|peu importe|je sais pas|rends le mieux|fais mieux)\b/.test(n)) return true;
+  if (/\b(image ou video|video ou image|photo ou video|schema ou image)\b/.test(n)) return true;
+  if (/\bvisuel pour\b/.test(n) && !/\b(image|photo|logo|illustration|affiche)\b/.test(n)) return true;
+  if (/^(ameliore|modifie|change|refais|continue)\b/.test(n) && words.length <= 4) return true;
+  return false;
+}
+function isForbiddenAsk(t){
+  return /\b(pirater un compte|fabriquer une bombe|fabriquer une arme|comment tuer|ransomware|carte bancaire volee)\b/.test(normIntent(t));
+}
 function notAGeneration(t){
   const n = normIntent(t);
   if (/\b(rappel|rappelle|rappeler|remind|recuerd|ricord|erinner|lembra|tous les lundis|every monday|cada lunes|ogni lunedi)\b/.test(n)) return true;
+  if (needsClarify(t)) return true;
+  if (/\b(pas d image|sans image|no image|without an image|no quiero|nao quero|sem imagem|sem foto)\b/.test(n) && /\b(image|imagen|imagem|foto|photo)\b/.test(n)) return true;
+  if (/\b(summary|summarize|summarise|resume of|resumen|resumo|resume)\b/.test(n) && !/\b(genere|gera|cria|draw|dessine|generate|image de|imagen de)\b/.test(n)) return true;
+  if (/\b(how do i|how do you|how to)\b/.test(n) && /\b(draw|paint|dessin)\b/.test(n) && !/\b(image|picture|photo)\b/.test(n)) return true;
   if (/\b(resume|resumer|liste|analyse|decris|decrire|explique|parle|raconte|traduis|corrige|orthographe)\b/.test(n) && !/\b(dessine|draw|paint|genere|generate|illustre)\b/.test(n)) return true;
   if (/^(une|un|la|le|les|des)\b/.test(n) && /\b(marque|histoire|documentaire|cinema|a ete|etait|sorti|j aime|j adore|parle de|difference|compare|vu |regarde)\b/.test(n) && !/\b(fais|genere|cree|dessine|create|generate|draw|make|fabrique)\b/.test(n)) return true;
   if (/\b(comment|pourquoi|how do|how to|como |warum|perche|porque|c est quoi|qu est ce)\b/.test(n) && !/\b(dessine|draw|paint)\b/.test(n)) return true;
@@ -6966,8 +7005,8 @@ function notAGeneration(t){
 var DRAW_RE = /(?:^|[^\p{L}])(dessine(?:r|z|moi)?|draw|paint|peins|dibuja(?:r|me)?|disegna|zeichne|desenha|sketch)(?![\p{L}])/iu;
 var ANIMATE_RE = /(anime|animer|fais (bouger|vivre)|donne vie|mets? en mouvement|rends? (la|cette) (photo|image) vivante|transforme[- ](la|cette|l')? ?(photo|image) en vid[ée]o|image to video)/i;
 var HOWTO_RE = /^\s*(comment|pourquoi|est-ce que|est ce que|quel|quelle|quels|quelles|quand|où|ou trouver|explique|peux-tu m'expliquer|c'est quoi|qu'est-ce|combien|liste|compare|conseille|recommande|aide-moi à choisir)/i;
-var CODE_RE = /```|(?:^|[^\p{L}])(code|coder|codes|programme|programmer|script|fonction|bug|bugs|débogue|déboguer|debug|html|css|javascript|typescript|python|react|vue\.js|node(\.js)?|sql|regex|api|json|svg|swift|kotlin|java|c\+\+|php|rust|golang|bash|terminal|algorithme|compil|stack ?trace|exception|application web|appli web|site web|landing page|page web|extension chrome|jeu (en|html|javascript|python|jouable|simple|vidéo simple)|crée(r)? un jeu|mini[- ]jeu|snake|tetris|pong)(?![\p{L}])/iu;
-var SEARCH_RE = /(actualit|aujourd'hui|aujourd’hui|ce matin|ce soir|hier|demain|cette semaine|ce week-end|en ce moment|actuellement|dernières? (nouvelles|infos|news|sorties?|versions?)|news\b|météo|meteo|prix (actuel|du|de la|des|d'un|d’une)|combien coûte|tarifs?|cours (du|de l|de la|des)|bourse|cotation|résultats? (du|de la|des) (match|élection)|score (du|de)|classement|qui a gagné|élections?|sondage|sorti(e|es|s)? (récemment|cette)|vient de sortir|en 20[2-3]\d|cette année|récemment|récent|dernier modèle|cherche (sur|en ligne|le web|sur internet)|recherche (sur|en ligne|web)|trouve[- ]moi|horaires?|ouvert (le|ce|aujourd)|adresse de|itinéraire|trafic|vols? (pour|vers|de)|billets?|disponib|en stock|promo|soldes|bon plan|avis sur|critiques? de|qui est le (président|ministre|pdg|ceo|maire)|actuel(le)?s?\b|latest|today|current)/i;
+var CODE_RE = /```|(?:^|[^\p{L}])(code|coder|codes|programme|programmer|script|fonction|function|bug|bugs|débogue|déboguer|debug|html|css|javascript|typescript|python|react|vue\.js|node(\.js)?|sql|regex|api|json|svg|swift|kotlin|java|c\+\+|php|rust|golang|bash|terminal|algorithme|compil|stack ?trace|exception|application web|appli web|site web|landing page|page web|extension chrome|jeu (en|html|javascript|python|jouable|simple|vidéo simple)|crée(r)? un jeu|mini[- ]jeu|snake|tetris|pong)(?![\p{L}])/iu;
+var SEARCH_RE = /(actualit|aujourd'hui|aujourd’hui|ce matin|ce soir|hier|demain|cette semaine|ce week-end|en ce moment|actuellement|dernières? (nouvelles|infos|news|sorties?|versions?)|news\b|noticias|météo|meteo|prix (actuel|du|de la|des|d'un|d’une)|combien coûte|tarifs?|cours (du|de l|de la|des)|bourse|cotation|résultats? (du|de la|des) (match|élection)|score (du|de)|classement|qui a gagné|élections?|sondage|sorti(e|es|s)? (récemment|cette)|vient de sortir|en 20[2-3]\d|cette année|récemment|récent|dernier modèle|cherche (sur|en ligne|le web|sur internet)|recherche (sur|en ligne|web)|trouve[- ]moi|horaires?|ouvert (le|ce|aujourd)|adresse de|itinéraire|trafic|vols? (pour|vers|de)|billets?|disponib|en stock|promo|soldes|bon plan|avis sur|critiques? de|qui est le (président|ministre|pdg|ceo|maire)|actuel(le)?s?\b|latest|today|current)/i;
 var REASON_RE = /(démontre|démontrer|prouve|preuve|résous|résoudre|équation|intégrale|dérivée|théorème|énigme|casse-tête|logique|probabilit|optimise|raisonne|étape par étape|calcul complexe|olympiade|exercice de maths|mathématique)/i;
 var INTENT_FR = { chat:'discussion', reason:'réflexion', code:'code', search:'recherche web', vision:'vision', videoin:'analyse vidéo', audio:'audio', image:'image', video:'vidéo', photoedit:'retouche photo', videoedit:'retouche vidéo' };
 function detectIntent(text, atts){
@@ -6975,6 +7014,12 @@ function detectIntent(text, atts){
   const k = (atts || []).map(kindOf), hasVid = k.includes('video'), hasImg = k.includes('image'), hasAud = k.includes('audio');
   const ask = ix(ASK_RE, t) || ix(HOWTO_RE, t);
   const blocked = notAGeneration(t);
+  if (blocksMedia(t)){
+    if (ask) return 'chat';
+    const n = normIntent(t);
+    if (/\b(joue|jouer|jouons|play|juguemos|joga|affiche le plateau|montre le plateau|show the board|muestra el tablero)\b/.test(n)) return 'chat';
+    return 'code';
+  }
   const lastVid = !hasVid && /vid[ée]o|clip|montage|film/i.test(t) && lastMedia('video');
   if ((hasVid || lastVid) && ix(VEDIT_RE, t) && !ask) return 'videoedit';
   if (hasImg && !hasVid && ix(ANIMATE_RE, t) && !ask) return 'video';
@@ -6982,7 +7027,7 @@ function detectIntent(text, atts){
   if ((hasImg || lastImg) && !hasVid && ix(PEDIT_RE, t) && !ask && !ix(CODE_RE, t)) return 'photoedit';
   if (hasImg && !hasVid && !ask && !ix(CODE_RE, t) && !/(fautes?|orthographe|grammaire|conjugaison|version (texte|écrite|word|pdf|résumée|courte|longue)|plus (de |d'|d’)\s*(détails|infos?|informations|explications|précisions|exemples)|plus sur |exercice|calcul|devoir|équation|traduction|transcri|résum)/i.test(t) && (ix(FOLLOW_EDIT_RE, t) || /(noir et blanc|n ?& ?b|sépia|vintage|rétro|plus (jeune|vieux|vieille|âgée?|mince|musclée?|grande?|lumineu|clair|sombre|nette?|saturée?|chaud|froid)|en (hiver|été|automne|printemps|neige|nuit|plein jour|couleur|haute (qualité|définition)|hd|4k)|style |version |façon |à la manière|haute définition|upscale|résolution)/i.test(t))) return 'photoedit';
   if (!ask && !blocked && !ix(CODE_RE, t) && (ix(VID_GEN_RE, t) || ix(VID_LEAD_RE, t))) return 'video';
-  if (!ask && !blocked && !/(svg|html|css|code|ascii)/i.test(t) && (ix(IMG_GEN_RE, t) || ix(IMG_LEAD_RE, t) || ix(DRAW_RE, t))) return hasImg && !hasVid ? 'photoedit' : 'image';
+  if (!ask && !blocked && !/(svg|html|css|code|ascii|mermaid)/i.test(t) && (ix(IMG_GEN_RE, t) || ix(IMG_LEAD_RE, t) || ix(DRAW_RE, t))) return hasImg && !hasVid ? 'photoedit' : 'image';
   if (hasVid) return 'videoin';
   if (hasAud) return 'audio';
   if (ix(CODE_RE, t)) return 'code';
@@ -7036,6 +7081,30 @@ function universalRoute(text, atts, conv, forceCat){
   if (cat === 'photoedit') route.imgAspect = 'auto';
   if (pol.drop && r) route.why += ' · budget du mois bientôt atteint';
   return { cat, model, route };
+}
+function outputCue(text, atts){
+  const n = normIntent(text);
+  const intent = detectIntent(text || '', atts || []);
+  const ask = needsClarify(text);
+  let mode = 'texte', line = 'Texte clair et concis.';
+  if (isForbiddenAsk(text)){ mode = 'refus'; line = 'Refus bref. Ne donne pas de moyen de nuire.'; }
+  else if (intent === 'image'){ mode = 'image'; line = 'Génération d\'image : la demande est explicite.'; }
+  else if (intent === 'video' || intent === 'videoedit'){ mode = 'video'; line = 'Vidéo explicite. Pas une image fixe.'; }
+  else if (intent === 'photoedit'){ mode = 'retouche'; line = 'Modifier l\'image fournie seulement.'; }
+  else if (intent === 'code' || blocksMedia(text)){ mode = 'code'; line = 'Code ou texte (HTML/JS jouable, mermaid, SVG, ASCII, tableau). Pas d\'image. run_js ou run_python si un calcul aide.'; }
+  else if (intent === 'search'){ mode = 'texte'; line = 'Texte avec recherche web et sources.'; }
+  else if (intent === 'vision' || intent === 'videoin' || intent === 'audio'){ mode = 'texte'; line = 'Décris le fichier fourni. Ne génère pas de média.'; }
+  else if (intent === 'reason'){ mode = 'texte'; line = 'Raisonnement en texte, sans image.'; }
+  else if (/\b(mail|e mail|email|lettre|cv|article|post|poeme|histoire|paroles)\b/.test(n)) line = 'Rédaction en texte, longueur adaptée. Pas d\'image.';
+  else if (/\b(traduis|translate|traduce|traduz)\b/.test(n)) line = 'Traduction en texte, fidèle et concise.';
+  else if (/\b(resume|resumer|summar|resumen|resumo|synthese)\b/.test(n)) line = 'Résumé en texte, plus court que la source.';
+  else if (/\b(reformule|corrige|reecris|rewrite)\b/.test(n)) line = 'Réécriture en texte. Garde le sens.';
+  else if (/\b(conseil|conseille|avis|should i)\b/.test(n)) line = 'Conseil bref en texte.';
+  else if (/\b(explique|explain|pourquoi|c est quoi)\b/.test(n)) line = 'Explication pédagogique courte, en texte.';
+  else if (/\b(gmail|agenda|calendar|drive|github|veille)\b/.test(n) || /\b(envoie|envoi) un mail\b/.test(n)) line = 'Prépare l\'action et demande confirmation avant d\'envoyer ou d\'écrire.';
+  else if (/\b(sante|symptome|mal de tete|contrat|avocat|impots|placement)\b/.test(n)) line = 'Texte prudent. Informe et oriente vers un professionnel.';
+  const q = ask ? 'Doute réel : une seule question courte, avec 2 ou 3 options, puis attends. Pas d\'image ni de vidéo avant la réponse.' : 'Pas de question : la demande est assez claire.';
+  return 'FORMAT : ' + mode + '. ' + line + ' ' + q;
 }
 
 /* ----- Abonnement Free : modèles gratuits uniquement ----- */
@@ -7949,10 +8018,11 @@ function applyUnlock(){
 document.addEventListener('click', e => { if (e.target.closest('[data-unlock]')){ e.preventDefault(); confirmUnlock(); } });
 const PLAN_MODEL = 'google/gemini-2.5-flash';
 const PLAN_MODEL_FREE = 'google/gemini-2.5-flash:free';
-const PLAN_SYS = 'Tu classes une demande. Réponds uniquement par un JSON compact {"kind":"direct"|"explore","summary":"","options":[],"questions":[]}. direct = action claire. explore = idée floue, projet, jeu, vidéo de marque ou demande en plusieurs étapes. Pas de montant.';
+const PLAN_SYS = 'Tu classes une demande. Réponds uniquement par un JSON compact {"kind":"direct"|"explore","format":"texte"|"code"|"image"|"video","ask":false,"summary":"","options":[],"questions":[]}. direct = action claire. explore = idée floue, projet, jeu à concevoir, vidéo de marque ou demande en plusieurs étapes. format = modalité : code pour jeu, schéma, mermaid, graphique, tableau, SVG ou interface ; image ou video seulement si la demande le dit explicitement ; sinon texte. ask = true seulement en cas de vrai doute sur la modalité, l\'objectif ou un paramètre indispensable : une seule question, 2 ou 3 options, dans questions. Une demande claire a ask false. Pas de montant.';
 function planKind(text){
   const n = normIntent(text); if (!n) return null;
   if (/\b(rappel|rappelle|remind)\b/.test(n)) return 'direct';
+  if (needsClarify(text)) return null;
   if (/\b(jeu de course|jeu video|creer un jeu|racing game|video game|video pour ma marque|video pour mon|pour ma marque|pour mon entreprise|for my brand|identite de marque|projet (web|complet)|application mobile|je (veux|voudrais) creer|j aimerais (creer|lancer)|comment (pourrais|je pourrais)|idee (de|pour)|concept (de|pour)|strategie (de|pour))\b/.test(n)) return 'explore';
   if (/\b(genere|dessine|draw|create|cree|fais moi)\b/.test(n) && /\b(image|photo|visuel|logo|video|clip)\b/.test(n) && !/\b(marque|jeu|projet|strategie|brand|game|entreprise)\b/.test(n)) return 'direct';
   try{ const intent = detectIntent(text, []); if (['image','video','photoedit','videoedit','code','search','audio','vision','videoin'].includes(intent)) return 'direct'; }catch(e){}
@@ -7981,15 +8051,20 @@ function parsePlanJson(raw){
     const kind = j.kind === 'explore' ? 'explore' : j.kind === 'direct' ? 'direct' : '';
     if (!kind) return null;
     const arr = v => Array.isArray(v) ? v.map(x => String(x || '').slice(0, 180)).filter(Boolean).slice(0, 4) : [];
-    return { kind, summary: String(j.summary || '').slice(0, 400), options: arr(j.options), questions: arr(j.questions) };
+    const format = ['texte', 'code', 'image', 'video'].includes(j.format) ? j.format : '';
+    return { kind, format, ask: j.ask === true, summary: String(j.summary || '').slice(0, 400), options: arr(j.options), questions: arr(j.questions) };
   }catch(e){ return null; }
 }
 function planAskText(text, plan){
   const opt = (plan.options || []).map((o, i) => (i + 1) + '. ' + o).join('\n');
   const q = (plan.questions || []).map(x => '- ' + x).join('\n');
-  return 'Idée à clarifier avant d\'agir.\nDemande : ' + text + '\nRésumé : ' + (plan.summary || '') + '\nPistes :\n' + (opt || '- (à proposer)') + '\nQuestions :\n' + (q || '- (au plus deux)') + '\n\nÉcris un plan court et clair, dans la langue de l\'utilisateur. N\'exécute rien tant que la personne n\'a pas validé. Pas de montant, pas de raisonnement.';
+  const cue = outputCue(text);
+  const wait = plan.ask
+    ? 'Pose une seule question courte, avec 2 ou 3 options, puis attends. N\'exécute rien, surtout pas une image ou une vidéo.'
+    : 'Écris un plan court et clair, dans la langue de l\'utilisateur. N\'exécute rien tant que la personne n\'a pas validé.';
+  return 'Idée à clarifier avant d\'agir.\n' + cue + '\nDemande : ' + text + '\nRésumé : ' + (plan.summary || '') + (plan.format ? '\nModalité : ' + plan.format : '') + '\nPistes :\n' + (opt || '- (à proposer)') + '\nQuestions :\n' + (q || '- (au plus deux)') + '\n\n' + wait + ' Pas de montant, pas de raisonnement.';
 }
-function planExecText(text, plan){ return planAskText(text, plan) + '\n\nL\'utilisateur a validé. Exécute maintenant cette demande, avec ce contexte.'; }
+function planExecText(text, plan){ return planAskText(text, plan) + '\n\nL\'utilisateur a validé. Exécute maintenant, en respectant le FORMAT ci-dessus. Pas d\'image ni de vidéo si le FORMAT ne le dit pas.'; }
 async function classifyRemote(text){
   if (!S.key) return null;
   const model = (typeof freeOnly === 'function' && freeOnly()) ? PLAN_MODEL_FREE : PLAN_MODEL;
@@ -8103,7 +8178,30 @@ async function runProductTests(){
     ['affiche météo demain à Paris','search'],['génère un avatar de pirate','image'],['fais une bannière pour un site','image'],
     ['un court métrage de science fiction','video'],['une petite video de nuages','video'],['dessiner un arbre','image'],
     ['no quiero una imagen, explica la gravedad','chat'],['how do I draw','chat'],['was ist ein bild','chat'],
-    ['quero um resumo das fotos','chat'],['lembra-me todas as segundas','chat'],['crea un dibujo de un sol','image']
+    ['quero um resumo das fotos','chat'],['lembra-me todas as segundas','chat'],['crea un dibujo de un sol','image'],
+    ['quelle est la capitale du Portugal','chat'],['what is photosynthesis','chat'],['que es la gravedad','chat'],
+    ['salut ça va','chat'],['thanks a lot','chat'],['hola buenos dias','chat'],
+    ['tu me conseilles quoi comme cadeau','chat'],['should I take this job','chat'],['que me aconsejas como regalo','chat'],
+    ['rédige un mail de relance','chat'],['écris une lettre de motivation','chat'],['write a short linkedin post','chat'],
+    ['reformule cette phrase plus simplement','chat'],['corrige mes fautes dans ce paragraphe','chat'],['rewrite this sentence','chat'],
+    ['traduis merci en portugais','chat'],['translate hello to spanish','chat'],['traduce hola al francés','chat'],
+    ['résume ce pdf en cinq lignes','chat'],['summarize the attached report','chat'],['resume este texto','chat'],
+    ['décris le document joint','chat'],['analyse ces chiffres de ventes','chat'],['describe the attached photo','chat'],
+    ['calcule 15 pour cent de 80','chat'],['résous l équation 2x + 3 = 11','reason'],['cuanto es 12 por 8','chat'],
+    ['explique cette fonction javascript','code'],['débugue ce script python','code'],['write a function that sorts a list','code'],
+    ['un graphique des ventes par mois','code'],['fais un tableau des résultats','code'],['requête sql des ventes par région','code'],
+    ['dessine-moi un schéma en mermaid','code'],['un diagramme de flux en svg','code'],['draw a flowchart in mermaid','code'],
+    ['joue au morpion avec moi','chat'],['affiche le plateau de morpion','chat'],['fais un jeu snake','code'],
+    ['play tic tac toe with me','chat'],['haz un juego de snake','code'],['mostra o tabuleiro de xadrez','chat'],
+    ['actualité de l ia aujourd hui','search'],['latest news about ai','search'],['noticias de hoy','search'],
+    ['envoie un mail à Paul pour confirmer','chat'],['ajoute un événement à mon agenda','chat'],['crée une veille sur ce sujet','chat'],
+    ['aide-moi à brainstormer un nom','chat'],['quelles étapes pour lancer ce projet','chat'],['brainstorm three names','chat'],
+    ['explique-moi les fractions comme à un débutant','chat'],['explain recursion simply','chat'],['explica las fracciones','chat'],
+    ['écris un court poème sur la pluie','chat'],['invente une histoire de pirate','chat'],['escribe un poema corto','chat'],
+    ['génère une image d un chat noir','image'],['draw a picture of a dog','image'],['genera una imagen de un gato','image'],
+    ['fais une vidéo de vagues','video'],['create a video of ocean waves','video'],['cria um video de ondas','video'],
+    ['j ai mal à la tête que faire','chat'],['is this contract something to review','chat'],['conseil pour mes impots','chat'],
+    ['fais-moi un truc visuel pour mon projet','chat'],['améliore ça','chat'],['image ou vidéo, comme tu veux','chat']
   ];
   let hit = 0;
   const misses = [];
@@ -8113,6 +8211,17 @@ async function runProductTests(){
     if (got === exp) hit++; else if (misses.length < 12) misses.push(phrase + ' → ' + got + ' (attendu ' + exp + ')');
   }
   ok('intentions ' + hit + '/' + cases.length, hit / cases.length >= 0.9, misses.join(' | '));
+  ok('morpion en texte', detectIntent('joue au morpion avec moi', []) === 'chat' && detectIntent('affiche le plateau de morpion', []) === 'chat' && detectIntent('fais un jeu snake', []) === 'code');
+  ok('schéma mermaid en code', detectIntent('dessine-moi un schéma en mermaid', []) === 'code' && /FORMAT : code/.test(outputCue('dessine-moi un schéma en mermaid')) && !/Génération d'image/.test(outputCue('dessine-moi un schéma en mermaid')));
+  ok('ambigu demande une question', needsClarify('fais-moi un truc visuel pour mon projet') && needsClarify('améliore ça') && needsClarify('image ou vidéo, comme tu veux') && /une seule question courte/.test(outputCue('fais-moi un truc visuel pour mon projet')) && detectIntent('fais-moi un truc visuel pour mon projet', []) !== 'image' && detectIntent('image ou vidéo, comme tu veux', []) !== 'video');
+  ok('clair sans question', !needsClarify('génère une image d\'un chat') && !needsClarify('joue au morpion avec moi') && !needsClarify('résume ce texte en trois lignes') && !needsClarify('fais une vidéo de vagues') && /Pas de question/.test(outputCue('génère une image d\'un chat')) && /FORMAT : image/.test(outputCue('génère une image d\'un chat')) && /FORMAT : video/.test(outputCue('fais une vidéo de vagues')));
+  ok('plan ambigu non direct', planKind('fais-moi un truc visuel pour mon projet') == null && planKind('génère une image d\'un chat') === 'direct' && planKind('joue au morpion avec moi') === 'direct');
+  const asked = planAskText('fais-moi un truc visuel', { summary:'rendu', options:['image', 'texte'], questions:['Image ou texte ?'], ask:true, format:'texte' });
+  ok('plan pose la question', /une seule question courte/.test(asked) && /FORMAT :/.test(asked) && /Modalité : texte/.test(asked));
+  ok('guide des formats', /Jamais une image générée/.test(coreSystem({ messages:[] })) && /une seule question courte/.test(coreSystem({ messages:[] })) && /refus bref/i.test(OUT_GUIDE));
+  ok('retouche et vision', detectIntent('passe cette photo en noir et blanc', [{ name:'a.png', type:'image/png' }]) === 'photoedit' && detectIntent('décris cette photo', [{ name:'a.png', type:'image/png' }]) === 'vision');
+  ok('consigne du tour', /FORMAT : code/.test(buildSystem({ messages:[{ role:'user', text:'fais un jeu snake', atts:[] }] }, 'chat')));
+  ok('bot et clarification', /une seule question courte/.test(botSystem()));
   const plans = [
     ['génère une image d\'un chat','direct'],['dessine un château','direct'],['crée une vidéo d\'un coucher de soleil','direct'],
     ['rappelle-moi tous les lundis','direct'],['explique la photosynthèse','direct'],['écris un script python','direct'],
@@ -8244,7 +8353,7 @@ async function runProductTests(){
   ok('aucun montant hors abonnement', money.length === 0, money.join(' | '));
   $('#settingsSheet').hidden = true; $('#usageSheet').hidden = true; $('#modelSheet').hidden = true; $('#balPop').hidden = true;
   const pass = results.filter(r => r.pass).length;
-  return { pass, total: results.length, intent: hit + '/' + cases.length, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
+  return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
 window.runSecurityTests = runSecurityTests;
 window.runProductTests = runProductTests;
