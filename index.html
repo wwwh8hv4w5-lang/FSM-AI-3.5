@@ -2659,7 +2659,7 @@ PETITS MESSAGES
 const FILE_HINT2 = `FICHIERS ET CODE
 - Chaque fichier va dans un bloc de code dont la ligne d'ouverture contient le langage puis le nom du fichier, par exemple \`\`\`python analyse.py. Un bloc par fichier, contenu toujours complet et directement utilisable.
 - Code : propre, commenté sobrement, sans erreur de syntaxe ; relis-le mentalement comme si tu l'exécutais. Puis explique en quelques lignes comment l'utiliser.
-- Jeu, animation ou page interactive : un seul fichier \`\`\`html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale, pas d'alert()), adapté au téléphone (commandes tactiles et clavier, mise à l'échelle de l'écran), qui démarre tout seul. Écris d'abord le HTML et le CSS, puis le JavaScript : l'utilisateur voit le jeu se construire en direct puis peut y jouer dans la conversation.
+- Jeu, animation ou page interactive : un seul fichier \`\`\`html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale, pas d'alert()), adapté au téléphone (commandes tactiles et clavier, mise à l'échelle de l'écran), qui démarre tout seul. Écris d'abord le HTML et le CSS, puis le JavaScript : l'utilisateur voit le jeu se construire en direct puis peut y jouer dans la conversation. AUCUNE IMAGE pour un jeu ou une page : ne génère jamais d'image, n'écris aucun marqueur [[image: …]] ni [[illustration: …]], aucune image en base64 ou data:, aucune URL d'image externe, aucun fichier .png/.jpg à charger. Tous les graphismes (personnages, sprites, décors, fonds, icônes) sont dessinés dans le code : canvas, CSS, SVG inline ou emoji. Le code est toujours dans le bloc \`\`\`html, jamais en texte brut.
 - Fichiers joints : tu reçois leur contenu complet, déjà extrait par l'application (texte, code de tout langage, pages HTML, PDF page par page, Word, feuilles Excel en CSV, diapositives PowerPoint, OpenDocument, EPUB, contenu des archives ZIP, et pour les autres binaires leur signature et leurs chaînes lisibles). Analyse-les entièrement et précisément ; compare-les, regroupe-les ou croise-les si plusieurs sont joints. Ne dis jamais que tu ne peux pas ouvrir un format.
 - Fichier modifié ou créé : renvoie-le EN ENTIER dans un bloc nommé avec le nom du fichier (même nom que l'original sauf demande contraire). Word : bloc \`\`\`markdown nom.docx (titres #, listes, **gras**, tableaux |) converti en vrai document Word. Excel : bloc \`\`\`csv nom.xlsx (une ligne d'en-tête, formules commençant par = acceptées ; plusieurs feuilles avec une ligne « ### Feuille « Nom » » avant chacune) converti en vrai classeur. Tout autre format texte (html, css, js, py, json, xml, md, csv, svg, sql…) : bloc avec son extension. L'utilisateur télécharge le fichier en un geste.
 - Projet en plusieurs fichiers : nomme chaque bloc avec son chemin (\`\`\`css css/style.css, \`\`\`javascript js/app.js) et écris sur une ligne seule [[zip: nom-du-projet]] ; l'application crée l'archive ZIP téléchargeable.`;
@@ -2671,7 +2671,8 @@ function buildSystem(conv, catId){
   const cue = raw ? outputCue(raw.text || '', raw.atts || []) : '';
   if (S.voiceActive) return [VOICE_SYS_FN(), coreSystem(conv).split('\n\nQUALITÉ DES RÉPONSES')[0], cue, pj, S.set.system.trim(), mem].filter(Boolean).join('\n\n');
   const c = catById(catId || S.set.category);
-  const ill = illusOn(c.id) ? ILLUS_HINT : '';
+  /* jeu ou code demandé : jamais d'illustrations, même si la catégorie choisie les autorise */
+  const ill = illusOn(c.id) && !(raw && codeTurn(raw.text || '', raw.atts || [])) ? ILLUS_HINT : '';
   const custom = S.set.system.trim() ? "CONSIGNES PERSONNELLES DE L'UTILISATEUR (prioritaires sur le style par défaut) :\n" + S.set.system.trim() : '';
   return [coreSystem(conv), cue, c.sys ? 'SPÉCIALITÉ DE CETTE DEMANDE : ' + c.sys : '', pj, custom, FILE_HINT2, ill, mem].filter(Boolean).join('\n\n');
 }
@@ -2787,6 +2788,9 @@ async function runChat(asst, signal, conv){
   }
   { const pp = projPdfParts(conv); if (pp.length){ const fu = msgs.find(x => x.role === 'user'); if (fu) fu.content = pp.concat(fu.content); } }
   asst.steps = asst.steps || [];
+  /* Jeu ou code : le modèle écrit seulement du texte et du code (aucune image générée pendant l'écriture) */
+  const noImg = asst.cat === 'code' || codeTurn(lastUserText(conv), ([...(conv?.messages || [])].reverse().find(m => m.role === 'user') || {}).atts);
+  let conts = 0, cont = false;
   for (let round = 0; round < 8; round++){
     const body = { model: asst.model, messages: msgs, stream: true, usage:{ include: true } };
     const voiceWeb = S.voiceActive && S.set.voiceWeb !== false && !isXai(asst.model);
@@ -2801,7 +2805,7 @@ async function runChat(asst, signal, conv){
     /* Réflexion : activée par défaut pour les demandes qui la méritent ; une salutation ou une question simple répond tout de suite */
     const deep = asst.reason || polReason || asst.route?.tier === 'max';
     if (canReason && mode === 'chat' && !S.voiceActive && (deep || (S.set.reasoning && needsReasoning(lastUserText(conv), asst)))) body.reasoning = { effort: deep ? 'medium' : 'low' };
-    if (mode === 'chat+image'){ body.modalities = ['image', 'text']; const asp = asst.imgAspect || S.set.imgAspect; if (asp && asp !== 'auto') body.image_config = { aspect_ratio: asp }; }
+    if (mode === 'chat+image' && !noImg){ body.modalities = ['image', 'text']; const asp = asst.imgAspect || S.set.imgAspect; if (asp && asp !== 'auto') body.image_config = { aspect_ratio: asp }; }
     if (tools.length) body.tools = tools.map(toolSpec);
     if (serverWeb) body.tools = (body.tools || []).concat([
       { type:'openrouter:web_search', parameters:{ engine:'auto', max_results:5, search_context_size:'low' } },
@@ -2810,7 +2814,12 @@ async function runChat(asst, signal, conv){
     /* Veille de connexion : si plus rien n'arrive (réseau coupé, appli mise en arrière-plan), on coupe et on se reconnecte
        au lieu de rester bloqué sur « Connexion… » */
     const ctl = new AbortController(), onAb = () => ctl.abort(); signal?.addEventListener('abort', onAb);
-    let beat = Date.now(), stalled = false, gotHead = false, calls = [], roundText = '', reqCost = null, reqEst = false;
+    let beat = Date.now(), stalled = false, gotHead = false, calls = [], roundText = '', reqCost = null, reqEst = false, fin = '', lead = cont ? '' : null;
+    /* suite d'un code coupé : on retire la réouverture de bloc que certains modèles ajoutent */
+    const addText = v => {
+      if (lead !== null){ lead += v; if (!/\n/.test(lead) && lead.length < 160) return; v = lead.replace(/^\s*(?:```|~~~)[^\n]*\n/, ''); lead = null; }
+      asst.text += v; roundText += v;
+    };
     const wd = setInterval(() => { if (Date.now() - beat > (gotHead ? 50000 : 90000)){ stalled = true; ctl.abort(); } }, 2500);
     Object.defineProperty(asst, '_beat', { value: () => beat, writable: true, configurable: true, enumerable: false });
     Object.defineProperty(asst, '_kick', { value: () => { stalled = true; ctl.abort(); }, writable: true, configurable: true, enumerable: false });
@@ -2822,7 +2831,7 @@ async function runChat(asst, signal, conv){
     if (!res.ok) throw await apiError(res);
     asst.status = round ? 'Le modèle continue…' : 'Le modèle répond…'; paint(asst);
     calls = []; roundText = ''; reqCost = null; reqEst = false;
-    if (round && asst.text && !/\n\n$/.test(asst.text)) asst.text += '\n\n';
+    if (round && asst.text && !cont && !/\n\n$/.test(asst.text)) asst.text += '\n\n';
     const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '';
     for (;;){
       let rd;
@@ -2838,9 +2847,10 @@ async function runChat(asst, signal, conv){
         let j; try{ j = JSON.parse(data); }catch(e){ continue; }
         if (j.error) throw new Error(j.error.message || 'Erreur du fournisseur');
         const ch = j.choices?.[0]; const d = ch?.delta || ch?.message || {};
-        if (typeof d.content === 'string'){ const vis = pushVisible(asst, d.content); if (vis){ asst.text += vis; roundText += vis; } }
-        else if (Array.isArray(d.content)) for (const p of d.content){ if (p.type === 'text'){ const vis = pushVisible(asst, p.text || ''); if (vis){ asst.text += vis; roundText += vis; } } else if (p.type === 'image_url' && p.image_url?.url) asst.images.push({ url:p.image_url.url }); }
-        if (Array.isArray(d.images)) for (const im of d.images){ const u = im.image_url?.url || im.url; if (u && !asst.images.some(x => x.url === u)) asst.images.push({ url:u }); }
+        if (typeof d.content === 'string'){ const vis = pushVisible(asst, d.content); if (vis) addText(vis); }
+        else if (Array.isArray(d.content)) for (const p of d.content){ if (p.type === 'text'){ const vis = pushVisible(asst, p.text || ''); if (vis) addText(vis); } else if (p.type === 'image_url' && p.image_url?.url && !noImg) asst.images.push({ url:p.image_url.url }); }
+        if (ch?.finish_reason) fin = ch.finish_reason;
+        if (Array.isArray(d.images) && !noImg) for (const im of d.images){ const u = im.image_url?.url || im.url; if (u && !asst.images.some(x => x.url === u)) asst.images.push({ url:u }); }
         if (Array.isArray(d.tool_calls)) for (const t of d.tool_calls){
           const idx = t.index ?? calls.length; const c = calls[idx] || (calls[idx] = { id:'', name:'', args:'' });
           if (t.id) c.id = t.id; if (t.function?.name) c.name += t.function.name; if (t.function?.arguments) c.args += t.function.arguments;
@@ -2852,10 +2862,18 @@ async function runChat(asst, signal, conv){
         schedulePaint(asst);
       }
     }
-    { const tail = flushVisible(asst); if (tail){ asst.text += tail; roundText += tail; if (asst.text) asst.status = ''; } }
+    { const tail = flushVisible(asst); if (tail) addText(tail); if (lead) { const l = lead; lead = null; addText(l); } if (asst.text) asst.status = asst.text ? '' : asst.status; }
     }finally{ clearInterval(wd); signal?.removeEventListener('abort', onAb); }
     if (reqCost != null){ asst.cost = (+asst.cost || 0) + reqCost; if (reqEst) asst.estimated = true; }
     const real = calls.filter(c => c && c.name && TOOLS.some(t => t.name === c.name));
+    /* Réponse coupée en plein code (limite de longueur) : FSM AI demande la suite et la colle au même bloc, l'aperçu reste entier */
+    cont = false;
+    if (!real.length && /^(length|max_tokens|max_output_tokens)$/i.test(fin) && conts < 3 && openCode(asst.text)){
+      conts++; cont = true;
+      msgs.push({ role:'assistant', content: roundText }, { role:'user', content:[{ type:'text', text:"Ta réponse a été coupée. Continue EXACTEMENT là où tu t'es arrêté, au caractère près, sans rien répéter, sans phrase d'introduction et sans rouvrir de bloc de code ; termine le fichier puis ferme le bloc." }] });
+      asst.status = ''; schedulePaint(asst);
+      continue;
+    }
     if (!real.length) break;
     real.forEach((c, n) => { if (!c.id) c.id = 'call_' + round + '_' + n; });
     msgs.push({ role:'assistant', content: roundText || null, tool_calls: real.map(c => ({ id:c.id, type:'function', function:{ name:c.name, arguments: c.args || '{}' } })) });
@@ -2973,6 +2991,11 @@ function autoRoute(text, cat){
     return 'videoedit';
   }
   const curMode = modeFor(S.set.model);
+  /* jeu demandé avec un modèle d'images ou de vidéo sélectionné : on passe en mode code pour coder le jeu avec son aperçu */
+  if (cat !== 'code' && ['image', 'video'].includes(curMode) && codeTurn(t, S.pending)){
+    const p = topPick(catById('code'));
+    if (p){ S.set.model = p.id; applyPreset(catById('code')); refreshModelUI(); toast('Mode code activé : le jeu s\'affiche en aperçu jouable'); return 'code'; }
+  }
   const lastImg = !hasImg && /photo|image|portrait|selfie/i.test(t) && lastMedia('image');
   if (!['photoedit', 'image'].includes(cat) && curMode === 'chat' && (hasImg || lastImg) && !hasVid && PEDIT_RE.test(t) && !ASK_RE.test(t)){
     const p = topPick(catById('photoedit')); if (!p) return null;
@@ -3445,7 +3468,9 @@ function devCardHtml(code, pv){
 }
 function previewKind(lang, fname, code){
   if (isServerScript(fname, lang)) return '';
-  if (/^(html|htm|xhtml)$/i.test(lang) || /\.html?$/i.test(fname || '') || /^\s*<(!doctype html|html)/i.test(code)) return 'html';
+  if (/^(html|htm|xhtml|html5)$/i.test(lang) || /\.html?$/i.test(fname || '') || /^\uFEFF?\s*(?:<!--[\s\S]*?-->\s*)*<(!doctype html|html[\s>])/i.test(code)) return 'html';
+  /* bloc sans langage (ou « text », « xml »…) qui contient une page complète */
+  if ((!lang || /^(text|txt|plain|plaintext|markup|xml|web|game|jeu)$/i.test(lang)) && /<!doctype html|<html[\s>]/i.test(String(code).slice(0, 600))) return 'html';
   if (lang === 'svg' || /\.svg$/i.test(fname || '') || (/^\s*<svg[\s>]/i.test(code) && /<\/svg>\s*$/i.test(code))) return 'svg';
   return '';
 }
@@ -3454,6 +3479,8 @@ function buildDoc(k){
   const mid = k.slice(0, k.lastIndexOf(':'));
   const sib = [...CODE.entries()].filter(([kk]) => kk.startsWith(mid + ':')).map(([, v]) => v);
   let doc = c.code;
+  /* réponse coupée avant la fin du code : l'aperçu montre la partie terminée au lieu d'une page cassée */
+  if (!k.endsWith('#live') && previewKind(c.lang, c.fname, c.code) === 'html'){ const sp = stablePartial(doc); c.cut = sp.length < doc.length; if (c.cut) doc = sp; }
   if (previewKind(c.lang, c.fname, c.code) === 'svg') doc = '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;display:grid;place-items:center;background:#fff}svg{max-width:100%;max-height:100%}</style></head><body>' + sanitizeSvg(doc) + '</body></html>';
   for (const sb of sib){
     if (!sb.fname || sb === c) continue;
@@ -3489,13 +3516,48 @@ function liveWrap(el, m){
   let w = el._lw;
   if (!w || !w.isConnected){
     w = document.createElement('div'); w.className = 'livewrap';
-    w.innerHTML = devCardHtml(c.code, a.dataset.pv) + `<div class="pv livepv"><div class="pv-bar"><span class="live-dot">Aperçu en direct <em>· se construit sous tes yeux</em></span></div><div class="pv-frame"></div></div>`;
+    w.innerHTML = devCardHtml(c.code, a.dataset.pv) + `<div class="pv livepv"><div class="pv-bar"><span class="live-dot">Aperçu en direct <em>· se construit sous tes yeux</em></span><button class="mini" data-act="pvfull" data-live="1" data-k="${esc(a.dataset.lk)}">Plein écran</button></div><div class="pv-frame"></div></div>`;
     el.after(w); el._lw = w;
   }
   const lines = String(c.code).split('\n').length;
   const msg = w.querySelector('.gc-msg'); if (msg) msg.textContent = msg.textContent.replace(/\d+ lignes?$/, lines + (lines > 1 ? ' lignes' : ' ligne'));
   const lv = w.querySelector('.livepv'); lv.dataset.lk = a.dataset.lk;
+  { const fb = lv.querySelector('[data-act="pvfull"]'); if (fb) fb.dataset.k = a.dataset.lk; }
   liveRefresh(lv);
+}
+/* Bloc de code encore ouvert (réponse coupée) : nombre impair de clôtures, ou page HTML sans </html> */
+function openCode(text){
+  const t = String(text || ''); const fences = (t.match(/^\s*(?:```|~~~)/gm) || []).length;
+  if (fences % 2) return true;
+  const d = t.search(/<!doctype html|<html[\s>]/i);
+  return d >= 0 && !/<\/html>/i.test(t.slice(d));
+}
+/* HTML écrit sans bloc de code (« <!DOCTYPE html>… » en texte brut) : on le range dans un bloc ```html pour l'aperçu jouable */
+function fenceBareHtml(text){
+  const s = String(text || '');
+  if (!/<!doctype html|<html[\s>]/i.test(s)) return s;
+  const lines = s.split('\n'), out = [];
+  let fence = '';
+  for (let i = 0; i < lines.length; i++){
+    let line = lines[i];
+    const fm = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fence){ out.push(line); if (fm && fm[1][0] === fence[0] && fm[1].length >= fence.length && !line.trim().slice(fm[1].length).trim()) fence = ''; continue; }
+    if (fm){ fence = fm[1]; out.push(line); continue; }
+    let at = line.search(/<!doctype html/i);
+    if (at < 0 && /^\s*<html[\s>]/i.test(line)) at = line.search(/<html/i);
+    if (at < 0 || /`/.test(line.slice(0, at))){ out.push(line); continue; }
+    const rest = lines.slice(i).join('\n');
+    if (!/<(head|body|script|style|canvas|div|main|svg)[\s>]/i.test(rest.slice(0, 6000)) && !/<\/html>/i.test(rest)) { out.push(line); continue; }
+    if (at > 0 && line.slice(0, at).trim()) out.push(line.slice(0, at));
+    lines[i] = line.slice(at);
+    let j = i; while (j < lines.length && !/<\/html>/i.test(lines[j])) j++;
+    let after = '';
+    if (j < lines.length){ const e = lines[j].search(/<\/html>/i) + 7; after = lines[j].slice(e); lines[j] = lines[j].slice(0, e); } else j = lines.length - 1;
+    out.push('```html index.html', ...lines.slice(i, j + 1), '```');
+    if (after.trim()) out.push(after);
+    i = j;
+  }
+  return out.join('\n');
 }
 /* Version « stable » du code en cours d'écriture : on coupe avant un script ou un style inachevé */
 function stablePartial(code){
@@ -3530,6 +3592,7 @@ function loadPv(pv){
   const box = pv.querySelector('.pv-frame'); if (!box) return;
   box.innerHTML = ''; box.appendChild(makeFrame(buildDoc(pv.dataset.k)));
   const er = pv.querySelector('.pv-err'); if (er){ er.hidden = true; er.innerHTML = ''; }
+  if (er && CODE.get(pv.dataset.k)?.cut){ er.hidden = false; er.innerHTML = `<span>Le code a été coupé avant la fin : l'aperçu montre la partie terminée.</span><button class="mini" data-act="pvfix" data-k="${esc(pv.dataset.k)}" data-err="code coupé avant la fin">Demander la suite</button>`; }
 }
 function mountPreviews(root){ root.querySelectorAll('.pv[data-k]').forEach(pv => { if (pv.dataset.on) return; pv.dataset.on = '1'; loadPv(pv); }); root.querySelectorAll('.livepv').forEach(el => { if (!el.querySelector('iframe')) liveRefresh(el); }); }
 window.addEventListener('message', e => {
@@ -3916,10 +3979,12 @@ function bestIll(list, q, preferArt){
 }
 function illBlocked(user, asst){
   const ut = String(user?.text || '').trim();
+  if (asst && hasPreviewCode(asst.text)) return 'code';
   if (!ut) return '';
   if (GREET_ONLY.test(ut) || SMALLTALK_RE.test(ut)) return 'greet';
   if (needsClarify(ut)) return 'ask';
-  if ((asst && asst.cat === 'code') || detectIntent(ut, (user && user.atts) || []) === 'code') return 'code';
+  if ((asst && asst.cat === 'code') || detectIntent(ut, (user && user.atts) || []) === 'code' || gameAsk(ut)) return 'code';
+  if (asst && hasPreviewCode(asst.text)) return 'code';
   return '';
 }
 const sigToks = s => fold(s).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(w => w.length > 2 && !STOP.has(w));
@@ -4126,6 +4191,9 @@ async function zipMessage(m, conv){
 function mdHtml(text, mid){
   curMid = mid; curIdx = 0;
   let html; const figs = [];
+  text = fenceBareHtml(text);
+  /* jeu ou page jouable : aucune illustration ni image ajoutée autour du code */
+  if (hasPreviewCode(text)) text = outsideFences(text, x => x.replace(ILL_RE, '').replace(GILL_RE, '').replace(/!\[[^\]\n]*\]\(\s*(?:data:image|https?:)[^)\n]*\)/gi, ''));
   text = illPre(text, figs);
   if (window.marked){ try{ html = marked.parse(text); }catch(e){ html = null; } }
   if (html == null){
@@ -4134,6 +4202,10 @@ function mdHtml(text, mid){
   html = window.DOMPurify ? DOMPurify.sanitize(html, { ADD_ATTR:['target', 'loading'], FORBID_TAGS:['script', 'iframe', 'object', 'embed', 'form', 'link', 'meta', 'base', 'foreignObject', 'foreignobject'], FORBID_ATTR:['srcdoc', 'formaction'] }) : fallbackSanitize(html);
   if (figs.length) html = html.replace(/(?:<p>)?FSMFIG(\d+)X(?:<\/p>)?/g, (m0, n) => figs[+n] || '');
   return html;
+}
+function outsideFences(text, fn){
+  const parts = String(text || '').split(/(^[ \t]*(?:```|~~~)[^\n]*$)/m); let inF = false;
+  return parts.map((p, i) => { if (i % 2){ inF = !inF; return p; } return inF ? p : fn(p); }).join('');
 }
 function dlName(k){
   const c = CODE.get(k); if (!c) return 'fichier.txt';
@@ -4390,7 +4462,8 @@ $('#col').addEventListener('click', async e => {
   if (act === 'edtap'){ try{ EV.video?.play().then(() => EV.video.pause()).catch(() => {}); }catch(e){} blessEditor(); EV.tapResolve?.(); EV.tapResolve = null; return; }
   if (act === 'cfm' || act === 'cfx'){ const r = CONFIRMS.get(b.dataset.cid); if (r){ CONFIRMS.delete(b.dataset.cid); r(act === 'cfm'); } return; }
   if (act === 'pvreload'){ const pv = b.closest('.pv'); if (pv) loadPv(pv); return; }
-  if (act === 'pvfull'){ const c = CODE.get(b.dataset.k); const doc = buildDoc(b.dataset.k); return openViewer([{ kind:'html', doc, blob: new Blob([doc], { type:'text/html' }), name: (c?.fname || 'apercu.html').replace(/\.[^.]+$/, '') }], 0); }
+  if (act === 'pvfull'){ const c = CODE.get(b.dataset.k); let doc;
+    if (b.dataset.live && c){ const lk = b.dataset.k + '#live'; CODE.set(lk, { ...c, code: stablePartial(c.code) }); doc = buildDoc(lk); CODE.delete(lk); } else doc = buildDoc(b.dataset.k); return openViewer([{ kind:'html', doc, blob: new Blob([doc], { type:'text/html' }), name: (c?.fname || 'apercu.html').replace(/\.[^.]+$/, '') }], 0); }
   if (act === 'pvfix'){
     const inp = $('#input');
     inp.value = `L'aperçu affiche cette erreur : « ${b.dataset.err} ». Corrige le code et renvoie le fichier HTML complet.`;
@@ -7226,6 +7299,28 @@ var DRAW_RE = /(?:^|[^\p{L}])(dessine(?:r|z|moi)?|draw|paint|peins|dibuja(?:r|me
 var ANIMATE_RE = /(anime|animer|fais (bouger|vivre)|donne vie|mets? en mouvement|rends? (la|cette) (photo|image) vivante|transforme[- ](la|cette|l')? ?(photo|image) en vid[ée]o|image to video)/i;
 var HOWTO_RE = /^\s*(comment|pourquoi|est-ce que|est ce que|quel|quelle|quels|quelles|quand|où|ou trouver|explique|peux-tu m'expliquer|c'est quoi|qu'est-ce|combien|liste|compare|conseille|recommande|aide-moi à choisir)/i;
 var CODE_RE = /```|(?:^|[^\p{L}])(code|coder|codes|programme|programmer|script|fonction|function|bug|bugs|débogue|déboguer|debug|html|css|javascript|typescript|python|react|vue\.js|node(\.js)?|sql|regex|api|json|svg|swift|kotlin|java|c\+\+|php|rust|golang|bash|terminal|algorithme|compil|stack ?trace|exception|application web|appli web|site web|landing page|page web|extension chrome|jeu (en|html|javascript|python|jouable|simple|vidéo simple)|crée(r)? un jeu|mini[- ]jeu|snake|tetris|pong)(?![\p{L}])/iu;
+/* Jeux et pages interactives : toujours du code avec aperçu jouable, jamais une génération d'image (même « dessine un jeu », « un jeu avec des images ») */
+var GAME_NOUNS = "(?:mini jeux?|jeux?|games?|videogames?|juegos?|jogos?|giochi|gioco|spiel|platformers?|plateformer|casse briques?|breakout|arkanoid|flappy(?: bird)?|pac ?man|space invaders?|tetris|snake|pong|sudoku|demineur|minesweeper|2048|puissance 4|morpion|tic tac toe|clicker|tower defense|shoot ?em ?up|shmup|endless runner|runner|asteroids|frogger|tamagotchi|memory|clone (?:de|of) \\w+|apps?|appli|application(?: web)?|calculatrice|simulateur|simulation interactive|minuteur|chronometre|horloge animee|tableau blanc|whiteboard|page (?:web )?interactive|animation (?:html|css|javascript|interactive))";
+var GAME_ASK_RE = new RegExp("\\b(?:genere|generer|generes|cree|creer|crees|code|coder|codes|programme|programmer|developpe|developper|fais|fait|faire|fabrique|realise|realiser|construis|construire|concois|concevoir|imagine|imaginer|invente|inventer|dessine|dessiner|ecris|make|create|build|generate|draw|design|develop|program|code|write|je veux|je voudrais|j aimerais|il me faut|donne moi|propose moi|haz|hazme|crea|crear|quiero|cria|criar|faz|faca|mach|erstelle|programmiere)\\b[^.?!\\n]{0,40}?\\b(?:un|une|mon|ma|ce|cette|le|la|a|an|my|the|el|um|uma|ein|eine|einen|nouveau|nouvel)\\s+(?:(?:petit|petite|nouveau|vrai|super|simple|mini|little|small|quick|fun|cool|beau|joli|bon|vrai)\\s+)?" + GAME_NOUNS + "\\b");
+var GAME_NOT_RE = /\b(jeux? de mots?|jeux? de role|jeu d acteur|jeu de piste|jeu concours|jeu de societe|jeu de jambes|jeux? de lumieres?|jeux? de donnees|jeu de cles|dataset|liste|idees? de|top \d+|meilleurs?|recommande|conseille|application (?:de|d) (?:creme|peinture|vernis|la loi|la regle)|candidature)\b/;
+var GAME_IMG_RE = /\b(images?|photos?|illustrations?|dessins?|logos?|affiches?|posters?|visuels?|fonds? d ecran|wallpapers?|icones?|icons?|pictures?|artworks?|avatars?|stickers?|portraits?|bannieres?|miniatures?|thumbnails?|jaquettes?|pochettes?|couvertures?|covers?|concept arts?|sprites?|sprite sheets?|personnages?|mascottes?|captures? d ecran|screenshots?|videos?|trailers?|bandes? annonces?|teasers?|clips?)\s+(?:\S+\s+){0,3}?(?:de|du|des|d|pour|of|for|para|per|fur)\s+(?:\S+\s+){0,2}?(?:jeux?|games?|juegos?|jogos?|videogames?|apps?|application)\b/;
+function gameAsk(text){
+  const n = normIntent(text);
+  if (!n || /^(quel|quels|quelle|quelles|liste|compare|conseille|recommande|pourquoi|comment|c est quoi|qu est ce|parle|raconte|explique|resume|traduis|what|which|why|how)\b/.test(n)) return false;
+  if (GAME_NOT_RE.test(n)) return false;
+  let g = n.match(GAME_ASK_RE);
+  /* « un jeu de tir spatial avec des vaisseaux » : demande sans verbe */
+  if (!g && /^(?:un|une|a|an|mon|my)\s+(?:petit\s+|mini\s+|nouveau\s+|simple\s+)?(?:mini jeu|jeu|game|platformer|casse briques?|clicker|runner)\b/.test(n) && !/\b(a ete|etait|est sorti|sort |j aime|j adore|marque|prefere|existe|coute|vaut)\b/.test(n)) g = n.match(/^\S+\s+(?:\S+\s+)?\S+/);
+  if (!g) return false;
+  const im = n.match(GAME_IMG_RE);
+  /* « une image de mon jeu », « le logo de mon jeu » : c'est bien une image demandée */
+  if (im && im.index < g.index + g[0].length - 1 && !/\b(jeux?|games?|juegos?|jogos?|app|appli|application)\b/.test(n.slice(0, im.index))) return false;
+  return true;
+}
+/* Tour « jeu ou code » : texte, code et aperçu jouable uniquement, aucun média généré */
+function codeTurn(text, atts){ const t = String(text || ''); return !!t && (gameAsk(t) || ix(CODE_RE, t) || detectIntent(t, atts || []) === 'code'); }
+/* Réponse qui contient une page ou un jeu à prévisualiser */
+function hasPreviewCode(text){ return /```[ \t]*(?:html?|xhtml|svg)\b|```[^\n]*\.html?\b|<!doctype html|(?:^|\n)\s*<html[\s>]/i.test(String(text || '')); }
 var SEARCH_RE = /(actualit|aujourd'hui|aujourd’hui|ce matin|ce soir|hier|demain|cette semaine|ce week-end|en ce moment|actuellement|dernières? (nouvelles|infos|news|sorties?|versions?)|news\b|noticias|météo|meteo|prix (actuel|du|de la|des|d'un|d’une)|combien coûte|tarifs?|cours (du|de l|de la|des)|bourse|cotation|résultats? (du|de la|des) (match|élection)|score (du|de)|classement|qui a gagné|élections?|sondage|sorti(e|es|s)? (récemment|cette)|vient de sortir|en 20[2-3]\d|cette année|récemment|récent|dernier modèle|cherche (sur|en ligne|le web|sur internet)|recherche (sur|en ligne|web)|trouve[- ]moi|horaires?|ouvert (le|ce|aujourd)|adresse de|itinéraire|trafic|vols? (pour|vers|de)|billets?|disponib|en stock|promo|soldes|bon plan|avis sur|critiques? de|qui est le (président|ministre|pdg|ceo|maire)|actuel(le)?s?\b|latest|today|current)/i;
 var REASON_RE = /(démontre|démontrer|prouve|preuve|résous|résoudre|équation|intégrale|dérivée|théorème|énigme|casse-tête|logique|probabilit|optimise|raisonne|étape par étape|calcul complexe|olympiade|exercice de maths|mathématique)/i;
 var INTENT_FR = { chat:'discussion', reason:'réflexion', code:'code', search:'recherche web', vision:'vision', videoin:'analyse vidéo', audio:'audio', image:'image', video:'vidéo', photoedit:'retouche photo', videoedit:'retouche vidéo' };
@@ -7237,16 +7332,18 @@ function detectIntent(text, atts){
   if (blocksMedia(t)){
     if (ask) return 'chat';
     const n = normIntent(t);
-    if (/\b(joue|jouer|jouons|play|juguemos|joga|affiche le plateau|montre le plateau|show the board|muestra el tablero)\b/.test(n)) return 'chat';
+    if (/\b(joue|jouer|jouons|play|juguemos|joga|affiche le plateau|montre le plateau|show the board|muestra el tablero)\b/.test(n) && !(gameAsk(t) && /\b(code|coder|programme|programmer|cree|creer|developpe|construis|fabrique|html|javascript|jouable)\b/.test(n))) return 'chat';
     return 'code';
   }
-  const lastVid = !hasVid && /vid[ée]o|clip|montage|film/i.test(t) && lastMedia('video');
+  if (!ask && gameAsk(t)) return 'code';
+  const tv = t.replace(/(jeux?|games?|juegos?|jogos?)[\s-]+vid[ée]os?/giu, '$1');
+  const lastVid = !hasVid && /vid[ée]o|clip|montage|film/i.test(tv) && lastMedia('video');
   if ((hasVid || lastVid) && ix(VEDIT_RE, t) && !ask) return 'videoedit';
   if (hasImg && !hasVid && ix(ANIMATE_RE, t) && !ask) return 'video';
   const lastImg = !hasImg && /photo|image|portrait|selfie|l'image|la photo/i.test(t) && lastMedia('image');
   if ((hasImg || lastImg) && !hasVid && ix(PEDIT_RE, t) && !ask && !ix(CODE_RE, t)) return 'photoedit';
   if (hasImg && !hasVid && !ask && !ix(CODE_RE, t) && !/(fautes?|orthographe|grammaire|conjugaison|version (texte|écrite|word|pdf|résumée|courte|longue)|plus (de |d'|d’)\s*(détails|infos?|informations|explications|précisions|exemples)|plus sur |exercice|calcul|devoir|équation|traduction|transcri|résum)/i.test(t) && (ix(FOLLOW_EDIT_RE, t) || /(noir et blanc|n ?& ?b|sépia|vintage|rétro|plus (jeune|vieux|vieille|âgée?|mince|musclée?|grande?|lumineu|clair|sombre|nette?|saturée?|chaud|froid)|en (hiver|été|automne|printemps|neige|nuit|plein jour|couleur|haute (qualité|définition)|hd|4k)|style |version |façon |à la manière|haute définition|upscale|résolution)/i.test(t))) return 'photoedit';
-  if (!ask && !blocked && !ix(CODE_RE, t) && (ix(VID_GEN_RE, t) || ix(VID_LEAD_RE, t))) return 'video';
+  if (!ask && !blocked && !ix(CODE_RE, t) && (ix(VID_GEN_RE, tv) || ix(VID_LEAD_RE, tv))) return 'video';
   if (!ask && !blocked && !/(svg|html|css|code|ascii|mermaid)/i.test(t) && (ix(IMG_GEN_RE, t) || ix(IMG_LEAD_RE, t) || ix(DRAW_RE, t))) return hasImg && !hasVid ? 'photoedit' : 'image';
   if (hasVid) return 'videoin';
   if (hasAud) return 'audio';
@@ -7311,7 +7408,7 @@ function outputCue(text, atts){
   else if (intent === 'image'){ mode = 'image'; line = 'Génération d\'image : la demande est explicite.'; }
   else if (intent === 'video' || intent === 'videoedit'){ mode = 'video'; line = 'Vidéo explicite. Pas une image fixe.'; }
   else if (intent === 'photoedit'){ mode = 'retouche'; line = 'Modifier l\'image fournie seulement.'; }
-  else if (intent === 'code' || blocksMedia(text)){ mode = 'code'; line = 'Code ou texte (HTML/JS jouable, mermaid, SVG, ASCII, tableau). Pas d\'image. run_js ou run_python si un calcul aide.'; }
+  else if (intent === 'code' || blocksMedia(text)){ mode = 'code'; line = 'Code ou texte (HTML/JS jouable, mermaid, SVG, ASCII, tableau). Pas d\'image : aucune image générée, aucun marqueur [[image:]], graphismes en canvas, CSS, SVG inline ou emoji. run_js ou run_python si un calcul aide.'; }
   else if (intent === 'search'){ mode = 'texte'; line = 'Texte avec recherche web et sources.'; }
   else if (intent === 'vision' || intent === 'videoin' || intent === 'audio'){ mode = 'texte'; line = 'Décris le fichier fourni. Ne génère pas de média.'; }
   else if (intent === 'reason'){ mode = 'texte'; line = 'Raisonnement en texte, sans image.'; }
@@ -7699,7 +7796,7 @@ var NP_ASK_RE = /(?:^|[^\p{L}])(prix|co[uû]t|combien|pourquoi|quel|quelle|quels
 async function autoVisualRef(text, cat, force){
   if (S.pending.some(a => ['image', 'video'].includes(kindOf(a)))) return null;
   const t = text || '';
-  if (!t || ASK_RE.test(t) || HOWTO_RE.test(t) || CODE_RE.test(t)) return null;
+  if (!t || ASK_RE.test(t) || HOWTO_RE.test(t) || CODE_RE.test(t) || gameAsk(t)) return null;
   const ref = recentImageRef(force ? 10 : undefined); if (!ref) return null;
   if (force) ref.recent = true;
   const vid = VID_GEN_RE.test(t) || VID_LEAD_RE.test(t) || /(?:^|[^\p{L}])(anime|animer|fais[- ](?:le|la|les) bouger|en vidéo|en video)(?![\p{L}])/iu.test(t);
@@ -7735,8 +7832,11 @@ function goTarget(text){
   for (let i = ms.length - 1, n = 0; i >= 0 && n < 10; i--, n++){
     const m = ms[i];
     if (m.role === 'assistant' && (m.images?.length || m.videos?.length)) return null;
+    /* « ça marche pas » après un jeu : c'est le jeu à corriger, jamais une image à relancer */
+    if (m.role === 'assistant' && (m.cat === 'code' || hasPreviewCode(m.text))) return null;
     if (m.role === 'user' && m.text && !GO_RE.test(m.text) && !COMPLAIN_RE.test(m.text)){
       const t = m.text;
+      if (codeTurn(t, m.atts)) return null;
       if (IMG_GEN_RE.test(t) || IMG_LEAD_RE.test(t) || FOLLOW_EDIT_RE.test(t) || PEDIT_RE.test(t) || NP_EDIT_RE.test(t) || VID_GEN_RE.test(t) || ANIMATE_RE.test(t)) return t;
       return null;
     }
@@ -7750,6 +7850,8 @@ var DESCRIBE_RE = /(décri|decri|analyse|que vois|qu'est-ce qu|que représente|e
 async function mediaFix(user, conv, asst){
   if (S.voiceActive || conv.bot || isXai(asst.model)) return null;
   if (!MEDIA_CLAIM_RE.test(asst.text || '')) return null;
+  /* jeu ou page codée : « j'ai créé le jeu » n'est pas une image manquante */
+  if (asst.cat === 'code' || /```/.test(asst.text || '') || hasPreviewCode(asst.text) || codeTurn(user.text, user.atts)) return null;
   const go = goTarget(user.text);
   const t = go || user.text || '';
   if (!t || DESCRIBE_RE.test(t) || CODE_RE.test(t) || VID_GEN_RE.test(t) || ANIMATE_RE.test(t)) return null;
@@ -8548,6 +8650,36 @@ async function runProductTests(){
   ok('guide des formats', /Jamais une image générée/.test(coreSystem({ messages:[] })) && /une seule question courte/.test(coreSystem({ messages:[] })) && /refus bref/i.test(OUT_GUIDE));
   ok('retouche et vision', detectIntent('passe cette photo en noir et blanc', [{ name:'a.png', type:'image/png' }]) === 'photoedit' && detectIntent('décris cette photo', [{ name:'a.png', type:'image/png' }]) === 'vision');
   ok('consigne du tour', /FORMAT : code/.test(buildSystem({ messages:[{ role:'user', text:'fais un jeu snake', atts:[] }] }, 'chat')));
+  /* Jeux : jamais d'image, toujours l'aperçu jouable */
+  const gameAsks = ['fais un jeu', 'fais moi un jeu', 'crée un jeu snake', 'code un tetris', 'fais un snake', 'make a game', 'create a game with sprites', 'dessine un jeu', 'dessine un jeu de course', 'crée un jeu avec des graphismes', 'crée un jeu avec des sprites', 'Fais un jeu de memory avec des images d\'animaux', 'Fais un jeu où on attrape des pommes, avec un fond d\'écran de forêt', 'Fais un Pac-Man', 'Make a game like flappy bird', 'Un jeu de tir spatial avec des vaisseaux', 'Crée une app de dessin', 'Peux-tu me faire un jeu de snake ?', 'Crée-moi un platformer avec un personnage pixel art'];
+  const gameMiss = gameAsks.filter(q => detectIntent(q, []) !== 'code' || !codeTurn(q, []));
+  ok('jeux routés en code, jamais en image', !gameMiss.length, gameMiss.join(' · '));
+  ok('images de jeu restent des images', detectIntent('Génère une image de jeu vidéo', []) === 'image' && detectIntent('Crée un logo pour mon jeu', []) === 'image' && detectIntent('fais une vidéo de mon jeu', []) === 'video');
+  ok('pas des jeux à coder', detectIntent('fais un jeu de mots sur les chats', []) !== 'code' && !gameAsk('quels sont les meilleurs jeux de 2024') && !gameAsk('joue au morpion avec moi') && detectIntent('parle moi du jeu vidéo Zelda', []) === 'chat');
+  {
+    const keep = S.conv, game = '```html index.html\n<!DOCTYPE html><html><body><canvas></canvas><script>1<\/script></body></html>\n```';
+    S.conv = { id:'t', messages:[{ role:'user', text:'fais un jeu avec des images', atts:[] }, { role:'assistant', cat:'code', text:'J\'ai créé le jeu.\n' + game }] };
+    const gt = goTarget('ça marche pas');
+    S.conv = keep;
+    const mf = await mediaFix({ text:'Fais un jeu de memory avec des images d\'animaux', atts:[] }, { messages:[] }, { text:'J\'ai créé le jeu avec les images.\n' + game, model:'test/x' }).catch(e => 'err');
+    ok('filets image coupés après un jeu', gt === null && mf === null && illBlocked({ text:'fais un jeu' }, { text: game }) === 'code' && illBlocked({ text:'Fais un jeu de plateforme' }, { text:'' }) === 'code');
+    const sys = buildSystem({ id:'t2', messages:[{ role:'user', text:'Fais un jeu de memory avec des images d\'animaux', atts:[] }] }, 'chat+image');
+    ok('consigne jeu sans image', /AUCUNE IMAGE pour un jeu/.test(sys) && !/IMAGES DANS TES RÉPONSES/.test(sys) && /aucune image générée/.test(sys));
+  }
+  {
+    const doc = '<!DOCTYPE html>\n<html><head><style>body{margin:0}</style></head><body><canvas id="c"></canvas><script>window.ok=1<\/script></body></html>';
+    ok('aperçu : bloc sans langage ou commenté', previewKind('', '', '<!-- jeu -->\n' + doc) === 'html' && previewKind('text', '', doc) === 'html' && previewKind('html5', '', doc) === 'html' && previewKind('js', '', 'let a = 1') === '');
+    const bare = fenceBareHtml('Voici le jeu :\n' + doc + '\nBon jeu !');
+    ok('aperçu : HTML sans bloc', /```html index\.html\n<!DOCTYPE html>/.test(bare) && /^Voici le jeu/.test(bare) && /\n```\nBon jeu !$/.test(bare.trim()) && fenceBareHtml('bonjour') === 'bonjour' && fenceBareHtml('```html\n' + doc + '\n```') === '```html\n' + doc + '\n```');
+    ok('aperçu : code coupé', openCode('```html\n<!DOCTYPE html><html><body><script>let a') && openCode('<!DOCTYPE html><html><body>') && !openCode('```html\n' + doc + '\n```') && /```html index\.html/.test(fenceBareHtml('Jeu :\n<!DOCTYPE html><html><body><script>let a')));
+    const live = msgHtml({ id:'tl1', role:'assistant', text:'Voici :\n```html index.html\n' + doc.slice(0, 80), status:'Écriture…', _live:true, cat:'code' });
+    const fin = msgHtml({ id:'tl2', role:'assistant', text:'Voici :\n```html index.html\n' + doc + '\n```\nFin.', cat:'code' });
+    const two = msgHtml({ id:'tl3', role:'assistant', text:'```css style.css\nbody{}\n```\n```html index.html\n' + doc + '\n```', cat:'code' });
+    const nof = msgHtml({ id:'tl4', role:'assistant', text:'J\'ai créé le jeu :\n' + doc, cat:'code' });
+    const mk = msgHtml({ id:'tl5', role:'assistant', text:'[[image: Snake (jeu vidéo)]]\n![x](https://example.com/a.png)\n```html index.html\n' + doc + '\n```', cat:'code' });
+    ok('aperçu en direct pendant l\'écriture', /live-anchor/.test(live) && !/<img/i.test(live));
+    ok('aperçu final dans chaque variante', [fin, two, nof, mk].every(h => /class="pv[ "]/.test(h)) && !/<img/i.test(mk) && !/\[\[image/i.test(mk));
+  }
   ok('bot et clarification', /une seule question courte/.test(botSystem()));
   const plans = [
     ['génère une image d\'un chat','direct'],['dessine un château','direct'],['crée une vidéo d\'un coucher de soleil','direct'],
