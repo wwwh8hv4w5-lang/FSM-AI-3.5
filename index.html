@@ -593,7 +593,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .sel:disabled{opacity:.75}
 .welcome.solo{margin:auto;gap:clamp(18px,3.5vh,30px)}
 .greet-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-.lock-show{display:none}.srv-lock .lock-show{display:block}.srv-lock .lock-hide{display:none!important}.srv-onb{max-width:460px;margin:4px auto 0;text-align:center;display:grid;gap:10px}.srv-onb p{margin:0}
+/* zone « Ton code FSM AI » : carte en tête des réglages (police, couleurs, rayons et boutons de l'application) */.code-card{background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:18px 16px 16px;display:flex;flex-direction:column;gap:10px;margin:4px 0 6px}.code-card-t{margin:0;font:600 19px/1.3 var(--f-display);letter-spacing:-.01em;color:var(--ink)}.code-card-h{margin:-4px 0 4px;color:var(--muted);font-size:14px;line-height:1.45}.code-card-l{font-weight:600;font-size:14px;color:var(--ink)}.code-card-in{display:flex;align-items:center;gap:4px;background:var(--raised);border:1px solid var(--line2);border-radius:12px;min-height:52px;padding:0 6px 0 0;transition:border-color .15s,box-shadow .15s}.code-card-in:focus-within{border-color:var(--muted);box-shadow:0 0 0 3px rgba(236,236,240,.16)}.code-card-in input{flex:1;min-width:0;border:0;background:transparent;padding:14px 8px 14px 14px;font-size:16.5px;line-height:1.3;letter-spacing:.03em;font-variant-numeric:tabular-nums;text-transform:uppercase;outline:none;color:var(--ink)}.code-card-in input::placeholder{color:var(--muted);opacity:.8;letter-spacing:.03em}.code-card-in input.masked{-webkit-text-security:disc}.code-eye{flex:0 0 44px;width:44px;height:44px;border:0;background:transparent;border-radius:10px;display:grid;place-items:center;color:var(--muted)}.code-eye:hover{background:var(--hover);color:var(--ink)}.code-eye svg{width:20px;height:20px}.code-eye .eye-off{display:none}.code-eye[aria-pressed=true] .eye-on{display:none}.code-eye[aria-pressed=true] .eye-off{display:block}.code-card-acts{display:flex;gap:8px}.code-card-acts .btn{flex:1;min-height:48px;font-size:16px}.code-card-st{margin:0;font-size:14.5px;font-weight:600;line-height:1.4;border-radius:12px;padding:10px 12px}.code-card-st.is-ok{background:var(--raised);color:var(--ink)}.code-card-st.is-err{background:var(--danger-soft);color:var(--danger);border:1px solid rgba(242,139,130,.35)}.code-card-st.is-wait{background:var(--raised);color:var(--muted);font-weight:500}.btn.ghost.danger-txt{background:transparent;color:var(--danger);border:1px solid var(--line2);font-weight:500;font-size:14px;padding:9px 14px}.lock-show{display:none}.srv-lock .lock-show{display:block}.srv-lock .lock-hide{display:none!important}.srv-onb{max-width:460px;margin:4px auto 0;text-align:center;display:grid;gap:10px}.srv-onb p{margin:0}
 .planq{display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;min-width:0}
 .plq-t{font-size:13px;color:var(--muted)}
 .planq.ask .plq-t{color:var(--ink);font-weight:600;font-size:14.5px}
@@ -1002,6 +1002,14 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ssTitle">
     <div class="sheet-h"><h2 id="ssTitle">Réglages</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
+      <section class="code-card" id="srvCodeCard" aria-labelledby="srvCodeTitle">
+        <h3 class="code-card-t" id="srvCodeTitle">Ton code FSM AI</h3>
+        <p class="code-card-h" id="srvHint">Il t'a été remis personnellement. Colle-le ici, il commence par FSM-.</p>
+        <label class="code-card-l" for="srvCode">Code d'accès</label>
+        <div class="code-card-in"><input id="srvCode" class="masked" type="text" name="fsm-code-client" inputmode="text" enterkeyhint="done" placeholder="FSM-XXXX-XXXX-XXXX-XXXX" aria-describedby="srvHint srvCodeMsg" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other"><button class="code-eye" id="btnSrvShow" type="button" aria-pressed="false" aria-controls="srvCode" aria-label="Afficher le code" title="Afficher le code"><svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
+        <div class="code-card-acts"><button class="btn ghost" id="btnSrvPaste" type="button" hidden>Coller</button><button class="btn" id="btnSrvOk" type="button">Valider</button></div>
+        <p class="code-card-st" id="srvCodeMsg" role="status" aria-live="polite" hidden></p>
+      </section>
       <div class="field lock-hide">
         <label for="apiKey">Clé API FSM AI</label>
         <div class="row"><input id="apiKey" type="password" placeholder="Colle ta clé FSM AI" autocomplete="off" spellcheck="false"><button class="btn ghost" id="btnShowKey" type="button">Afficher</button></div>
@@ -1058,10 +1066,8 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       <div class="field" id="srvField">
         <label class="check lock-hide"><input type="checkbox" id="srvOn"><span>Mode serveur <span class="note">(recommandé)</span></span></label>
         <div id="srvRows" hidden>
-          <p class="note" id="srvHint" hidden>Entre ici ton code FSM AI : il t'a été remis personnellement.</p>
-          <div class="row"><input id="srvCode" type="password" placeholder="Code client du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
-          <div class="row"><input id="srvBase" type="url" placeholder="Adresse du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
-          <div class="row"><button class="btn ghost" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
+          <input id="srvBase" type="hidden"><!-- adresse du serveur : jamais saisie, fixée par l'application (api.fsmai.app, ou api-staging via ?api=staging) -->
+          <div class="row"><button class="btn ghost danger-txt" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
         </div>
         <small class="lock-show">Les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée.</small>
         <small class="lock-hide">Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change. Ton choix est gardé sur cet appareil.</small>
@@ -1295,7 +1301,11 @@ const LS = {
    Seul un nouvel utilisateur reçoit le mode serveur activé par défaut (en attente de son code). Un utilisateur existant
    garde exactement son mode : rien n'est écrit, et sa clé n'est jamais effacée automatiquement. */
 function fsmFirstRun(){ try{ for (let i = 0; i < localStorage.length; i++){ if (/^(relais|fsm)\./.test(localStorage.key(i) || '')) return false; } return true; }catch(e){ return false; } }
-function srvBootDefault(){ if (!fsmFirstRun()) return false; LS.set('fsm.onboard', 'serveur'); LS.set('fsm.srv', { on: true, auto: true }); return true; }
+/* app.fsmai.app : un appareil qui n'a que des restes techniques (ex. « relais.settings » écrit par un ancien déploiement sur /migrer)
+   mais aucune clé, aucune conversation, aucun code ni choix de mode est traité comme nouveau. Ailleurs, la règle stricte ci-dessus s'applique. */
+const FSM_USER_DATA = ['relais.key', 'relais.xaikey', 'relais.index', 'fsm.srv', 'fsm.srvcode', 'fsm.onboard', 'fsm.mgmtkey', 'fsm.gtok', 'fsm.imgkeys', 'fsm.projects', 'fsm.bot', 'fsm.bottask', 'fsm.conn', 'fsm.ledger', 'fsm.spend', 'fsm.usage', 'fsm.keyinfo', 'fsm.lastBackup'];
+function fsmStrayNew(host){ try{ if ((host ?? location.hostname) !== 'app.fsmai.app') return false; return FSM_USER_DATA.every(k => { const r = localStorage.getItem(k); if (r == null) return true; let v; try{ v = JSON.parse(r); }catch(e){ v = r; } return v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length); }); }catch(e){ return false; } }
+function srvBootDefault(host){ if (!fsmFirstRun() && !fsmStrayNew(host)) return false; LS.set('fsm.onboard', 'serveur'); LS.set('fsm.srv', { on: true, auto: true }); return true; }
 /* Marqueur permanent « fsm.onboard = serveur » : posé une seule fois, au premier démarrage d'un nouvel utilisateur.
    Il est stocké à part (jamais réécrit par les réglages ni par une restauration) et n'a pas de chemin de retour public.
    Utilisateur marqué : mode serveur imposé, aucune clé OpenRouter ou xAI lue ni enregistrée, aucun modèle xAI direct.
@@ -1819,9 +1829,16 @@ $('#apiKey').addEventListener('input', e => { if (srvLocked()){ e.target.value =
   S.keyState = S.key && S.key.length >= 20 ? 'wait' : ''; renderKeyStat();
   if (S.key.length >= 20) keyDeb = setTimeout(() => fetchKeyInfo(true), 350); refreshKeyFp(); });
 $('#srvOn').addEventListener('change', e => { if (srvLocked()){ e.target.checked = true; srvRenderUI(); return; } srvSetConf({ on: e.target.checked }); srvKeySwitch(); srvRenderUI(); if (!S.conv?.messages?.length) renderThread(); if (serverOn()) srvLimits().catch(() => {}); });
-$('#srvCode').addEventListener('input', e => { LS.set('fsm.srvcode', e.target.value.trim()); S.srvLimits = null; srvKeySwitch(); if (serverOn()) srvLimits().catch(() => {}); });
-$('#srvBase').addEventListener('change', e => { const v = e.target.value.trim(); if (v && !/^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(v)){ toast('Adresse du serveur invalide (https:// requis).'); e.target.value = srvConf().base; return; } srvSetConf({ base: v || SRV_DEFAULT }); S.srvLimits = null; });
+$('#srvCode').addEventListener('input', e => srvCodeInput(e.target, false));
+$('#srvCode').addEventListener('change', e => srvCodeInput(e.target, true));
+['input', 'change'].forEach(t => $('#settingsSheet').addEventListener(t, e => { if (srvCodeRoute(e.target)) e.stopImmediatePropagation(); }, true));
+/* #srvBase n'est plus modifiable (champ caché) : l'adresse du serveur vient uniquement de l'application, voir srvConf() */
 $('#btnSrvErase').addEventListener('click', () => srvErase());
+$('#btnSrvShow').addEventListener('click', e => { const i = $('#srvCode'), show = i.classList.contains('masked'); i.classList.toggle('masked', !show); const lb = show ? 'Masquer le code' : 'Afficher le code'; e.currentTarget.setAttribute('aria-label', lb); e.currentTarget.title = lb; e.currentTarget.setAttribute('aria-pressed', String(show)); });
+$('#btnSrvOk').addEventListener('click', () => srvCodeSubmit());
+$('#srvCode').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); srvCodeSubmit(); } });
+if (navigator.clipboard?.readText) $('#btnSrvPaste').hidden = false;
+$('#btnSrvPaste').addEventListener('click', async () => { let t = ''; try{ t = await navigator.clipboard.readText(); }catch(e){ srvCodeStatus('err', 'Impossible de lire le presse-papiers : colle le code directement dans le champ.'); return; } const i = $('#srvCode'); i.value = t; srvCodeSubmit(); });
 $('#btnShowKey').addEventListener('click', e => { const i = $('#apiKey'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; e.target.textContent = show ? 'Masquer' : 'Afficher'; });
 $('#sysPrompt').addEventListener('input', e => { S.set.system = e.target.value; saveSettings(); });
 $('#fileHints').addEventListener('change', e => { S.set.fileHints = e.target.checked; saveSettings(); });
@@ -2009,11 +2026,50 @@ async function resumeJob(m, c){
 const SRV_DEFAULT = 'https://api.fsmai.app';
 const SRV_STAGING = 'https://api-staging.fsmai.app';
 /* ?api=staging (serveur d'essai) ou ?api=prod : change seulement l'adresse, n'active jamais le mode serveur */
+/* seules adresses de serveur acceptées : toute autre valeur enregistrée (saisie, remplissage automatique d'iPad, sauvegarde) est remplacée sans message */
+const SRV_ALLOWED = Object.freeze([SRV_DEFAULT, SRV_STAGING]);
+function srvBaseOk(b){ return SRV_ALLOWED.includes(b); }
+function srvBaseHeal(){ try{ const c = LS.get('fsm.srv', null); if (!c || typeof c !== 'object' || !('base' in c)) return false; const b = String(c.base || '').trim().replace(/\/+$/, ''); if (b === c.base && srvBaseOk(b)) return false; const code = srvCodeExtract(c.base); if (code && !srvCodeValid(String(LS.get('fsm.srvcode', '') || ''))) LS.set('fsm.srvcode', code); LS.set('fsm.srv', Object.assign({}, c, { base: srvBaseOk(b) ? b : SRV_DEFAULT })); return true; }catch(e){ return false; } }
 function srvApiParam(){ try{ const u = new URL(location.href); const v = (u.searchParams.get('api') || '').toLowerCase(); if (!v) return ''; const base = v === 'staging' ? SRV_STAGING : (v === 'prod' || v === 'production') ? SRV_DEFAULT : ''; if (!base) return ''; const c = LS.get('fsm.srv', {}) || {}; LS.set('fsm.srv', Object.assign({}, c, { base })); u.searchParams.delete('api'); history.replaceState(null, '', u.pathname + u.search + u.hash); return base; }catch(e){ return ''; } }
-srvApiParam();
 let SRV_POLL_MS = 1000;
-function srvConf(){ const c = LS.get('fsm.srv', {}) || {}; return { on: c.on === true || srvLocked(), base: String(c.base || SRV_DEFAULT).replace(/\/+$/, '') }; }
-function srvSetConf(p){ const c = Object.assign(srvConf(), p); if (srvLocked()) c.on = true; LS.set('fsm.srv', c); }
+function srvConf(){ const c = LS.get('fsm.srv', {}) || {}; let base = c.base; if (!srvBaseOk(base)){ if ('base' in c) srvBaseHeal(); base = SRV_DEFAULT; } return { on: c.on === true || srvLocked(), base }; }
+function srvSetConf(p){ const c = Object.assign(srvConf(), p); if (!srvBaseOk(c.base)) c.base = SRV_DEFAULT; if (srvLocked()) c.on = true; LS.set('fsm.srv', c); }
+/* code FSM AI : saisie adaptée à l'iPad (espaces retirés, majuscules, tirets typographiques remplacés) et format vérifié */
+const SRV_CODE_RE = /^FSM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+const SRV_CODE_MSG = 'Code FSM AI invalide : il doit avoir la forme FSM-XXXX-XXXX-XXXX-XXXX (lettres et chiffres, sans espace).';
+/* trouve le premier code FSM-XXXX-XXXX-XXXX-XXXX dans n'importe quel texte collé ou tapé (adresse, phrase, espaces, minuscules autour) */
+function srvCodeExtract(v){ const t = String(v ?? '').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); const m = /(?:^|[^A-Z0-9])FSM[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/.exec(t); return m ? 'FSM-' + m.slice(1, 5).join('-') : ''; }
+function srvCodeNorm(v){ return srvCodeExtract(v) || String(v ?? '').normalize('NFKC').replace(/[\s\u200b-\u200d\ufeff]+/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); }
+/* un code FSM AI arrivé ailleurs dans les réglages (adresse, autre clé) est rangé dans le champ du code, jamais refusé comme adresse */
+function srvCodeRoute(el){ if (!el || el.id === 'srvCode' || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || el.type === 'file' || el.type === 'checkbox') return false; const code = srvCodeExtract(el.value); if (!code) return false; el.value = el.id === 'srvBase' ? srvConf().base : ''; const ci = $('#srvCode'); ci.value = code; srvCodeInput(ci, false); srvRenderUI(); toast('Code FSM AI reconnu : il a été enregistré dans le champ « Code FSM AI ».'); return true; }
+function srvCodeValid(v){ return SRV_CODE_RE.test(String(v ?? '')); }
+function srvCodeInput(el, done){
+  const v = srvCodeNorm(el.value); if (el.value !== v){ const at = el.selectionStart; el.value = v; try{ if (at != null) el.setSelectionRange(Math.min(v.length, at), Math.min(v.length, at)); }catch(e){} }
+  const ok = srvCodeValid(v);
+  if (!v || ok) srvCodeStatus(''); else if (done || v.length >= 23) srvCodeStatus('err', SRV_CODE_MSG);
+  const prev = srvCode(), next = ok ? v : (v ? prev : ''); /* code incomplet ou invalide : l'ancien code enregistré n'est pas effacé */
+  if (next !== prev){
+    LS.set('fsm.srvcode', next); S.srvLimits = null;
+    if (ok && !srvConf().on) srvSetConf({ on: true }); /* un code valide active le mode serveur ; sans code, le mode direct reste tel quel */
+    srvKeySwitch(); srvRenderUI();
+    if (ok) srvCodeCheck();
+  }
+  return ok;
+}
+/* état sous le champ : '' (rien), 'wait', 'ok' (code actif), 'err' (message rouge) */
+function srvCodeStatus(kind, text){ const m = $('#srvCodeMsg'); if (!m) return; m.className = 'code-card-st' + (kind ? ' is-' + kind : ''); m.textContent = kind ? text : ''; m.hidden = !kind; $('#srvCode')?.setAttribute('aria-invalid', kind === 'err' ? 'true' : 'false'); }
+function srvCodeActiveText(){ const l = S.srvLimits, p = l && PLANS[l.plan]; return '\u2705 Code actif' + (p ? ' \u00b7 ' + p.name : ''); }
+let srvCheckSeq = 0;
+async function srvCodeCheck(){
+  const n = ++srvCheckSeq, code = srvCode(); if (!serverOn()) return false;
+  srvCodeStatus('wait', 'Vérification du code\u2026');
+  try{ await srvLimits(); if (n !== srvCheckSeq || code !== srvCode()) return false; srvCodeStatus('ok', srvCodeActiveText()); return true; }
+  catch(e){ if (n !== srvCheckSeq) return false; srvCodeStatus('err', e?.status === 401 ? 'Code refusé par le serveur FSM AI : vérifie-le (il commence par FSM-).' : 'Serveur FSM AI injoignable pour l\u2019instant : ton code est enregistré, réessaie dans un moment.'); return false; }
+}
+/* bouton « Valider » (et Entrée, et « Coller ») */
+function srvCodeSubmit(){ const i = $('#srvCode'); const ok = srvCodeInput(i, true); if (!i.value){ srvCodeStatus('err', 'Entre ton code FSM AI : il commence par FSM-.'); return false; } if (ok && srvCode() === srvCodeNorm(i.value)) srvCodeCheck(); return ok; }
+/* au démarrage (après les définitions ci-dessus) : adresse enregistrée remise d'aplomb, puis ?api=staging|prod */
+srvBaseHeal(); srvApiParam();
 function srvCode(){ return String(LS.get('fsm.srvcode', '') || ''); }
 function srvBootOn(){ try{ const c = LS.get('fsm.srv', {}) || {}; return c.on === true && String(LS.get('fsm.srvcode', '') || '').length >= 16; }catch(e){ return false; } }
 function serverOn(){ return srvConf().on && srvCode().length >= 16; }
@@ -2037,8 +2093,8 @@ function srvRenderUI(){
   try{
     const c = srvConf();
     $('#srvOn').checked = c.on; $('#srvRows').hidden = !c.on;
-    $('#srvCode').value = srvCode(); $('#srvBase').value = c.base;
-    $('#srvHint').hidden = !srvNeedCode();
+    if (document.activeElement !== $('#srvCode') || srvCodeValid(srvCode())) $('#srvCode').value = srvCode(); $('#srvBase').value = c.base; if (serverOn() && S.srvLimits && $('#srvCodeMsg').hidden) srvCodeStatus('ok', srvCodeActiveText());
+    $('#srvHint').hidden = false; /* zone du code toujours visible, pour tout le monde */
     $('#apiKey').disabled = serverOn() || srvLocked();
     const lk = srvLocked(); document.documentElement.classList.toggle('srv-lock', lk);
     if (lk){ $('#srvOn').checked = true; $('#srvRows').hidden = false; $('#apiKey').value = ''; $('#xaiKey').value = ''; }
@@ -9784,7 +9840,7 @@ async function productTestsBody(){
     const calls = []; let routes = {};
     const J = (o, st = 200) => new Response(JSON.stringify(o), { status: st, headers: { 'Content-Type': 'application/json' } });
     const mock = async (url, o = {}) => {
-      const u = String(url), m = (o.method || 'GET'), path = u.replace('https://srv.test', '');
+      const u = String(url), m = (o.method || 'GET'), path = u.replace(SRV_DEFAULT, '');
       calls.push({ m, u, path, auth: o.headers?.Authorization || '', body: o.body || '' });
       const f = routes[m + ' ' + path] || routes[m + ' ' + path.replace(/\?.*$/, '')];
       return f ? f(o) : J({ error: { code: 'not_found', message: 'x' } }, 404);
@@ -9801,7 +9857,69 @@ async function productTestsBody(){
         history.replaceState(null, '', href0); localStorage.removeItem('fsm.srv');
         ok('mode serveur : production par défaut, essai via ?api=staging sans activation', SRV_DEFAULT === 'https://api.fsmai.app' && b1 === SRV_STAGING && c1.base === SRV_STAGING && c1.on === false && clean && b2 === SRV_DEFAULT && c2.base === SRV_DEFAULT && c2.on === false && b3 === '' && c3.base === SRV_DEFAULT && srvConf().base === SRV_DEFAULT); }
       window.fetch = mock; SRV_POLL_MS = 5; S.set.plan = 'entreprise';
-      LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); LS.set('fsm.srvcode', CODE); S.srvLimits = null;
+      /* adresse du serveur fixe : liste fermée, champ caché, valeur enregistrée inconnue remplacée sans message */
+      { const bads = ['https://reki.example', 'https://rekin', 'http://api.fsmai.app', 'https://api.fsmai.app.evil.test', 'https://evil.test/api.fsmai.app', 'javascript:alert(1)', ' https://api.fsmai.app ', 42, null, ''];
+        const healed = bads.every(b => { LS.set('fsm.srv', { on: false, base: b }); const c = srvConf(); const st = LS.get('fsm.srv', {}); return c.base === SRV_DEFAULT && st.base === SRV_DEFAULT && st.on === false; });
+        LS.set('fsm.srv', { on: false, base: SRV_STAGING }); const stg = srvConf().base === SRV_STAGING && LS.get('fsm.srv', {}).base === SRV_STAGING;
+        LS.set('fsm.srv', { on: false, base: 'https://reki.example' }); const boot = srvBaseHeal() === true && LS.get('fsm.srv', {}).base === SRV_DEFAULT && srvBaseHeal() === false;
+        srvSetConf({ base: 'https://reki.example' }); const set1 = LS.get('fsm.srv', {}).base === SRV_DEFAULT;
+        ok('adresse du serveur : seules api.fsmai.app et api-staging.fsmai.app acceptées, le reste remis par défaut sans message', healed && stg && boot && set1 && SRV_ALLOWED.length === 2 && SRV_ALLOWED.includes('https://api.fsmai.app') && SRV_ALLOWED.includes('https://api-staging.fsmai.app'));
+        const sb = $('#srvBase'), rowsSrc = $('#srvRows').innerHTML;
+        ok('adresse du serveur : champ caché pour tout le monde, plus aucun message d\u2019adresse invalide', sb && sb.type === 'hidden' && !document.querySelector('#srvRows input[type=url]') && !/Adresse du serveur FSM AI/.test(rowsSrc) && ![...document.scripts].some(x => new RegExp('Adresse du serveur ' + 'invalide').test(x.textContent))); }
+      /* code FSM AI : saisie adaptée à l'iPad */
+      { const ci = $('#srvCode'), A = n => ci.getAttribute(n);
+        ok('code FSM AI : champ iPad (majuscules, sans correction ni remplissage automatique, pas un mot de passe)', ci.type === 'text' && A('autocapitalize') === 'characters' && A('autocorrect') === 'off' && A('spellcheck') === 'false' && A('autocomplete') === 'off' && A('placeholder') === 'FSM-XXXX-XXXX-XXXX-XXXX' && !document.querySelector('#srvRows input[type=password]'));
+        const G = 'FSM-AB12-CD34-EF56-GH78';
+        const norm = [' fsm-ab12-cd34-ef56-gh78 ', 'fsm ab12 cd34 ef56 gh78', 'FSM\u2013AB12\u2014CD34\u2011EF56-GH78', 'fsmab12cd34ef56gh78', 'Fsm-Ab12-Cd34-Ef56-Gh78\u200b'].every(v => srvCodeNorm(v) === G && srvCodeValid(srvCodeNorm(v)));
+        const bad = ['FSM-AB12-CD34', 'https://reki.example', 'FSM-AB12-CD34-EF56-GH7!', 'XSM-AB12-CD34-EF56-GH78', 'FSM-AB12-CD34-EF56-GH789', ''].every(v => !srvCodeValid(srvCodeNorm(v)));
+        ok('code FSM AI : espaces retirés, majuscules, format FSM-XXXX-XXXX-XXXX-XXXX vérifié', norm && bad && SRV_CODE_RE.test(G) && /FSM-XXXX-XXXX-XXXX-XXXX/.test(SRV_CODE_MSG));
+        LS.set('fsm.srv', { on: false, base: SRV_DEFAULT }); LS.set('fsm.srvcode', CODE); const msg = $('#srvCodeMsg');
+        const fire = (v, t) => { ci.value = v; ci.dispatchEvent(new Event(t)); };
+        fire('fsm-ab12-cd34-ef56-gh7', 'input'); const k1 = srvCode() === CODE && msg.hidden;
+        fire('fsm-ab12-cd34-ef56-gh7', 'change'); const k2 = srvCode() === CODE && !msg.hidden && msg.textContent === SRV_CODE_MSG && ci.getAttribute('aria-invalid') === 'true';
+        fire(' fsm ab12 cd34 ef56 gh78', 'input'); const k3 = srvCode() === G && ci.value === G && msg.textContent !== SRV_CODE_MSG && ci.getAttribute('aria-invalid') === 'false';
+        fire('', 'input'); const k4 = srvCode() === '';
+        ok('code FSM AI : code invalide refusé avec message clair, ancien code gardé, code valide enregistré normalisé', k1 && k2 && k3 && k4);
+        /* cas réel (iPad, écran d'accueil) : « //api.fsmai.app » suivi du code collé dans l'ancien champ d'adresse */
+        const ext = [['//api.fsmai.app FSM-AB12-CD34-EF56-GH78', G], ['//api.fsmai.app fsm-ab12-cd34-ef56-gh78 ', G], ['https://api.fsmai.app/ Mon code : fsm ab12 cd34 ef56 gh78. Merci', G], ['FSM-AB12-CD34-EF56-GH78 FSM-ZZZZ-ZZZZ-ZZZZ-ZZZZ', G], ['//api.fsmai.app', ''], ['https://api.fsmai.app/FSMAI-APP', ''], ['FSM-AB12-CD34-EF56-GH789', '']].every(([v, w]) => srvCodeExtract(v) === w);
+        fire('//api.fsmai.app ' + 'fsm-ab12-cd34-ef56-gh78 ', 'input'); const e1 = srvCode() === G && ci.value === G && msg.textContent !== SRV_CODE_MSG;
+        ok('code FSM AI : premier code trouvé dans un texte collé (adresse, phrase, espaces, minuscules)', ext && e1 && !ci.hasAttribute('maxlength'));
+        LS.set('fsm.srvcode', CODE); const rt = ['xaiKey', 'apiKey', 'ikPexels', 'bgDay'].map(id => { const el = $('#' + id); if (!el) return true; const k0 = LS.get('relais.key', null); el.value = 'https://api.fsmai.app ' + G; el.dispatchEvent(new Event('input', { bubbles: true })); const r = !srvCodeExtract(el.value) && srvCode() === G && LS.get('relais.key', null) === k0; LS.set('fsm.srvcode', CODE); return r; });
+        LS.set('fsm.srv', { on: false, base: '//api.fsmai.app ' + G }); const hb = srvConf().base === SRV_DEFAULT && LS.get('fsm.srv', {}).base === SRV_DEFAULT && srvCode() === G;
+        ok('code FSM AI : arrivé dans un autre champ des réglages ou dans l\u2019adresse, il est rangé comme code, sans erreur d\u2019adresse', rt.every(Boolean) && hb);
+        /* zone du code : carte en tête des réglages, toujours visible, même pour un utilisateur en mode direct */
+        LS.set('fsm.srv', { on: false, base: SRV_DEFAULT }); LS.set('fsm.srvcode', ''); const lk0 = localStorage.getItem('fsm.onboard'); localStorage.removeItem('fsm.onboard'); srvRenderUI();
+        const card = $('#srvCodeCard'), sb2 = $('#settingsSheet .sheet-b'), first = sb2 && [...sb2.children].find(x => getComputedStyle(x).display !== 'none' || x === card);
+        const vis = el => !!el && !el.hidden && !el.closest('[hidden]') && !(el.closest('.lock-hide') && srvLocked());
+        ok('zone du code : carte « Ton code FSM AI » en tête des réglages, visible pour tous (même mode serveur désactivé)', first === card && card.contains(ci) && vis(ci) && vis($('#btnSrvOk')) && vis($('#srvHint')) && $('#srvCodeTitle').tagName === 'H3' && /Ton code FSM AI/.test($('#srvCodeTitle').textContent) && /commence par FSM-/.test($('#srvHint').textContent) && !!card.querySelector('label[for="srvCode"]') && !card.contains($('#btnSrvErase')) && $('#btnSrvErase').classList.contains('danger-txt'));
+        const sh = $('#btnSrvShow'), m0 = ci.classList.contains('masked'); sh.click(); const m1 = ci.classList.contains('masked'); sh.click();
+        ok('zone du code : bouton Afficher/Masquer, Coller seulement si le presse-papiers est lisible', m0 && !m1 && ci.classList.contains('masked') && $('#btnSrvPaste').hidden === !navigator.clipboard?.readText);
+        /* mode direct sans code : rien ne change ; code valide : mode serveur activé tout seul, état « Code actif » avec la formule */
+        const d0 = srvConf().on === false && !serverOn();
+        routes['GET /v1/limits'] = () => J({ plan: 'entreprise', limits: { plan: 'entreprise' } });
+        ci.value = 'mon code : fsm-ab12-cd34-ef56-gh78'; $('#btnSrvOk').click();
+        await until(() => /Code actif/.test(msg.textContent));
+        const a1 = srvConf().on === true && serverOn() && srvCode() === G && msg.classList.contains('is-ok') && /\u2705 Code actif/.test(msg.textContent) && msg.textContent.includes(PLANS.entreprise.name);
+        LS.set('fsm.srvcode', ''); LS.set('fsm.srv', { on: false, base: SRV_DEFAULT }); srvCodeStatus('');
+        routes['GET /v1/limits'] = () => J({ error: { code: 'unauthorized', message: 'x' } }, 401);
+        ci.value = G; $('#btnSrvOk').click(); await until(() => msg.classList.contains('is-err'));
+        const a2 = msg.classList.contains('is-err') && /refusé/.test(msg.textContent) && ci.getAttribute('aria-invalid') === 'true';
+        srvCodeStatus(''); ci.value = 'FSM-12'; $('#btnSrvOk').click(); const a3 = msg.classList.contains('is-err') && msg.textContent === SRV_CODE_MSG;
+        ci.value = ''; $('#btnSrvOk').click(); const a4 = msg.classList.contains('is-err') && /commence par FSM-/.test(msg.textContent);
+        ok('zone du code : direct sans code inchangé ; Valider active le mode serveur ; « Code actif » ou erreur rouge en français', d0 && a1 && a2 && a3 && a4);
+        routes = {}; calls.length = 0; srvCheckSeq++; srvCodeStatus(''); if (lk0 != null) localStorage.setItem('fsm.onboard', lk0);
+        /* appareil avec des restes d'un ancien déploiement sur app.fsmai.app : traité comme nouveau seulement s'il n'a ni clé, ni conversation, ni code */
+        const keepLS = {}; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (/^(relais|fsm)\./.test(k)) keepLS[k] = localStorage.getItem(k); }
+        const wipe = () => Object.keys(keepLS).concat(Object.keys(localStorage)).forEach(k => { if (/^(relais|fsm)\./.test(k)) localStorage.removeItem(k); });
+        wipe(); LS.set('relais.settings', { theme: 'x' }); LS.set('relais.models', []); LS.set('relais.index', []);
+        const st1 = fsmStrayNew('app.fsmai.app') && !fsmStrayNew('wwwh8hv4w5-lang.github.io') && !fsmStrayNew('127.0.0.1');
+        const st2 = srvBootDefault('wwwh8hv4w5-lang.github.io') === false && localStorage.getItem('fsm.onboard') === null;
+        const st3 = srvBootDefault('app.fsmai.app') === true && LS.get('fsm.onboard', '') === 'serveur' && LS.get('fsm.srv', {}).on === true;
+        const real = [['relais.key', 'sk-or-v1-strayuserkey0000000000000000'], ['relais.xaikey', 'xai-existing0000'], ['relais.index', [{ id: 'c1' }]], ['fsm.srvcode', G], ['fsm.srv', { on: false }]].every(([k, v]) => { wipe(); LS.set('relais.settings', {}); LS.set(k, v); return !fsmStrayNew('app.fsmai.app') && srvBootDefault('app.fsmai.app') === false && localStorage.getItem('fsm.onboard') === null; });
+        wipe(); Object.entries(keepLS).forEach(([k, v]) => localStorage.setItem(k, v));
+        ok('app.fsmai.app : restes techniques sans clé ni conversation → nouvel utilisateur ; vraie donnée → rien ne change', st1 && st2 && st3 && real);
+        LS.set('fsm.srvcode', CODE); srvRenderUI(); }
+      LS.set('fsm.srv', { on: true, base: SRV_DEFAULT }); LS.set('fsm.srvcode', CODE); S.srvLimits = null;
       S.key = 'sk-or-v1-servermodetestkey000000000000'; LS.set('relais.key', S.key); srvKeySwitch();
       ok('mode serveur : clé OpenRouter effacée de la mémoire et de l\u2019appareil', localStorage.getItem('relais.key') === null && serverOn() && S.key === '' && !srvUse({ model: 'xai:grok', mode: 'chat' }, 'chat', {}) && !srvUse({ model: 't/m', mode: 'chat' }, 'videoedit', {}) && srvUse({ model: 't/m', mode: 'image' }, 'image', {}));
       /* 1. texte : création, flux par morceaux */
@@ -9816,7 +9934,7 @@ async function productTestsBody(){
       await runServerJob(a1, c1.messages[0], new AbortController().signal, c1);
       const post = calls.find(c => c.m === 'POST'), pb = post ? JSON.parse(post.body) : {};
       ok('mode serveur : texte envoyé au serveur puis reçu par morceaux', a1.text === 'Bonjour' && a1.srv?.id === JID && pb.kind === 'chat' && pb.model === 't/m' && pb.clientRef === a1.id && Array.isArray(pb.messages) && pb.messages[pb.messages.length - 1].role === 'user' && calls.filter(c => /\?from=/.test(c.path)).map(c => c.path.split('=')[1]).join(',') === '0,1', JSON.stringify({ t: a1.text, p: calls.map(c => c.m + ' ' + c.path) }));
-      ok('mode serveur : aucune clé OpenRouter envoyée', calls.length > 0 && calls.every(c => c.u.startsWith('https://srv.test/') && c.auth === 'Bearer ' + CODE && !/sk-or-/.test(c.body + c.auth)) && !calls.some(c => /openrouter\.ai/.test(c.u)));
+      ok('mode serveur : aucune clé OpenRouter envoyée', calls.length > 0 && calls.every(c => c.u.startsWith(SRV_DEFAULT + '/') && c.auth === 'Bearer ' + CODE && !/sk-or-/.test(c.body + c.auth)) && !calls.some(c => /openrouter\.ai/.test(c.u)));
       /* 2. réouverture : la réponse reprend au dernier morceau reçu (from=N) */
       calls.length = 0;
       const a2 = { id: uid(), role: 'assistant', text: 'Bon', images: [], videos: [], sources: [], model: 't/m', mode: 'chat', status: 'Le modèle répond…', inflight: Date.now(), srv: { id: JID, kind: 'chat', seq: 1, gen: 0 } };
@@ -9852,9 +9970,9 @@ async function productTestsBody(){
       const a5 = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'image' };
       try{ await runServerJob(a5, { text: 'un chat', atts: [] }, new AbortController().signal, mkConv(a5)); }catch(e){ le = e; }
       const onSrv = weekExhausted() && mediaCapped() && freeOnly() && canUnlock().ok && Math.abs(monthLeftRatio() - 0.5) < 1e-9;
-      LS.set('fsm.srv', { on: false, base: 'https://srv.test' });
+      LS.set('fsm.srv', { on: false, base: SRV_DEFAULT });
       const offOk = !weekExhausted() && !keyExhausted() && canUnlock().ok === false;
-      LS.set('fsm.srv', { on: true, base: 'https://srv.test' });
+      LS.set('fsm.srv', { on: true, base: SRV_DEFAULT });
       ok('mode serveur : limites lues sur le serveur (mode direct inchangé)', onSrv && offOk && le?.limit === true && calls.length === 0, JSON.stringify({ onSrv, offOk, le: le?.message }));
       /* 6. déblocage côté serveur */
       routes['POST /v1/limits/unlock'] = () => J({ unlocked: true, limits: { weekExhausted: false, keyExhausted: false, mediaCapped: false, freeOnly: false, weekQuotaSet: true, weekRatio: 0, monthRatio: 0.5, canUnlock: { ok: false, why: 'used' } } });
@@ -9880,7 +9998,7 @@ async function productTestsBody(){
       LS.set('fsm.srvcode', 'mauvais-code-' + '1'.repeat(10)); routes = {}; routes['GET /v1/limits'] = () => J({ error: { code: 'unauthorized', message: 'x' } }, 401);
       let e9 = null; try{ await srvLimits(); }catch(e){ e9 = e; }
       ok('mode serveur : code refusé expliqué', e9?.status === 401 && /Code client du serveur FSM AI refusé/.test(e9.message));
-      LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); srvKeySwitch();
+      LS.set('fsm.srv', { on: true, base: SRV_DEFAULT }); srvKeySwitch();
       ok('mode serveur : clé jamais réenregistrée ni utilisée', localStorage.getItem('relais.key') === null && S.key === '' && /srvWipeKey\(\)/.test(Function.prototype.toString.call(srvKeySwitch)));
       LS.set('fsm.srv', { on: false }); srvKeySwitch();
       ok('mode serveur désactivé : clé non remise (à ressaisir)', S.key === '' && localStorage.getItem('relais.key') === null && !serverOn());
