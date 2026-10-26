@@ -1277,14 +1277,15 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 
 <script>
 /* ===== Déménagement : ancienne adresse (github.io) → domaine FSM AI =====
-   Interrupteur unique : FSM_MOVE.on. Il reste à false tant que la mise en service n'est pas validée.
+   Interrupteur unique : FSM_MOVE.on. Activé (true) par le dernier commit de la PR : fusionner = mise en service,
+   annuler ce seul commit (git revert) = retour arrière (on: false, l'app redevient normale pour tous).
    - Ancienne adresse (from) : page de transition ; le transfert ouvre la nouvelle adresse dans un nouvel onglet
      et lui passe les données par postMessage (origines vérifiées dans les deux sens). Rien ne passe par une URL,
      un serveur ou un stockage tiers. Sans données : redirection directe. Après un transfert réussi : redirection.
    - Nouvelle adresse (to + path) : page de réception ; fusion sans écraser les données plus récentes.
    - En cas d'échec, les données restent intactes sur l'ancienne adresse (rien n'y est effacé) et le transfert
      manuel (Réglages › Sauvegarde, fichier sans clé) est proposé. */
-const FSM_MOVE = Object.freeze({ on: false, from: 'https://wwwh8hv4w5-lang.github.io', to: 'https://app.fsmai.app', path: '/migrer' });
+const FSM_MOVE = Object.freeze({ on: true, from: 'https://wwwh8hv4w5-lang.github.io', to: 'https://app.fsmai.app', path: '/migrer' });
 const FSMMove = (() => {
   const V = 1, TIMEOUT = 90000;
   const LS_KEYS = ['relais.settings', 'relais.models', 'relais.tts', 'relais.stt', 'relais.adult18', 'relais.index', 'relais.draft',
@@ -10198,7 +10199,7 @@ async function productTestsBody(){
       const sp = M.send({ win: wa, store: src, to: N, path: '/migrer', timeout: o.timeout || 3000,
         open: u => { url = u; if (o.blocked) return null; if (!o.silent) rp = M.receive({ win: wn, opener: view(wn, wa), store: dst, from: o.expectFrom || A, timeout: o.timeout || 3000, closeWait: 300 }); return view(wa, wn); } });
       const s = await sp; const r = rp ? await rp : null; return { s, r, url }; };
-    ok('déménagement : interrupteur désactivé par défaut', FSM_MOVE.on === false && FSM_MOVE.to === 'https://app.fsmai.app' && /github\.io$/.test(FSM_MOVE.from) && !document.getElementById('fsmMove'));
+    ok('déménagement : interrupteur activé, cible configurée (github.io → app.fsmai.app/migrer), rien ailleurs', FSM_MOVE.on === true && Object.isFrozen(FSM_MOVE) && FSM_MOVE.from === 'https://wwwh8hv4w5-lang.github.io' && FSM_MOVE.to === 'https://app.fsmai.app' && FSM_MOVE.path === '/migrer' && (location.origin === FSM_MOVE.from || location.origin === FSM_MOVE.to || !document.getElementById('fsmMove')));
     { /* 1. transfert réussi */
       const src = mem({ 'relais.index': J([{ id: 'a1', title: 'A', t: 5 }]), 'relais.settings': J({ model: 'x/y', apiKey: FK }), 'fsm.conn': J({ githubToken: 'ghp_faux000000000000000000', googleClientId: 'cid' }),
         'fsm.projects': J([{ id: 'p1', name: 'P' }]), 'relais.key': J(FK), 'relais.xaikey': J(FX), 'fsm.imgkeys': J({ k: 'v' }) }, { 'conv:a1': conv('a1', 5), 'autre': { x: 1 } });
