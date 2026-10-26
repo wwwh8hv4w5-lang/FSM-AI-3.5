@@ -1803,9 +1803,9 @@ function openSettings(focusKey, which){
 $('#xaiKey').addEventListener('input', e => { if (srvLocked()){ e.target.value = ''; S.xaiKey = ''; return; } S.xaiKey = e.target.value.trim(); LS.set('relais.xaikey', S.xaiKey); mergeXai(); refreshModelUI(); });
 const PLANS = {
   free:{ name:'FSM AI Free', key:'Free', limit:0 },
-  entreprise:{ name:'FSM AI Entreprise', key:'Entreprise', limit:18 },
-  competence:{ name:'FSM AI Compétence', key:'Compétence', limit:45 },
-  elite:{ name:'FSM AI Élite', key:'Élite', limit:180 },
+  entreprise:{ name:'FSM AI Entreprise', key:'Entreprise', limit:18, price:'25 €' },
+  competence:{ name:'FSM AI Compétence', key:'Compétence', limit:45, price:'60 €' },
+  elite:{ name:'FSM AI Élite', key:'Élite', limit:180, price:'250 €' },
   unlimited:{ name:'FSM AI Illimité', key:'Illimité', limit:null, auto:true }
 };
 function renderPlan(){
@@ -2049,9 +2049,10 @@ function srvCodeInput(el, done){
   if (!v || ok) srvCodeStatus(''); else if (done || v.length >= 23) srvCodeStatus('err', SRV_CODE_MSG);
   const prev = srvCode(), next = ok ? v : (v ? prev : ''); /* code incomplet ou invalide : l'ancien code enregistré n'est pas effacé */
   if (next !== prev){
-    LS.set('fsm.srvcode', next); S.srvLimits = null;
+    LS.set('fsm.srvcode', next); S.srvLimits = null; S.srvBad = '';
     if (ok && !srvConf().on) srvSetConf({ on: true }); /* un code valide active le mode serveur ; sans code, le mode direct reste tel quel */
-    srvKeySwitch(); srvRenderUI();
+    if (!next) srvPlanForget();
+    srvKeySwitch(); srvRenderUI(); srvHomeRefresh();
     if (ok) srvCodeCheck();
   }
   return ok;
@@ -2064,7 +2065,7 @@ async function srvCodeCheck(){
   const n = ++srvCheckSeq, code = srvCode(); if (!serverOn()) return false;
   srvCodeStatus('wait', 'Vérification du code\u2026');
   try{ await srvLimits(); if (n !== srvCheckSeq || code !== srvCode()) return false; srvCodeStatus('ok', srvCodeActiveText()); return true; }
-  catch(e){ if (n !== srvCheckSeq) return false; srvCodeStatus('err', e?.status === 401 ? 'Code refusé par le serveur FSM AI : vérifie-le (il commence par FSM-).' : 'Serveur FSM AI injoignable pour l\u2019instant : ton code est enregistré, réessaie dans un moment.'); return false; }
+  catch(e){ if (n !== srvCheckSeq) return false; if (e?.status === 401 && code === srvCode()){ S.srvBad = code; S.srvLimits = null; srvPlanForget(); srvHomeRefresh(); } srvCodeStatus('err', e?.status === 401 ? 'Code refusé par le serveur FSM AI : vérifie-le (il commence par FSM-).' : 'Serveur FSM AI injoignable pour l\u2019instant : ton code est enregistré, réessaie dans un moment.'); return false; }
 }
 /* bouton « Valider » (et Entrée, et « Coller ») */
 function srvCodeSubmit(){ const i = $('#srvCode'); const ok = srvCodeInput(i, true); if (!i.value){ srvCodeStatus('err', 'Entre ton code FSM AI : il commence par FSM-.'); return false; } if (ok && srvCode() === srvCodeNorm(i.value)) srvCodeCheck(); return ok; }
@@ -2074,7 +2075,11 @@ function srvCode(){ return String(LS.get('fsm.srvcode', '') || ''); }
 function srvBootOn(){ try{ const c = LS.get('fsm.srv', {}) || {}; return c.on === true && String(LS.get('fsm.srvcode', '') || '').length >= 16; }catch(e){ return false; } }
 function serverOn(){ return srvConf().on && srvCode().length >= 16; }
 /* mode serveur choisi mais code pas encore saisi : on guide uniquement vers le code FSM AI */
-function srvNeedCode(){ return srvConf().on && srvCode().length < 16; }
+function srvNeedCode(){ const c = srvCode(); return srvConf().on && (c.length < 16 || (!!S.srvBad && S.srvBad === c)); }
+/* écran d'accueil (pas de message) : redessiné dès que le code ou l'abonnement change */
+function srvHomeRefresh(){ try{ if (!S.conv?.messages?.length) renderThread(); }catch(e){} }
+/* abonnement reconnu par le serveur : retiré quand le code est enlevé ou refusé, pour que l'accueil revienne */
+function srvPlanForget(){ if (S.set.planSrv){ S.set.plan = ''; S.set.planAuto = false; S.set.planSrv = false; saveSettings(); try{ renderPlan(); renderBalance(); }catch(e){} } }
 function srvAskCode(){ openSettings(false); setTimeout(() => { const i = $('#srvCode'); i?.scrollIntoView({ block: 'center', behavior: 'smooth' }); i?.focus(); }, 80); }
 function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button></div></div>`; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
@@ -2129,9 +2134,11 @@ async function srvFetch(path, opt = {}){
 }
 function srvApplyLimits(l){
   if (!l || typeof l !== 'object') return;
-  S.srvLimits = l;
-  if (l.plan && PLANS[l.plan] && S.set.plan !== l.plan){ S.set.plan = l.plan; S.set.planAuto = true; saveSettings(); }
+  const first = !S.srvLimits || S.srvBad; S.srvLimits = l; S.srvBad = '';
+  let ch = false;
+  if (l.plan && PLANS[l.plan] && (S.set.plan !== l.plan || !S.set.planAuto || !S.set.planSrv)){ ch = S.set.plan !== l.plan; S.set.plan = l.plan; S.set.planAuto = true; S.set.planSrv = true; S.planEdit = false; if (S.conv && !S.conv.messages?.length) S.conv.plan = l.plan; saveSettings(); }
   try{ renderBalance(); renderPlan(); }catch(e){}
+  if (ch || first) srvHomeRefresh();
 }
 async function srvLimits(){ const d = await srvFetch('/v1/limits'); srvApplyLimits(d?.limits || d); return S.srvLimits; }
 async function srvUnlock(){
@@ -7917,8 +7924,9 @@ function freeRoute(text, atts, conv, cat, forceTier){
 /* ----- Abonnement demandé en début de discussion ----- */
 function planRowHtml(){
   const cur = S.set.plan;
+  if (serverOn() && !srvNeedCode()) return ''; /* mode serveur : l'abonnement vient du code FSM AI */
   if (cur && PLANS[cur] && !S.planEdit) return '';
-  const btns = Object.entries(PLANS).filter(([, p]) => !p.auto).map(([k, p]) => `<button class="plb${cur === k ? ' on' : ''}" data-act="plan" data-plan="${k}" aria-pressed="${cur === k}"><b>${esc(p.key)}</b><span>${p.limit ? p.limit + ' $/mois' : 'gratuit'}</span></button>`).join('');
+  const btns = Object.entries(PLANS).filter(([, p]) => !p.auto).map(([k, p]) => `<button class="plb${cur === k ? ' on' : ''}" data-act="plan" data-plan="${k}" aria-pressed="${cur === k}"><b>${esc(p.key)}</b><span>${p.price ? p.price + '/mois' : 'gratuit'}</span></button>`).join('');
   return `<div class="planq ask"><div class="plq-t">Quel est ton abonnement FSM AI ?</div><div class="plq-b">${btns}</div></div>`;
 }
 function setPlan(k){
@@ -7933,7 +7941,7 @@ function setPlan(k){
 async function askPlan(){
   const v = await ask({ title:'Ton abonnement FSM AI',
     body:'<p>Avant de commencer : quel est ton abonnement ? Les modèles utilisés seront choisis en fonction de tes limites d\'usage.</p>',
-    buttons: Object.entries(PLANS).filter(([, p]) => !p.auto).map(([k, p]) => ({ label:`${p.key} · ${p.limit ? p.limit + ' $/mois' : 'gratuit'}`, value:k })).concat([{ label:'Plus tard', value:'later', ghost:true }]) });
+    buttons: Object.entries(PLANS).filter(([, p]) => !p.auto).map(([k, p]) => ({ label:`${p.key} · ${p.price ? p.price + '/mois' : 'gratuit'}`, value:k })).concat([{ label:'Plus tard', value:'later', ghost:true }]) });
   if (v && v !== 'later') setPlan(v);
   else try{ sessionStorage.setItem('fsm.planLater', '1'); }catch(e){}
   return v;
@@ -8063,6 +8071,8 @@ function pctLabel(ratio){
 }
 function usedPct(used, cap){ return pctLabel(cap > 0 ? used / cap : 0); }
 function monthUsage(){
+  const sl = srvLim(); if (sl){ return sl.monthRatio == null ? null : { ratio: Math.min(1.5, Math.max(0, +sl.monthRatio || 0)), fromKey: true, fromSrv: true }; }
+  if (serverOn()) return null;
   const ki = S.keyInfo && S.keyInfo.limit > 0 ? S.keyInfo : null;
   const plan = PLANS[S.set.plan];
   if (ki) return { used: ki.used || 0, cap: ki.limit, ratio: Math.min(1.5, (ki.used || 0) / ki.limit), fromKey: true };
@@ -8090,23 +8100,29 @@ function renderUsage(){
   const ki = S.keyInfo, p = PLANS[S.set.plan];
   if (S.set.plan === 'unlimited'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Illimité</b><span>Aucune limite</span></div><div class="us-sub">Ta clé n'a pas de plafond : aucune limite hebdomadaire ni mensuelle.</div></div>`; return; }
   if (S.set.plan === 'free'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Free</b><span>Modèles gratuits</span></div><div class="us-sub">Les modèles gratuits n'ont pas de limite de crédit. Pour la vidéo et les modèles les plus puissants, passe à un abonnement supérieur.</div></div><button class="btn us-up" data-usup>Voir les abonnements</button>`; return; }
+  if (serverOn() && !srvLim()){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; if (!renderUsage._busy){ renderUsage._busy = true; srvLimits().catch(() => {}).finally(() => { renderUsage._busy = false; if (srvLim()) renderUsage(); else el.innerHTML = '<p class="note">Serveur FSM AI injoignable pour l\u2019instant : réessaie dans un moment.</p>'; }); } return; }
   if (S.key && !(ki && ki.limit > 0)){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; fetchKeyInfo(true).then(() => renderUsage()); return; }
   const mu = monthUsage();
   if (!mu){ el.innerHTML = '<p class="note">Ajoute ta clé FSM AI dans les réglages pour voir ton utilisation.</p>'; return; }
-  const wr = mu.fromKey ? (weekRatio() || 0) : 0, mr = mu.ratio;
-  const week = mu.fromKey ? usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images et la vidéo reprennent à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(nextMondayUTC())}`) : '';
+  const sl = srvLim(), wOn = sl ? !!sl.weekQuotaSet && sl.weekRatio != null : mu.fromKey;
+  const wr = wOn ? (weekRatio() || 0) : 0, mr = mu.ratio;
+  const wReset = sl && sl.weekResetsAt && !isNaN(Date.parse(sl.weekResetsAt)) ? new Date(sl.weekResetsAt) : nextMondayUTC();
+  const mReset = sl && sl.monthResetsAt && !isNaN(Date.parse(sl.monthResetsAt)) ? new Date(sl.monthResetsAt) : nextMonthUTC();
+  const week = wOn ? usCard('Cette semaine', wr, `${wr >= 1 ? 'Limite atteinte : le texte passe sur les modèles gratuits. Les images et la vidéo reprennent à la réinitialisation. ' : ''}Réinitialisation ${fmtReset(wReset)}`) : '';
   el.innerHTML = `
     <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
     ${week}
-    ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images et la vidéo reprennent au renouvellement. ' : ''}Renouvellement le 1er ${nextMonthUTC().toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
+    ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images et la vidéo reprennent au renouvellement. ' : ''}Renouvellement le 1er ${mReset.toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
     ${unlockBtnHtml()}
     ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
 }
-function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); fetchKeyInfo(true).then(() => renderUsage()); }
+/* mise à jour à l'ouverture et au bouton : compteurs du serveur en mode serveur, sinon la clé */
+function usageRefresh(){ return serverOn() ? srvLimits().catch(() => null) : fetchKeyInfo(true); }
+function openUsage(){ closeSheets(); $('#usageSheet').hidden = false; renderUsage(); usageRefresh().then(() => renderUsage()); }
 document.getElementById('btnUsage')?.addEventListener('click', openUsage);
 document.getElementById('balUsage')?.addEventListener('click', e => { e.stopPropagation(); $('#balPop').hidden = true; openUsage(); });
 document.getElementById('dBal')?.addEventListener('click', openUsage);
-document.getElementById('usRefresh')?.addEventListener('click', async () => { const b = $('#usRefresh'); b.classList.add('spin'); await fetchKeyInfo(true); renderUsage(); setTimeout(() => b.classList.remove('spin'), 500); });
+document.getElementById('usRefresh')?.addEventListener('click', async () => { const b = $('#usRefresh'); b.classList.add('spin'); await usageRefresh(); renderUsage(); setTimeout(() => b.classList.remove('spin'), 500); });
 document.addEventListener('click', e => { if (e.target.closest('[data-usup]')){ closeSheets(); try{ openModelSheet(); }catch(err){} } });
 function renderBalance(){
   const el = document.getElementById('dBal');
@@ -8451,13 +8467,13 @@ function brandRowHtml(){
 /* ----- Fiches des abonnements supérieurs (vitrine) ----- */
 const TIER_ORDER = ['free', 'entreprise', 'competence', 'elite'];
 const TIER_CARDS = {
-  entreprise:{ plan:'Entreprise', model:'FSM AI CORSER 5.0', price:'18 $', hue:'tier-e', power:2,
+  entreprise:{ plan:'Entreprise', model:'FSM AI CORSER 5.0', price:'25 €', hue:'tier-e', power:2,
     pitch:"L'essentiel de l'IA professionnelle, sans compter chaque question.",
     perks:["3 modèles CORSER (5.0, PRO 5.5, MAX 6.0)", "Les grands modèles du marché, choisis pour chaque demande", "Création d'images et de vidéos, retouche photo et montage vidéo avec FSM AI EDITUM", "Recherche web à jour, analyse de PDF, de photos et de vidéos", "FSM BOT, mode vocal, connecteurs Gmail, Agenda, Drive et GitHub", "Usage du mois optimisé au meilleur coût"] },
-  competence:{ plan:'Compétence', model:'FSM AI NEURAL 5.5', price:'45 $', hue:'tier-c', power:4,
+  competence:{ plan:'Compétence', model:'FSM AI NEURAL 5.5', price:'60 €', hue:'tier-c', power:4,
     pitch:"La puissance des meilleurs modèles dès que ta demande devient sérieuse.",
     perks:["3 modèles NEURAL (5.5, PRO 5.8, MAX 6.0) + toute la gamme CORSER", "Les modèles les plus puissants pour les analyses, le code et la rédaction exigeante", "Raisonnement approfondi activé automatiquement sur les sujets complexes", "Images et retouches avec les meilleurs modèles du moment, pas les plus économiques", "Vidéos plus nombreuses et plus longues", "La liberté de travailler sans retenue dans ton forfait"] },
-  elite:{ plan:'Élite', model:'FSM AI OMEGA 8.0', price:'180 $', hue:'tier-o', power:5,
+  elite:{ plan:'Élite', model:'FSM AI OMEGA 8.0', price:'250 €', hue:'tier-o', power:5,
     pitch:"Le sommet de FSM AI : chaque réponse, chaque image, chaque vidéo au niveau maximal.",
     perks:["3 modèles OMEGA (8.0, PRO 8.5, MAX 9.0) + les gammes NEURAL et CORSER", "Le modèle le plus puissant disponible dès que la demande le justifie", "Un modèle haut de gamme même pour les questions du quotidien", "Images, retouches et vidéos premium, sans compromis sur la qualité", "Projets intensifs : rapports, campagnes, code, montages en série", "Le plus haut volume d'usage, bien au-delà de l'Entreprise"] }
 };
@@ -8488,7 +8504,7 @@ function tierRequest(k){
   const t = TIER_CARDS[k]; if (!t) return;
   const cur = PLANS[S.set.plan];
   const subject = `Demande d'accès : abonnement FSM AI ${t.plan}`;
-  const body = `Bonjour FSM AI,\n\nJe souhaite passer à l'abonnement FSM AI ${t.plan} (${t.model} et sa gamme, ${t.price} d'usage par mois)${cur ? ', à la place de mon abonnement actuel ' + cur.key : ''}.\n\nPouvez-vous m'envoyer une clé API ${t.plan} ?\n\nMerci !`;
+  const body = `Bonjour FSM AI,\n\nJe souhaite passer à l'abonnement FSM AI ${t.plan} (${t.model} et sa gamme, ${t.price} TTC par mois)${cur ? ', à la place de mon abonnement actuel ' + cur.key : ''}.\n\nPouvez-vous m'envoyer une clé API ${t.plan} ?\n\nMerci !`;
   const href = `mailto:${FSM_MAIL}?cc=${encodeURIComponent(FSM_MAIL_CC)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const a = document.createElement('a'); a.href = href; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
   toast('Ton application e-mail s\'ouvre avec la demande prête à envoyer.');
@@ -8824,7 +8840,7 @@ async function confirmUnlock(){
   const left = Math.round(monthLeftRatio() * 100);
   const leftTxt = left <= 0 ? '0 %' : left < 1 ? 'moins de 1 %' : left + ' %';
   const v = await ask({ title:'Débloquer ma limite',
-    body:`<p>Ce déblocage remet à zéro le compteur de la semaine en cours. La consommation continue de compter dans le mois.</p><p>Il reste <b>${leftTxt}</b> du plafond mensuel. Une semaine complète représente <b>30 %</b> de ce plafond. Le plafond mensuel ne change pas.</p><p class="note">Un seul déblocage par mois et par clé, sur cet appareil.</p>`,
+    body:`<p>Ce déblocage remet à zéro le compteur de la semaine en cours. La consommation continue de compter dans le mois.</p><p>Il reste <b>${leftTxt}</b> du plafond mensuel. Une semaine complète représente <b>30 %</b> de ce plafond. Le plafond mensuel ne change pas.</p><p class="note">${srvLim() ? 'Un seul déblocage par mois pour ton code FSM AI.' : 'Un seul déblocage par mois et par clé, sur cet appareil.'}</p>`,
     buttons:[{ label:'Oui, débloquer', value:'yes' }, { label:'Annuler', value:null, ghost:true }] });
   if (v !== 'yes') return false;
   return applyUnlock();
@@ -8946,7 +8962,6 @@ function visibleMoneyHits(){
   while ((n = walker.nextNode())){
     if (!String(n.nodeValue).includes('$')) continue;
     const el = n.parentElement; if (!el) continue;
-    if (el.closest('.tier-price, [data-act="plan"], #askBtns')) continue;
     let shown = true;
     for (let p = el; p && p !== document.documentElement; p = p.parentElement){
       if (p.hidden){ shown = false; break; }
@@ -8987,7 +9002,18 @@ async function productTestsBody(){
   const msg = { text:'vu <thinking>caché</thinking> fin', reasoning:'brouillon' };
   scrubMsg(msg);
   ok('scrub retire le raisonnement', !msg.reasoning && !/caché|thinking/i.test(msg.text), msg.text);
-  ok('plafonds des abonnements 18 / 45 / 180 $ (quota semaine 30 %)', PLANS.entreprise.limit === 18 && PLANS.competence.limit === 45 && PLANS.elite.limit === 180 && TIER_CARDS.entreprise.price === '18 $' && TIER_CARDS.competence.price === '45 $' && TIER_CARDS.elite.price === '180 $' && WEEK_SHARE === 0.30, [PLANS.entreprise.limit, PLANS.competence.limit, PLANS.elite.limit].join('/'));
+  ok('plafonds internes des abonnements 18 / 45 / 180 (quota semaine 30 %)', PLANS.entreprise.limit === 18 && PLANS.competence.limit === 45 && PLANS.elite.limit === 180 && WEEK_SHARE === 0.30, [PLANS.entreprise.limit, PLANS.competence.limit, PLANS.elite.limit].join('/'));
+  {
+    const kp = S.set.plan, kpe = S.planEdit; let txt = '';
+    try{
+      S.set.plan = ''; S.planEdit = false;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = (serverOn() && !srvNeedCode() ? '' : planRowHtml()) + Object.keys(TIER_CARDS).map(k => { S.set.plan = k === 'entreprise' ? 'free' : 'entreprise'; return upgradeCardsHtml(); }).join('');
+      txt = tmp.textContent;
+    } finally { S.set.plan = kp; S.planEdit = kpe; }
+    const prices = Object.values(PLANS).map(p => p.price).filter(Boolean).join('/'), cards = Object.values(TIER_CARDS).map(t => t.price).join('/');
+    ok('prix affichés en euros (25 / 60 / 250 €), aucun montant en dollars ni crédit réel', prices === '25 €/60 €/250 €' && cards === prices && /60 €/.test(txt) && /250 €/.test(txt) && !/\$/.test(txt) && !/\b(18|45|180)\s*\$/.test(txt), txt.replace(/\s+/g, ' ').slice(0, 160));
+  }
   {
     ok('aucun champ de clé de gestion', !document.getElementById('gmKey') && !document.getElementById('gmSec') && !document.getElementById('botGm') && !document.getElementById('bkKeys') && typeof window.gmVerify === 'undefined');
     let mg = null; try{ mg = sessionStorage.getItem('fsm.mgmtkey') || localStorage.getItem('fsm.mgmtkey'); }catch(e){}
@@ -9995,6 +10021,41 @@ async function productTestsBody(){
       ask = async () => 'yes';
       const er = await srvErase();
       ok('mode serveur : arrêt annule la tâche, effacement DELETE /v1/me', calls.some(c => c.m === 'DELETE' && c.path === '/v1/jobs/' + JID) && er === true && calls.some(c => c.m === 'DELETE' && c.path === '/v1/me') && /srvCancel\(asst\.srv\)/.test(runSrc));
+      /* 8b. code FSM AI valide (faux code) : accueil abonné, plan reconnu, limites du serveur ; code refusé ou retiré : l'accueil revient */
+      {
+        const FAKE = 'FSM-TEST-0000-0000-0000', keepConv = S.conv, keepSrv = S.set.planSrv;
+        const L8 = { plan: 'entreprise', weekQuotaSet: true, weekRatio: 0.25, monthRatio: 0.4, weekExhausted: false, keyExhausted: false, mediaCapped: false, freeOnly: false, canUnlock: { ok: true }, weekResetsAt: '2026-11-02T00:00:00.000Z', monthResetsAt: '2026-11-01T00:00:00.000Z' };
+        try{
+          S.set.plan = ''; S.set.planAuto = false; S.set.planSrv = false; S.planEdit = false;
+          S.conv = { id: 'test-home-' + uid(), title: '', messages: [] };
+          LS.set('fsm.srv', { on: true, base: SRV_DEFAULT }); LS.set('fsm.srvcode', ''); S.srvLimits = null; S.srvBad = ''; renderThread();
+          const home = () => ($('#thread').textContent || '').replace(/\s+/g, ' ');
+          const before = /Entrer mon code FSM AI/.test(home()) && /Bienvenue sur FSM AI/.test(home());
+          routes = { 'GET /v1/limits': () => J({ limits: L8 }) };
+          const ci = $('#srvCode'); ci.value = FAKE; srvCodeInput(ci, true);
+          await until(() => S.srvLimits && S.set.plan === 'entreprise'); await wait(30);
+          const h = home();
+          ok('code valide : accueil abonné Entreprise tout de suite, sans demande de code ni choix d\u2019abonnement', before && S.set.plan === 'entreprise' && S.set.planAuto === true && !/Entrer mon code FSM AI|Bienvenue sur FSM AI|Quel est ton abonnement/.test(h) && !document.querySelector('#thread .planq') && /Entreprise/.test(h) && !h.includes('$'), h.slice(0, 160));
+          renderThread(); ok('code valide : accueil abonné aussi au prochain lancement', !/Entrer mon code FSM AI|Quel est ton abonnement/.test(home()) && S.set.plan === 'entreprise');
+          $('#usageSheet').hidden = false; renderUsage();
+          const us = ($('#usBody').textContent || '').replace(/\s+/g, ' ');
+          ok('limites en mode serveur : semaine (30 %) et mois lus sur le serveur, en pourcentage', /Cette semaine/.test(us) && /25 % utilisé/.test(us) && /Ce mois-ci/.test(us) && /40 % utilisé/.test(us) && /novembre/.test(us) && /Débloquer ma limite/.test(us) && !us.includes('$') && !!document.querySelector('#usBody [data-unlock]'), us.slice(0, 220));
+          calls.length = 0; await usageRefresh();
+          ok('limites en mode serveur : actualisées par GET /v1/limits (pas la clé locale)', calls.some(c => c.m === 'GET' && c.path === '/v1/limits') && !calls.some(c => /openrouter\.ai/.test(c.u)));
+          const money = visibleMoneyHits(); ok('limites en mode serveur : aucun montant affiché', money.length === 0, money.join(' | '));
+          $('#usageSheet').hidden = true;
+          routes = { 'GET /v1/limits': () => J({ error: { code: 'unauthorized', message: 'x' } }, 401) };
+          await srvCodeCheck(); await wait(30);
+          ok('code refusé : l\u2019accueil redemande le code', /Entrer mon code FSM AI/.test(home()) && !S.set.plan && srvNeedCode(), home().slice(0, 120));
+          routes = { 'GET /v1/limits': () => J({ limits: L8 }) };
+          await srvCodeCheck(); await wait(30);
+          const back = S.set.plan === 'entreprise' && !/Entrer mon code FSM AI/.test(home());
+          ci.value = ''; srvCodeInput(ci, true); await wait(30);
+          ok('code retiré : l\u2019accueil revient (code à saisir)', back && /Entrer mon code FSM AI/.test(home()) && !S.set.plan && !serverOn(), home().slice(0, 120));
+        } finally {
+          S.conv = keepConv; S.set.planSrv = keepSrv; S.srvBad = ''; LS.set('fsm.srv', { on: true, base: SRV_DEFAULT }); LS.set('fsm.srvcode', CODE);
+        }
+      }
       /* 9. code refusé */
       LS.set('fsm.srvcode', 'mauvais-code-' + '1'.repeat(10)); routes = {}; routes['GET /v1/limits'] = () => J({ error: { code: 'unauthorized', message: 'x' } }, 401);
       let e9 = null; try{ await srvLimits(); }catch(e){ e9 = e; }
@@ -10009,7 +10070,7 @@ async function productTestsBody(){
       window.fetch = keepF; ask = keepAsk; SRV_POLL_MS = keepPoll;
       lsRestore(snap);
       S.key = keep.key; S.keyInfo = keep.keyInfo; S.keyState = keep.keyState; S.srvLimits = keep.lim; S.set.plan = keep.plan; S.set.planAuto = keep.planAuto; S.index = keep.index;
-      try{ $('#apiKey').disabled = false; srvRenderUI(); }catch(e){}
+      try{ $('#apiKey').disabled = false; srvRenderUI(); saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); }catch(e){}
       await DB.del('conv:' + tid);
     }
   }
