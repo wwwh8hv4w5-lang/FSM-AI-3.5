@@ -438,6 +438,8 @@ figure.ill.gone{opacity:0;transform:scale(.98);transition:opacity .25s,transform
 .qa{flex:0 0 auto;font:12px var(--f-mono);color:var(--muted)}
 .qx{flex:0 0 auto;min-width:36px;height:36px;border:0;background:transparent;border-radius:10px;color:var(--muted);font-size:13px;padding:0 8px}
 .qx:hover{background:var(--raised);color:var(--ink)}
+.qitem.restored{border-style:solid}
+.qx.qsend{color:var(--ink);font-weight:600}
 .send.queueing{background:var(--raised);color:var(--ink)}
 .pv{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:0 0 .6em;background:var(--surface)}
 .pv-bar{display:flex;align-items:center;gap:2px;padding:4px 6px 4px 14px;border-bottom:1px solid var(--line)}
@@ -1837,73 +1839,165 @@ function newConv(){
   }
   renderThread();
 }
-async function saveConv(conv){
+async function saveConv(conv, keepTime){
   const c = conv || S.conv; if (!c || !c.messages.length) return;
-  for (const m of c.messages) scrubMsg(m);
-  c.t = Date.now();
+  /* réponse en cours : on enregistre une copie nettoyée, sans toucher au message affiché en direct (raisonnement visible) */
+  for (const m of c.messages) if (!m._live) scrubMsg(m);
+  if (!keepTime || !c.t) c.t = Date.now();
   const data = Object.fromEntries(Object.entries(c).filter(([k]) => !k.startsWith('_')));
+  data.messages = c.messages.map(m => m._live ? scrubMsg({ ...m }) : m);
+  /* la file des messages en attente est gardée (sans les champs internes) pour être retrouvée à la réouverture */
+  const q = queueToStore(c._queue);
+  if (q.length) data.queue = q; else delete data.queue;
   await DB.set('conv:' + c.id, data);
   /* L'épingle vit dans l'index, pas dans la conversation : la recopier, sinon chaque message la retire. */
   const prev = S.index.find(x => x.id === c.id);
   const row = { id:c.id, title:c.title, t:c.t, project:c.project };
   if (prev?.pinned) row.pinned = true;
-  S.index = [row].concat(S.index.filter(x => x.id !== c.id)).slice(0, 200);
+  if (keepTime && prev) S.index = S.index.map(x => x.id === c.id ? row : x);
+  else S.index = [row].concat(S.index.filter(x => x.id !== c.id)).slice(0, 200);
   LS.set('relais.index', S.index);
+}
+/* File d'attente enregistrée : copie simple, sans promesses ni champs internes (« _… ») */
+function plainCopy(o){
+  const r = {};
+  for (const [k, v] of Object.entries(o || {})){ if (k.startsWith('_') || typeof v === 'function' || (v && typeof v.then === 'function')) continue; r[k] = v; }
+  return r;
+}
+/* un élément impossible à enregistrer (objet non copiable) est simplement laissé de côté, pour ne jamais faire échouer la sauvegarde */
+const QOK = new WeakMap();
+function queueToStore(q){
+  const out = [];
+  for (const it of (Array.isArray(q) ? q : [])){
+    if (!it || typeof it !== 'object') continue;
+    const r = { ...plainCopy(it), atts: (it.atts || []).map(plainCopy) };
+    let ok = QOK.get(it);
+    if (ok === undefined){ ok = true; try{ if (typeof structuredClone === 'function') structuredClone(r); }catch(e){ ok = false; } QOK.set(it, ok); }
+    if (ok) out.push(r);
+  }
+  return out;
+}
+/* À la réouverture, la file revient marquée « restored » : elle ne part jamais toute seule (aucune relance payante automatique) */
+function queueFromStore(c){
+  if (!c || !Array.isArray(c.queue)) return c;
+  if (!c._queue?.length) c._queue = c.queue.map(it => ({ ...it, atts: Array.isArray(it.atts) ? it.atts : [], restored: true }));
+  delete c.queue;
+  return c;
+}
+/* Sauvegarde régulière pendant une génération (toutes les ~2,5 s si quelque chose a changé) */
+const LIVE_SAVE_MS = 2500;
+function liveSig(m){ return [String(m.text || '').length, m.images?.length || 0, m.videos?.length || 0, m.steps?.length || 0, m.sources?.length || 0, m.job ? 1 : 0].join('|'); }
+function liveAutosave(asst, conv, ms){
+  let last = liveSig(asst), saving = false;
+  const t = setInterval(async () => {
+    if (saving || !asst._live) return;
+    const sig = liveSig(asst); if (sig === last) return;
+    saving = true; last = sig;
+    try{ await saveConv(conv); }catch(e){} finally{ saving = false; }
+  }, ms || LIVE_SAVE_MS);
+  return () => clearInterval(t);
+}
+/* Écran maintenu allumé pendant une génération (Wake Lock), sans erreur si le navigateur ne le permet pas */
+const WAKE = { n: 0, lock: null, asking: false };
+const wakeSupported = () => { try{ return !!(navigator.wakeLock && typeof navigator.wakeLock.request === 'function'); }catch(e){ return false; } };
+async function wakeGet(){
+  if (!WAKE.n || WAKE.lock || WAKE.asking || !wakeSupported() || document.visibilityState !== 'visible') return;
+  WAKE.asking = true;
+  try{
+    const l = await navigator.wakeLock.request('screen');
+    if (!WAKE.n){ try{ await l.release(); }catch(e){} return; }
+    WAKE.lock = l;
+    try{ l.addEventListener('release', () => { if (WAKE.lock === l) WAKE.lock = null; }); }catch(e){}
+  }catch(e){ /* refusé (économie d'énergie, iframe, navigateur ancien) : on continue sans */ }
+  finally{ WAKE.asking = false; }
+}
+function wakeHold(){ WAKE.n++; wakeGet(); }
+function wakeRelease(){
+  WAKE.n = Math.max(0, WAKE.n - 1);
+  if (!WAKE.n && WAKE.lock){ const l = WAKE.lock; WAKE.lock = null; try{ Promise.resolve(l.release()).catch(() => {}); }catch(e){} }
 }
 async function openConv(id){
   if (S.editing) endEdit(false);
   const c = S.live.get(id) || await DB.get('conv:' + id);
   if (!c){ toast("Cette conversation n'est plus disponible dans ce navigateur."); S.index = S.index.filter(x => x.id !== id); LS.set('relais.index', S.index); renderConvs(); return; }
   for (const m of c.messages || []) scrubMsg(m);
+  queueFromStore(c);
   c._unread = false; S.live.set(c.id, c);
   if (!c._busy) reviveStuck(c);
   S.conv = c; closeSheets(); renderThread(); scrollEnd(true);
 }
 /* Réponse restée en suspens (application fermée pendant la requête) : les vidéos reprennent, le reste propose de réessayer */
-const INTERRUPTED = "La réponse a été interrompue (application fermée ou connexion coupée). Touche Réessayer pour la relancer.";
-function reviveStuck(c){
-  let changed = false;
+const INTERRUPTED = "Réponse interrompue : FSM AI a été fermé ou la connexion a été coupée avant la fin. Rien n'a été relancé automatiquement. Touche « Relancer » pour recommencer.";
+function interruptedMsg(m){
+  const why = "FSM AI a été fermé ou la connexion a été coupée avant la fin. Rien n'a été relancé automatiquement.";
+  if (m.mode === 'video') return `Création de la vidéo interrompue : ${why} Touche « Relancer » pour recommencer.`;
+  if (m.mode === 'image') return `Création de l'image interrompue : ${why} Touche « Relancer » pour recommencer.`;
+  if (String(m.text || '').trim()) return `Réponse interrompue : ${why} Le début de la réponse est gardé ci-dessus. Touche « Relancer » pour la générer à nouveau.`;
+  return INTERRUPTED;
+}
+function reviveStuck(c, keepTime){
+  let changed = false, hit = 0;
   for (const m of c.messages){
     if (m.role !== 'assistant' || m._live) continue;
     if (m.job && !m.videos?.length && !m.error){ resumeJob(m, c); continue; }
-    if (m.status){ m.status = ''; if (!m.images?.length && !m.videos?.length) m.error = INTERRUPTED; changed = true; }
+    if (m.status || m.inflight){
+      m.status = ''; delete m.inflight;
+      if (!m.images?.length && !m.videos?.length && !m.error && !m.stopped){ m.error = interruptedMsg(m); m.interrupted = true; hit++; }
+      changed = true;
+    }
   }
-  if (changed) saveConv(c);
+  if (changed) saveConv(c, keepTime);
+  return hit;
 }
 async function resumeJob(m, c){
   if (m._resuming) return;
   Object.defineProperty(m, '_resuming', { value: true, writable: true, configurable: true });
   const i = c.messages.indexOf(m), user = c.messages.slice(0, i).reverse().find(x => x.role === 'user') || { atts: [] };
-  Object.defineProperty(m, '_job', { value: { url: m.job.url, t0: m.job.t0 || Date.now() }, writable: true, configurable: true });
+  Object.defineProperty(m, '_job', { value: { url: m.job.url, xai: m.job.xai, t0: m.job.t0 || Date.now() }, writable: true, configurable: true });
   Object.defineProperty(m, '_live', { value: true, writable: true, configurable: true });
   Object.defineProperty(m, '_conv', { value: c, configurable: true });
   m.mode = 'video'; m.status = 'Reprise de la génération…'; m.videos = m.videos || [];
-  paint(m);
-  try{ await runVideo(m, user, new AbortController().signal); }
+  paint(m); wakeHold();
+  try{ await (m.job.xai ? runXaiVideo : runVideo)(m, user, new AbortController().signal); }
   catch(e){ m.error = e?.message || String(e); }
   finally{
-    m.status = ''; m._live = false; m._resuming = false; delete m.job;
+    wakeRelease();
+    m.status = ''; m._live = false; m._resuming = false; delete m.job; delete m.inflight;
     paint(m); await saveConv(c);
     if (S.conv !== c && m.videos?.length){ c._unread = true; toast(`Votre vidéo est prête dans « ${c.title} »`); }
   }
 }
 /* Retour dans l'application : une réponse muette depuis plus de 12 s a sûrement perdu sa connexion pendant la mise en veille → reconnexion immédiate */
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return;
+  if (document.visibilityState !== 'visible'){
+    /* l'application passe en arrière-plan : on enregistre tout de suite les réponses en cours */
+    for (const c of S.live.values()) if (c._busy) saveConv(c).catch(() => {});
+    return;
+  }
+  wakeGet();
   for (const c of S.live.values()){
     if (!c._busy) continue;
     const a = c.messages[c.messages.length - 1];
     if (a?.role === 'assistant' && a._live && typeof a._beat === 'function' && Date.now() - a._beat() > 12000) a._kick?.();
   }
 });
-/* Au démarrage : les vidéos lancées avant la fermeture de l'application reprennent en arrière-plan */
+window.addEventListener('pagehide', () => { for (const c of S.live.values()) if (c._busy) saveConv(c).catch(() => {}); });
+/* Au démarrage : les vidéos lancées avant la fermeture de l'application reprennent en arrière-plan (OpenRouter et Grok),
+   les autres réponses coupées sont signalées (sans relance automatique) */
 setTimeout(async () => {
+  const cut = [];
   for (const x of (S.index || []).slice(0, 15)){
     try{
       const c = S.live.get(x.id) || await DB.get('conv:' + x.id); if (!c) continue;
-      if (c.messages.some(m => m.role === 'assistant' && m.job && !m.videos?.length && !m.error)){ S.live.set(c.id, c); reviveStuck(c); }
+      if (c._busy) continue;
+      const stuck = c.messages.some(m => m.role === 'assistant' && !m._live && ((m.job && !m.videos?.length && !m.error) || m.inflight || m.status));
+      if (!stuck) continue;
+      queueFromStore(c); S.live.set(c.id, c);
+      if (reviveStuck(c, true) && c !== S.conv){ c._unread = true; cut.push(c); }
+      if (c === S.conv) renderThread();
     }catch(e){}
   }
+  if (cut.length) toast(cut.length > 1 ? `${cut.length} réponses ont été interrompues : ouvre la conversation pour les relancer.` : `Une réponse a été interrompue dans « ${cut[0].title} » : ouvre la conversation pour la relancer.`);
 }, 2500);
 function renderConvs(){
   const el = $('#convs');
@@ -2933,7 +3027,7 @@ async function runVideo(asst, user, signal){
   const img = (user.atts || []).find(a => kindOf(a) === 'image');
   if (img) body.frame_images = [{ type:'image_url', image_url:{ url: await lightImg(img.data) }, frame_type:'first_frame' }];
   let job, pollUrl, t0;
-  if (asst._job){ job = { status:'pending' }; pollUrl = asst._job.url; t0 = asst._job.t0; }
+  if (asst._job?.url){ job = { status:'pending' }; pollUrl = asst._job.url; t0 = asst._job.t0; }
   else {
     asst.status = 'Envoi de la demande…'; paint(asst);
     const res = await fetchT(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal }, 90000);
@@ -3262,7 +3356,7 @@ async function send(){
   S.pending = []; renderPending(); $('#input').value = ''; autosize(); renderSend();
   try{ localStorage.removeItem('relais.draft'); }catch(e){}
   if (S.editing) await applyEdit();
-  if (S.busy){ S.queue.push(item); renderQueue(); toast('Message en file : il partira dès la fin de la réponse.'); return; }
+  if (S.busy){ S.queue.push(item); renderQueue(); saveConv(S.conv).catch(() => {}); toast('Message en file : il partira dès la fin de la réponse.'); return; }
   await dispatch(item, S.conv);
 }
 async function dispatch(item, conv){
@@ -3291,20 +3385,27 @@ function updateBusyUI(){
 }
 function renderQueue(){
   const el = $('#queue'); el.hidden = !S.queue.length;
-  el.innerHTML = S.queue.map((q, i) => `<div class="qitem"><span class="qn">${i === 0 ? 'Ensuite' : 'En file'}</span><span class="qt">${esc(q.text || (q.atts.length ? q.atts.length + ' fichier' + (q.atts.length > 1 ? 's' : '') : ''))}</span>${q.atts.length && q.text ? `<span class="qa">+${q.atts.length}</span>` : ''}<button class="qx" data-qedit="${q.id}" aria-label="Modifier">Modifier</button><button class="qx" data-qrm="${q.id}" aria-label="Retirer de la file">×</button></div>`).join('');
+  el.innerHTML = S.queue.map((q, i) => `<div class="qitem${q.restored ? ' restored' : ''}"><span class="qn">${q.restored ? 'En attente' : i === 0 ? 'Ensuite' : 'En file'}</span><span class="qt">${esc(q.text || (q.atts.length ? q.atts.length + ' fichier' + (q.atts.length > 1 ? 's' : '') : ''))}</span>${q.atts.length && q.text ? `<span class="qa">+${q.atts.length}</span>` : ''}${q.restored && !S.busy ? `<button class="qx qsend" data-qsend="${q.id}" aria-label="Envoyer ce message">Envoyer</button>` : ''}<button class="qx" data-qedit="${q.id}" aria-label="Modifier">Modifier</button><button class="qx" data-qrm="${q.id}" aria-label="Retirer de la file">×</button></div>`).join('');
 }
 $('#queue').addEventListener('click', e => {
-  const rm = e.target.closest('[data-qrm]'); if (rm){ S.queue = S.queue.filter(q => q.id !== rm.dataset.qrm); renderQueue(); return; }
-  const ed = e.target.closest('[data-qedit]'); if (!ed) return;
-  const q = S.queue.find(x => x.id === ed.dataset.qedit); if (!q) return;
-  S.queue = S.queue.filter(x => x !== q); renderQueue();
-  const inp = $('#input'); inp.value = q.text + (inp.value ? '\n' + inp.value : ''); S.pending = q.atts.concat(S.pending); renderPending(); autosize(); renderSend(); inp.focus();
+  const rm = e.target.closest('[data-qrm]'); if (rm){ S.queue = S.queue.filter(q => q.id !== rm.dataset.qrm); renderQueue(); saveConv(S.conv); return; }
+  const ed = e.target.closest('[data-qedit],[data-qsend]'); if (!ed) return;
+  const q = S.queue.find(x => x.id === (ed.dataset.qedit || ed.dataset.qsend)); if (!q) return;
+  S.queue = S.queue.filter(x => x !== q); renderQueue(); saveConv(S.conv);
+  const inp = $('#input'), wasEmpty = !inp.value.trim() && !S.pending.length;
+  inp.value = (q.text || '') + (inp.value ? '\n' + inp.value : ''); S.pending = (q.atts || []).map(a => { const { restored, ...r } = a; return r; }).concat(S.pending); renderPending(); autosize(); renderSend();
+  /* « Envoyer » repasse par l'envoi normal (mêmes contrôles de limite et de budget) : c'est l'utilisateur qui relance */
+  if (ed.dataset.qsend && wasEmpty && !S.busy) send(); else inp.focus();
 });
 function drainQueue(conv){
   conv = conv || S.conv; if (!conv) return;
   const q = conv._queue;
   if (conv._busy || !q || !q.length || (typeof VC !== 'undefined' && VC.on && VC.conv === conv)) return;
-  const item = q.shift(); if (conv === S.conv) renderQueue();
+  /* file retrouvée après fermeture : elle attend que l'utilisateur la renvoie (jamais d'envoi payant automatique) */
+  const qi = q.findIndex(x => !x.restored);
+  if (qi < 0){ if (conv === S.conv) renderQueue(); return; }
+  const item = q.splice(qi, 1)[0]; if (conv === S.conv) renderQueue();
+  saveConv(conv).catch(() => {});
   setTimeout(() => dispatch(item, conv), 250);
 }
 const NET_MSG = "Votre connexion internet est instable, FSM AI continue de réfléchir en attendant qu'elle se rétablisse…";
@@ -3341,7 +3442,10 @@ async function run(user, conv, model, cat, route){
   conv.messages.push(asst);
   if (conv === S.conv){ syncThread(); scrollEnd(true); }
   const ctrl = new AbortController(); conv._abort = ctrl; conv._busy = true; updateBusyUI();
+  /* marque « en cours » enregistrée : si l'application est fermée, la réponse sera signalée comme interrompue à la réouverture */
+  asst.inflight = Date.now();
   saveConv(conv);
+  const stopAutosave = liveAutosave(asst, conv); wakeHold();
   try{
     const tried = []; let attempt = 0, net = 0, fixed = false;
     /* grosse vidéo : on attend (au plus 20 s) que ses images clés soient prêtes */
@@ -3387,6 +3491,8 @@ async function run(user, conv, model, cat, route){
         if (!alt) throw e;
         /* FSM AI s'adapte : un autre modèle reprend la demande */
         asst.model = alt; asst.mode = modeFor(alt);
+        /* autre outil : on repart d'une nouvelle demande, l'ancien suivi de vidéo est oublié */
+        if (asst._job) asst._job = null; delete asst.job;
         asst.text = ''; asst.images = []; asst.videos = []; asst.sources = []; asst.steps = []; asst.reasoning = '';
         asst.retried = (asst.retried || 0) + 1;
         asst.status = 'Nouvelle tentative avec un autre outil…'; paint(asst);
@@ -3397,6 +3503,7 @@ async function run(user, conv, model, cat, route){
     else if (isNetErr(e)) asst.error = "Connexion internet perdue depuis trop longtemps. Touche Réessayer quand elle sera rétablie.";
     else asst.error = e?.message || String(e);
   }finally{
+    stopAutosave(); wakeRelease(); delete asst.inflight;
     asst.status = ''; conv._abort = null; conv._busy = false;
     { const seen = new Set(); asst.images = asst.images.filter(im => { const k = String(im.url).length + ':' + String(im.url).slice(-200); if (seen.has(k)) return false; seen.add(k); return true; }); }
     const hadMedia = asst.images.length || asst.videos.length;
@@ -4323,7 +4430,7 @@ function msgHtml(m){
   if (m.files?.length && !m.status) h += `<div class="files">${m.files.map((fl, i) => `<div class="file-row">${IC.file}<span class="fname">${esc(fl.name)}</span><span class="fs">${fmtSize(fl.size || 0)}</span><button class="act" data-act="dlfile" data-mid="${m.id}" data-i="${i}" aria-label="Télécharger ${esc(fl.name)}">${IC.dl}</button></div>`).join('')}</div>`;
   if (m.sources?.length) h += `<div class="sources">${m.sources.map((s, i) => { let host = s.url; try{ host = new URL(s.url).hostname.replace(/^www\./, ''); }catch(e){} return `<a href="${esc(safeHref(s.url))}" target="_blank" rel="noopener" title="${esc(s.title)}"><b>${i + 1}</b>${esc(host)}</a>`; }).join('')}</div>`;
   if (m.stopped) h += `<div class="note">Réponse arrêtée.</div>`;
-  if (m.error) h += `<div class="err"><span>${esc(m.error)}</span><button class="btn ghost" data-act="retry" data-mid="${m.id}">Réessayer</button></div>`;
+  if (m.error) h += `<div class="err${m.interrupted ? ' interrupted' : ''}"><span>${esc(m.error)}</span><button class="btn ghost" data-act="retry" data-mid="${m.id}">${m.interrupted ? 'Relancer' : 'Réessayer'}</button></div>`;
   if (m.plan && !m.plan.done && !m.status && !m.error) h += `<div class="planbar"><button type="button" class="btn" data-act="planok" data-mid="${esc(m.id)}">Valider</button><button type="button" class="btn ghost" data-act="planedit" data-mid="${esc(m.id)}">Modifier</button></div>`;
   if (!m.status && !m.error){
     h += `<div class="acts">${m.text ? `<button class="act" data-act="copyall" data-mid="${m.id}" aria-label="Copier la réponse">${IC.copy}</button>` : ''}<button class="act" data-act="retry" data-mid="${m.id}" aria-label="Régénérer">${IC.redo}</button>${m.route && nextTier(m.route.tier) ? `<button class="act" data-act="upgrade" data-mid="${m.id}" aria-label="Réessayer avec un modèle plus puissant" title="Plus puissant">${IC.up}</button>` : ''}</div>`;
@@ -5576,12 +5683,19 @@ async function runXaiVideo(asst, user, signal){
   if (S.set.vidRes) body.resolution = S.set.vidRes;
   const img = (user.atts || []).find(a => kindOf(a) === 'image');
   if (img) body.image = { url: img.data };
-  asst.status = 'Envoi de la demande à Grok…'; paint(asst);
-  const res = await xfetch(XAI + '/videos/generations', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
-  if (!res.ok) throw await apiError(res);
-  const { request_id } = await res.json();
-  if (!request_id) throw new Error("xAI n'a pas renvoyé d'identifiant de génération.");
-  const t0 = Date.now(); let job = { status:'pending' };
+  let request_id, t0, job = { status:'pending' };
+  if (asst._job?.xai){ request_id = asst._job.xai; t0 = asst._job.t0 || Date.now(); }
+  else {
+    asst.status = 'Envoi de la demande à Grok…'; paint(asst);
+    const res = await xfetch(XAI + '/videos/generations', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
+    if (!res.ok) throw await apiError(res);
+    ({ request_id } = await res.json());
+    if (!request_id) throw new Error("xAI n'a pas renvoyé d'identifiant de génération.");
+    t0 = Date.now();
+    /* identifiant gardé : après une coupure ou une fermeture, on reprend le suivi de la même vidéo (pas de nouvelle demande payante) */
+    Object.defineProperty(asst, '_job', { value: { xai: request_id, t0 }, writable: true, enumerable: false, configurable: true });
+    asst.job = { xai: request_id, t0 }; { const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
+  }
   while (job.status !== 'done'){
     if (job.status === 'failed') throw new Error('La génération a échoué' + (job.error?.message ? ' : ' + job.error.message : '.'));
     if (Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
@@ -5595,6 +5709,7 @@ async function runXaiVideo(asst, user, signal){
   }
   const url = job.video?.url; if (!url) throw new Error("La vidéo est prête mais aucun lien n'a été renvoyé.");
   asst.status = 'Téléchargement de la vidéo…'; paint(asst);
+  delete asst.job;
   try{ const r = await fetch(url, { signal }); if (!r.ok) throw 0; const b = await r.blob(); asst.videos.push({ blob:b, type: b.type || 'video/mp4' }); }
   catch(e){ if (e?.name === 'AbortError') throw e; asst.videos.push({ url, type:'video/mp4', expires: 1 }); }
   const ps = +m?.pricing?.per_second || 0; if (ps){ asst.cost = ps * (job.video?.duration || body.duration || 8); asst.estimated = true; }
@@ -9123,6 +9238,94 @@ async function runProductTests(){
   host.remove();
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
   ok('mouvement réduit', /prefers-reduced-motion:\s*reduce/.test(css) && /gc-mark::before\{animation:none!important\}/.test(css) && /\.gc-bar i\{/.test(css));
+  /* ===== Fenêtre fermée, étape 1 : sauvegarde en direct, vidéo Grok, file d'attente, écran allumé, interruption ===== */
+  {
+    const keepIdx = S.index.slice(), keepLS = localStorage.getItem('relais.index'), keepXf = xfetch, keepConv = S.conv;
+    const tid = 'test-fc-' + uid(), wait = ms => new Promise(r => setTimeout(r, ms));
+    try{
+      const cv = { id: tid, title: 'Test fenêtre fermée', messages: [{ id: uid(), role:'user', text:'bonjour', atts: [] }], t: Date.now() };
+      const a = { id: uid(), role:'assistant', text:'', images:[], videos:[], sources:[], mode:'chat', status:'Le modèle répond…', inflight: Date.now() };
+      Object.defineProperty(a, '_live', { value: true, writable: true, enumerable: false });
+      cv.messages.push(a);
+      const stop = liveAutosave(a, cv, 40);
+      a.text = 'Première partie de la réponse'; a.reasoning = 'brouillon en direct';
+      await wait(160);
+      const snap1 = await DB.get('conv:' + tid);
+      a.text += ' et la suite';
+      await wait(160);
+      const snap2 = await DB.get('conv:' + tid);
+      stop();
+      const sm = snap2?.messages?.[1];
+      ok('sauvegarde régulière pendant le streaming', LIVE_SAVE_MS >= 2000 && LIVE_SAVE_MS <= 3000 && /Première partie/.test(snap1?.messages?.[1]?.text || '') && /et la suite/.test(sm?.text || '') && !!sm?.inflight && !sm?.reasoning && a.reasoning === 'brouillon en direct', JSON.stringify(sm || {}));
+      const runSrc = Function.prototype.toString.call(run);
+      ok('sauvegarde et écran branchés sur chaque génération', /liveAutosave\(asst, conv\)/.test(runSrc) && /stopAutosave\(\)/.test(runSrc) && /asst\.inflight = Date\.now\(\)/.test(runSrc) && /delete asst\.inflight/.test(runSrc) && /wakeHold\(\)/.test(runSrc) && /wakeRelease\(\)/.test(runSrc));
+      /* réouverture : la réponse coupée est signalée, rien n'est relancé */
+      const re = JSON.parse(JSON.stringify(snap2));
+      const n0 = re.messages.length;
+      const hit = reviveStuck(re, true);
+      const rm = re.messages[1];
+      ok('réponse interrompue signalée en français', hit === 1 && rm.interrupted === true && /interrompue/.test(rm.error) && /Rien n'a été relancé automatiquement/.test(rm.error) && /Le début de la réponse est gardé/.test(rm.error) && /et la suite/.test(rm.text) && !rm.inflight && !rm.status, rm.error);
+      const html = msgHtml(rm);
+      ok('bouton Relancer sans relance automatique', /data-act="retry"[^>]*>Relancer</.test(html) && re.messages.length === n0 && !re._busy && !re._abort && /Réessayer</.test(msgHtml({ id:'e1', role:'assistant', text:'', error:'Boom' })), html.slice(-200));
+      ok('interruption image et vidéo', /Création de l'image interrompue/.test(interruptedMsg({ mode:'image' })) && /Création de la vidéo interrompue/.test(interruptedMsg({ mode:'video' })) && interruptedMsg({ mode:'chat', text:'' }) === INTERRUPTED && /^[^]*Relancer/.test(INTERRUPTED));
+      await wait(60);
+      /* file d'attente gardée, restaurée sans envoi automatique */
+      const qconv = { id: tid, title: cv.title, messages: cv.messages.slice(0, 1), t: Date.now() };
+      qconv._queue = [{ id:'q1', text:'message en attente', atts:[{ id:'a1', name:'x.png', type:'image/png', data:'data:image/png;base64,AAAA', _framesP: Promise.resolve([]) }], model:'openrouter/auto', cat:'chat', _tmp: () => 1 }];
+      await saveConv(qconv, true);
+      const qs = await DB.get('conv:' + tid);
+      ok('file en attente enregistrée', qs?.queue?.length === 1 && qs.queue[0].text === 'message en attente' && !!qs.queue[0].atts[0].data && !('_framesP' in qs.queue[0].atts[0]) && !('_tmp' in qs.queue[0]) && !('_queue' in qs), JSON.stringify(qs?.queue || null).slice(0, 160));
+      const q2 = JSON.parse(JSON.stringify(qs));
+      queueFromStore(q2);
+      const before = q2.messages.length;
+      drainQueue(q2);
+      await wait(400);
+      S.conv = q2; renderQueue(); const qh = $('#queue').innerHTML; S.conv = keepConv; renderQueue();
+      ok('file retrouvée sans envoi automatique', q2._queue?.length === 1 && q2._queue[0].restored === true && !('queue' in q2) && q2.messages.length === before && !q2._busy && /data-qsend="q1"/.test(qh) && /En attente/.test(qh), qh.slice(0, 160));
+      ok('file vidée = rien à garder', queueToStore([]).length === 0 && queueToStore(null).length === 0 && queueToStore([{ id:'z', text:'t', atts:[], el: document.createElement('div') }]).length === 0);
+      /* vidéo Grok : identifiant gardé, reprise du suivi sans nouvelle demande payante */
+      const calls = [];
+      xfetch = async (url, o) => {
+        calls.push((o?.method || 'GET') + ' ' + String(url).replace(XAI, ''));
+        if (/\/videos\/generations$/.test(url)) return new Response(JSON.stringify({ request_id:'req-test' }), { status:200 });
+        return new Response(JSON.stringify({ status:'done', video:{ url:'data:video/mp4;base64,AAAA', duration: 1 } }), { status:200 });
+      };
+      const xc = { id: tid + 'x', title:'x', messages:[{ id:uid(), role:'user', text:'une vidéo de la mer', atts:[] }], t: Date.now() };
+      const mk = () => ({ id: uid(), role:'assistant', text:'', images:[], videos:[], sources:[], model:'grok-imagine-video', mode:'video', status:'' });
+      const xa = mk(); Object.defineProperty(xa, '_conv', { value: xc }); xc.messages.push(xa);
+      const xb = mk(); Object.defineProperty(xb, '_job', { value: { xai:'req-old', t0: Date.now() - 60000 }, writable:true, configurable:true });
+      const p1 = runXaiVideo(xa, xc.messages[0], new AbortController().signal);
+      await wait(80);
+      const xs = await DB.get('conv:' + xc.id);
+      const p2 = runXaiVideo(xb, { atts: [] }, new AbortController().signal);
+      await Promise.all([p1, p2]);
+      xfetch = keepXf;
+      ok('identifiant vidéo Grok enregistré', xs?.messages?.[1]?.job?.xai === 'req-test' && !xa.job && xa.videos.length === 1, JSON.stringify(xs?.messages?.[1]?.job || null));
+      ok('vidéo Grok reprise sans nouvelle demande', calls.filter(c => /^POST \/videos\/generations/.test(c)).length === 1 && calls.includes('GET /videos/req-test') && calls.includes('GET /videos/req-old') && xb.videos.length === 1, calls.join(' ; '));
+      const rjSrc = Function.prototype.toString.call(resumeJob);
+      ok('reprise au démarrage pour Grok', /m\.job\.xai \? runXaiVideo : runVideo/.test(rjSrc) && /xai: m\.job\.xai/.test(rjSrc) && /asst\._job\?\.url/.test(Function.prototype.toString.call(runVideo)));
+      /* écran allumé : Wake Lock si possible, aucune erreur sinon */
+      const wl = { req: 0, rel: 0 }, n0w = WAKE.n, own = Object.getOwnPropertyDescriptor(navigator, 'wakeLock');
+      let held = false, threw = false;
+      try{
+        Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async t => { wl.req++; if (t !== 'screen') throw new Error('type'); const l = new EventTarget(); l.release = async () => { wl.rel++; l.dispatchEvent(new Event('release')); }; return l; } } });
+        wakeHold(); await wait(30); held = !!WAKE.lock;
+        wakeRelease(); await wait(30);
+        Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { throw new DOMException('refusé', 'NotAllowedError'); } } });
+        try{ wakeHold(); await wait(30); wakeRelease(); }catch(e){ threw = true; }
+        Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: undefined });
+        try{ wakeHold(); await wait(10); wakeRelease(); }catch(e){ threw = true; }
+      }finally{ if (own) Object.defineProperty(navigator, 'wakeLock', own); else delete navigator.wakeLock; }
+      ok('écran maintenu allumé (Wake Lock)', (document.visibilityState !== 'visible' || held) && wl.rel === wl.req && !threw && WAKE.n === n0w && (n0w || !WAKE.lock), JSON.stringify({ held, wl, n: WAKE.n }));
+    }catch(e){ ok('fenêtre fermée : exception', false, e?.message || e); }
+    finally{
+      xfetch = keepXf; S.conv = keepConv;
+      await wait(60);
+      await DB.del('conv:' + tid); await DB.del('conv:' + tid + 'x');
+      S.index = keepIdx; if (keepLS == null) localStorage.removeItem('relais.index'); else localStorage.setItem('relais.index', keepLS);
+      try{ renderQueue(); }catch(e){}
+    }
+  }
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
