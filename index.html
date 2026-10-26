@@ -1923,8 +1923,22 @@ async function openConv(id){
   for (const m of c.messages || []) scrubMsg(m);
   queueFromStore(c);
   c._unread = false; S.live.set(c.id, c);
-  if (!c._busy) reviveStuck(c);
+  if (!c._busy){ if (await genLockFree(c.id)) reviveStuck(c); else toast('Une réponse est encore en cours dans un autre onglet pour cette conversation.'); }
   S.conv = c; closeSheets(); renderThread(); scrollEnd(true);
+}
+/* Un seul onglet par conversation en génération (Web Locks) : un autre onglet ne signale pas « interrompue » ni ne propose « Relancer »
+   tant que le verrou est tenu. Sans Web Locks (navigateur ancien), comportement inchangé. */
+const GEN_LOCK = id => 'fsm-gen:' + id;
+const locksOk = () => { try{ return !!(navigator.locks && typeof navigator.locks.request === 'function'); }catch(e){ return false; } };
+function genLock(id){
+  if (!locksOk() || !id) return () => {};
+  let release = null, done = false;
+  try{ navigator.locks.request(GEN_LOCK(id), () => done ? null : new Promise(r => { release = r; })).catch(() => {}); }catch(e){}
+  return () => { done = true; if (release) release(); };
+}
+async function genLockFree(id){
+  if (!locksOk() || !id) return true;
+  try{ return await navigator.locks.request(GEN_LOCK(id), { ifAvailable: true }, l => !!l); }catch(e){ return true; }
 }
 /* Réponse restée en suspens (application fermée pendant la requête) : les vidéos reprennent, le reste propose de réessayer */
 const INTERRUPTED = "Réponse interrompue : FSM AI a été fermé ou la connexion a été coupée avant la fin. Rien n'a été relancé automatiquement. Touche « Relancer » pour recommencer.";
@@ -1939,7 +1953,8 @@ function reviveStuck(c, keepTime){
   let changed = false, hit = 0;
   for (const m of c.messages){
     if (m.role !== 'assistant' || m._live) continue;
-    if (m.job && !m.videos?.length && !m.error){ resumeJob(m, c); continue; }
+    if (m.job && m.stopped){ delete m.job; changed = true; }
+    if (m.job && !m.videos?.length && !m.error && !m.stopped){ resumeJob(m, c); continue; }
     if (m.status || m.inflight){
       m.status = ''; delete m.inflight;
       if (!m.images?.length && !m.videos?.length && !m.error && !m.stopped){ m.error = interruptedMsg(m); m.interrupted = true; hit++; }
@@ -1957,11 +1972,11 @@ async function resumeJob(m, c){
   Object.defineProperty(m, '_live', { value: true, writable: true, configurable: true });
   Object.defineProperty(m, '_conv', { value: c, configurable: true });
   m.mode = 'video'; m.status = 'Reprise de la génération…'; m.videos = m.videos || [];
-  paint(m); wakeHold();
+  paint(m); wakeHold(); const unlock = genLock(c.id);
   try{ await (m.job.xai ? runXaiVideo : runVideo)(m, user, new AbortController().signal); }
   catch(e){ m.error = e?.message || String(e); }
   finally{
-    wakeRelease();
+    wakeRelease(); unlock();
     m.status = ''; m._live = false; m._resuming = false; delete m.job; delete m.inflight;
     paint(m); await saveConv(c);
     if (S.conv !== c && m.videos?.length){ c._unread = true; toast(`Votre vidéo est prête dans « ${c.title} »`); }
@@ -1990,8 +2005,10 @@ setTimeout(async () => {
     try{
       const c = S.live.get(x.id) || await DB.get('conv:' + x.id); if (!c) continue;
       if (c._busy) continue;
-      const stuck = c.messages.some(m => m.role === 'assistant' && !m._live && ((m.job && !m.videos?.length && !m.error) || m.inflight || m.status));
+      const stuck = c.messages.some(m => m.role === 'assistant' && !m._live && ((m.job && !m.videos?.length && !m.error && !m.stopped) || m.inflight || m.status));
       if (!stuck) continue;
+      /* génération encore en cours dans un autre onglet : on n'y touche pas */
+      if (!(await genLockFree(c.id))) continue;
       queueFromStore(c); S.live.set(c.id, c);
       if (reviveStuck(c, true) && c !== S.conv){ c._unread = true; cut.push(c); }
       if (c === S.conv) renderThread();
@@ -3028,8 +3045,9 @@ async function runVideo(asst, user, signal){
   const img = (user.atts || []).find(a => kindOf(a) === 'image');
   if (img) body.frame_images = [{ type:'image_url', image_url:{ url: await lightImg(img.data) }, frame_type:'first_frame' }];
   if (!asst._job && mediaCapped()) throw Object.assign(new Error(limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.'), { limit:true });
-  let job, pollUrl, t0;
-  if (asst._job?.url){ job = { status:'pending' }; pollUrl = asst._job.url; t0 = asst._job.t0; }
+  let job, pollUrl, t0, polled = true;
+  /* reprise : on interroge d'abord l'état de la vidéo (elle est peut-être finie) avant d'appliquer la limite de 30 minutes */
+  if (asst._job?.url){ job = { status:'pending' }; pollUrl = asst._job.url; t0 = asst._job.t0 || Date.now(); polled = false; }
   else {
     asst.status = 'Envoi de la demande…'; paint(asst);
     const res = await fetchT(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal }, 90000);
@@ -3044,10 +3062,11 @@ async function runVideo(asst, user, signal){
   const FR = { pending:"En file d'attente", in_progress:'Génération en cours' };
   while (job.status !== 'completed'){
     if (['failed', 'cancelled', 'expired'].includes(job.status)) throw new Error('La génération a échoué' + (job.error ? ' : ' + job.error : '.'));
-    if (Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
+    if (polled && Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
     const s = Math.round((Date.now() - t0) / 1000);
     asst.status = `${FR[job.status] || 'Génération'} · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
-    await sleep(5000, signal);
+    if (polled) await sleep(5000, signal);
+    polled = true;
     let r;
     try{ r = await fetchT(pollUrl, orAuthOk(pollUrl) ? { headers: hdr(), signal } : { signal }, 30000); }
     catch(err){ if (!isNetErr(err) && !err.timeout) throw err; asst.status = NET_MSG; paint(asst); await waitOnline(signal, 8000); continue; }
@@ -3451,7 +3470,7 @@ async function run(user, conv, model, cat, route){
   /* marque « en cours » enregistrée : si l'application est fermée, la réponse sera signalée comme interrompue à la réouverture */
   asst.inflight = Date.now();
   saveConv(conv);
-  const stopAutosave = liveAutosave(asst, conv); wakeHold();
+  const stopAutosave = liveAutosave(asst, conv); wakeHold(); const unlockGen = genLock(conv.id);
   try{
     const tried = []; let attempt = 0, net = 0, fixed = false;
     /* grosse vidéo : on attend (au plus 20 s) que ses images clés soient prêtes */
@@ -3505,11 +3524,12 @@ async function run(user, conv, model, cat, route){
       }
     }
   }catch(e){
-    if (e?.name === 'AbortError') asst.stopped = true;
+    /* arrêtée par l'utilisateur : le suivi de vidéo est oublié, elle ne reprendra pas à la réouverture */
+    if (e?.name === 'AbortError'){ asst.stopped = true; if (asst._job) asst._job = null; delete asst.job; }
     else if (isNetErr(e)) asst.error = "Connexion internet perdue depuis trop longtemps. Touche Réessayer quand elle sera rétablie.";
     else asst.error = e?.message || String(e);
   }finally{
-    stopAutosave(); wakeRelease(); delete asst.inflight;
+    stopAutosave(); wakeRelease(); unlockGen(); delete asst.inflight;
     asst.status = ''; conv._abort = null; conv._busy = false;
     { const seen = new Set(); asst.images = asst.images.filter(im => { const k = String(im.url).length + ':' + String(im.url).slice(-200); if (seen.has(k)) return false; seen.add(k); return true; }); }
     const hadMedia = asst.images.length || asst.videos.length;
@@ -5689,8 +5709,9 @@ async function runXaiVideo(asst, user, signal){
   if (S.set.vidRes) body.resolution = S.set.vidRes;
   const img = (user.atts || []).find(a => kindOf(a) === 'image');
   if (img) body.image = { url: img.data };
-  let request_id, t0, job = { status:'pending' };
-  if (asst._job?.xai){ request_id = asst._job.xai; t0 = asst._job.t0 || Date.now(); }
+  let request_id, t0, job = { status:'pending' }, polled = true;
+  /* reprise : on interroge d'abord l'état de la vidéo avant d'appliquer la limite de 30 minutes */
+  if (asst._job?.xai){ request_id = asst._job.xai; t0 = asst._job.t0 || Date.now(); polled = false; }
   else {
     asst.status = 'Envoi de la demande à Grok…'; paint(asst);
     const res = await xfetch(XAI + '/videos/generations', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
@@ -5704,10 +5725,11 @@ async function runXaiVideo(asst, user, signal){
   }
   while (job.status !== 'done'){
     if (job.status === 'failed') throw new Error('La génération a échoué' + (job.error?.message ? ' : ' + job.error.message : '.'));
-    if (Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
+    if (polled && Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
     const s = Math.round((Date.now() - t0) / 1000);
     asst.status = `Génération en cours · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
-    await sleep(5000, signal);
+    if (polled) await sleep(5000, signal);
+    polled = true;
     const r = await xfetch(XAI + '/videos/' + request_id, { headers: xhdr(), signal });
     if (!r.ok && r.status !== 202) throw await apiError(r);
     job = await r.json();
@@ -9381,6 +9403,62 @@ async function productTestsBody(){
       await DB.del('conv:' + tid); await DB.del('conv:' + tid + 'x');
       S.index = keepIdx; if (keepLS == null) localStorage.removeItem('relais.index'); else localStorage.setItem('relais.index', keepLS);
       try{ renderQueue(); }catch(e){}
+    }
+  }
+  /* ===== Revue PR #15 : vidéo arrêtée, reprise après 30 min, second onglet ===== */
+  {
+    const keepXf = xfetch, keepF = window.fetch, wait = ms => new Promise(r => setTimeout(r, ms));
+    const tid = 'test-r15-' + uid();
+    try{
+      /* 1. une vidéo arrêtée par l'utilisateur n'est jamais reprise */
+      const sv = { id: tid + 's', title:'x', messages:[{ id:uid(), role:'user', text:'vidéo', atts:[] }, { id:uid(), role:'assistant', text:'', images:[], videos:[], sources:[], mode:'video', stopped:true, job:{ xai:'req-stop', t0: Date.now() } }], t: Date.now() };
+      const svm = sv.messages[1];
+      reviveStuck(sv, true);
+      const runSrc = Function.prototype.toString.call(run);
+      ok('vidéo arrêtée jamais reprise', !svm._resuming && !svm.job && !svm.error && /AbortError'\)\{ asst\.stopped = true; if \(asst\._job\) asst\._job = null; delete asst\.job; \}/.test(runSrc), JSON.stringify(svm));
+      /* 2. reprise d'une vidéo lancée il y a plus de 30 minutes : un état est demandé avant d'abandonner */
+      const calls = [];
+      xfetch = async (url, o) => { calls.push((o?.method || 'GET') + ' ' + String(url).replace(XAI, '')); return new Response(JSON.stringify({ status:'done', video:{ url:'data:video/mp4;base64,AAAA', duration: 1 } }), { status:200 }); };
+      const xo = { id: uid(), role:'assistant', text:'', images:[], videos:[], sources:[], model:'grok-imagine-video', mode:'video', status:'' };
+      Object.defineProperty(xo, '_job', { value: { xai:'req-31', t0: Date.now() - 31 * 60000 }, writable:true, configurable:true });
+      const tA = Date.now(); let xe = null;
+      try{ await runXaiVideo(xo, { atts: [] }, new AbortController().signal); }catch(e){ xe = e.message; }
+      xfetch = keepXf;
+      ok('reprise Grok après 30 min : état vérifié d\'abord', !xe && xo.videos.length === 1 && calls.length === 1 && calls[0] === 'GET /videos/req-31' && Date.now() - tA < 4000, (xe || '') + ' ' + calls.join(';'));
+      const oc = [];
+      window.fetch = async (url, o) => { oc.push(String(url)); if (/\/videos\/old-job$/.test(url)) return new Response(JSON.stringify({ status:'completed', unsigned_urls:['https://example.invalid/v.mp4'] }), { status:200 }); return new Response(new Blob([new Uint8Array([0,0,0,24])], { type:'video/mp4' }), { status:200 }); };
+      const ro = { id: uid(), role:'assistant', text:'', images:[], videos:[], sources:[], model:'openrouter/test-video', mode:'video', status:'' };
+      Object.defineProperty(ro, '_job', { value: { url: API + '/videos/old-job', t0: Date.now() - 40 * 60000 }, writable:true, configurable:true });
+      const tB = Date.now(); let re2 = null;
+      try{ await runVideo(ro, { atts: [] }, new AbortController().signal); }catch(e){ re2 = e.message; }
+      window.fetch = keepF;
+      ok('reprise OpenRouter après 30 min : état vérifié d\'abord', !re2 && ro.videos.length >= 1 && oc[0] === API + '/videos/old-job' && !oc.some(u => /\/videos$/.test(u)) && Date.now() - tB < 4000, (re2 || '') + ' ' + oc.join(';'));
+      /* 3. second onglet : pas de « Relancer » tant qu'une génération tient le verrou de la conversation */
+      const mkCut = () => ({ id: tid, title:'x', messages:[{ id:uid(), role:'user', text:'bonjour', atts:[] }, { id:uid(), role:'assistant', text:'début', images:[], videos:[], sources:[], mode:'chat', status:'Le modèle répond…', inflight: Date.now() }], t: Date.now() });
+      ok('verrou branché sur chaque génération', /genLock\(conv\.id\)/.test(runSrc) && /unlockGen\(\)/.test(runSrc) && /genLock\(c\.id\)/.test(Function.prototype.toString.call(resumeJob)) && /genLockFree\(c\.id\)/.test(Function.prototype.toString.call(openConv)));
+      if (locksOk()){
+        const unlock = genLock(tid); await wait(30);
+        const busyFree = await genLockFree(tid);
+        const c1 = mkCut();
+        const held = !(await genLockFree(c1.id)) ? 'skip' : reviveStuck(c1, true);
+        unlock(); await wait(30);
+        const freeAfter = await genLockFree(tid);
+        const c2 = mkCut(); const hit = freeAfter ? reviveStuck(c2, true) : 0;
+        const early = genLock(tid + 'e'); early(); await wait(30);
+        ok('second onglet : rien signalé tant que le verrou est tenu', busyFree === false && held === 'skip' && !c1.messages[1].interrupted && c1.messages[1].inflight && freeAfter === true && hit === 1 && c2.messages[1].interrupted === true && await genLockFree(tid + 'e'), JSON.stringify({ busyFree, held, freeAfter, hit }));
+      } else ok('second onglet : Web Locks absent, repli', await genLockFree(tid) === true);
+      /* repli sans Web Locks : comportement d'avant */
+      const own = Object.getOwnPropertyDescriptor(navigator, 'locks');
+      Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true });
+      let fb;
+      try{ const r0 = genLock(tid); r0(); fb = !locksOk() && await genLockFree(tid) === true; }
+      finally{ if (own) Object.defineProperty(navigator, 'locks', own); else delete navigator.locks; }
+      ok('sans Web Locks : comportement inchangé', fb && locksOk() === ('locks' in navigator && !!navigator.locks));
+    }catch(e){ ok('revue PR #15 : exception', false, e?.message || e); }
+    finally{
+      xfetch = keepXf; window.fetch = keepF;
+      await wait(60);
+      for (const k of ['', 's']) await DB.del('conv:' + tid + k);
     }
   }
   {
