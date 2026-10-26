@@ -8665,6 +8665,22 @@ async function productTestsBody(){
   const msg = { text:'vu <thinking>caché</thinking> fin', reasoning:'brouillon' };
   scrubMsg(msg);
   ok('scrub retire le raisonnement', !msg.reasoning && !/caché|thinking/i.test(msg.text), msg.text);
+  {
+    ok('aucun champ de clé de gestion', !document.getElementById('gmKey') && !document.getElementById('gmSec') && !document.getElementById('botGm') && !document.getElementById('bkKeys') && typeof window.gmVerify === 'undefined');
+    let mg = null; try{ mg = sessionStorage.getItem('fsm.mgmtkey') || localStorage.getItem('fsm.mgmtkey'); }catch(e){}
+    ok('aucune clé de gestion stockée', !mg);
+    const fake = { app:'FSM AI', exported:'2026-10-26T00:00:00Z', convs:[{ id:'bk-test-1', title:'T', messages:[{ role:'user', text:'bonjour' }] }],
+      settings:{ model:'t/m', apiKey:'sk-or-v1-faussecle000000000000', mgmtKey:'x', token:'y', note:'sk-or-v1-faussecle000000000000' },
+      keys:{ openrouter:'sk-or-v1-faussecle000000000000', xai:'xai-faussecle0000000000' },
+      conn:{ githubToken:'ghp_fauxjeton000000000000', googleClientId:'abc-123.apps.googleusercontent.com' } };
+    const cl = cleanBackup(fake), js = JSON.stringify(cl);
+    ok('sauvegarde importée sans clé ni jeton', !cl.keys && !/sk-or-|xai-|ghp_/.test(js) && !('apiKey' in (cl.settings || {})) && !('mgmtKey' in (cl.settings || {})) && !('token' in (cl.settings || {})) && cl.settings.model === 't/m' && cl.conn.googleClientId === 'abc-123.apps.googleusercontent.com' && cl.convs.length === 1, js.slice(0, 160));
+    const ex = { settings:{ model:'t/m', key:'sk-or-v1-x00000000000', xaiKey:'xai-00000000000' }, conn:{ githubToken:'ghp_000000000000', on:true } };
+    stripSecrets(ex.settings); stripSecrets(ex.conn);
+    ok('export sans clé ni jeton', !/sk-or-|xai-|ghp_/.test(JSON.stringify(ex)) && ex.settings.model === 't/m' && ex.conn.on === true);
+    ok('export : code sans option « inclure mes clés »', /keys: null/.test(exportBackup.toString()) && !/withKeys|S\.key|S\.xaiKey/.test(exportBackup.toString()));
+    ok('import : aucune clé restaurée', !/relais\.key|data\.keys|githubToken/.test(importBackup.toString()));
+  }
   const cases = [
     ['génère une image d\'un chat','image'],['fais-moi un visuel d\'un château','image'],['tu peux me dessiner un chien','image'],
     ['dessine un portrait','image'],['crée une vidéo d\'un coucher de soleil','video'],['une petite vidéo de la mer','video'],
@@ -9407,22 +9423,6 @@ async function productTestsBody(){
       catch(e){ threw = /échec simulé/.test(e.message); }
       ok('déblocage restauré même après une erreur', threw && cleared && localStorage.getItem('fsm.unlock') === SENT && localStorage.getItem('fsm.weekbase') === wb);
     } finally { lsRestore(before); }
-  }
-  {
-    ok('aucun champ de clé de gestion', !document.getElementById('gmKey') && !document.getElementById('gmSec') && !document.getElementById('botGm') && !document.getElementById('bkKeys') && typeof window.gmVerify === 'undefined');
-    let mg = null; try{ mg = sessionStorage.getItem('fsm.mgmtkey') || localStorage.getItem('fsm.mgmtkey'); }catch(e){}
-    ok('aucune clé de gestion stockée', !mg);
-    const fake = { app:'FSM AI', exported:'2026-10-26T00:00:00Z', convs:[{ id:'bk-test-1', title:'T', messages:[{ role:'user', text:'bonjour' }] }],
-      settings:{ model:'t/m', apiKey:'sk-or-v1-faussecle000000000000', mgmtKey:'x', token:'y', note:'sk-or-v1-faussecle000000000000' },
-      keys:{ openrouter:'sk-or-v1-faussecle000000000000', xai:'xai-faussecle0000000000' },
-      conn:{ githubToken:'ghp_fauxjeton000000000000', googleClientId:'abc-123.apps.googleusercontent.com' } };
-    const cl = cleanBackup(fake), js = JSON.stringify(cl);
-    ok('sauvegarde importée sans clé ni jeton', !cl.keys && !/sk-or-|xai-|ghp_/.test(js) && !('apiKey' in (cl.settings || {})) && !('mgmtKey' in (cl.settings || {})) && !('token' in (cl.settings || {})) && cl.settings.model === 't/m' && cl.conn.googleClientId === 'abc-123.apps.googleusercontent.com' && cl.convs.length === 1, js.slice(0, 160));
-    const ex = { settings:{ model:'t/m', key:'sk-or-v1-x00000000000', xaiKey:'xai-00000000000' }, conn:{ githubToken:'ghp_000000000000', on:true } };
-    stripSecrets(ex.settings); stripSecrets(ex.conn);
-    ok('export sans clé ni jeton', !/sk-or-|xai-|ghp_/.test(JSON.stringify(ex)) && ex.settings.model === 't/m' && ex.conn.on === true);
-    ok('export : code sans option « inclure mes clés »', /keys: null/.test(exportBackup.toString()) && !/withKeys|S\.key|S\.xaiKey/.test(exportBackup.toString()));
-    ok('import : aucune clé restaurée', !/relais\.key|data\.keys|githubToken/.test(importBackup.toString()));
   }
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
