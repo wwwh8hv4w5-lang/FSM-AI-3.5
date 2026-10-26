@@ -1575,7 +1575,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 /* ---------- Stockage ---------- */
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  set(k, v){ if (FSMMove.receiving) return; /* page de réception : seule la fusion écrit, sinon les réglages par défaut de cette page écraseraient ceux transférés */ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 /* Nouvel utilisateur = aucune donnée FSM AI sur cet appareil : aucune entrée localStorage « relais.* » ni « fsm.* »
    (clé OpenRouter, clé xAI, réglages, conversations, choix du mode serveur…). Vérifié en tout premier, avant toute écriture.
@@ -10291,6 +10291,10 @@ async function productTestsBody(){
       try{ for (const k of appKeys()) localStorage.removeItem(k); M.receiving = true; b = srvBootDefault(); mark = localStorage.getItem('fsm.onboard'); }
       finally{ M.receiving = false; for (const k of appKeys()) localStorage.removeItem(k); lsRestore(snap); }
       ok('déménagement : page de réception ne marque pas l’utilisateur', b === false && mark === null);
+      const snap2 = lsSnapshot(['fsm.mvtest']); let w = 'x';
+      try{ M.receiving = true; LS.set('fsm.mvtest', 1); w = localStorage.getItem('fsm.mvtest'); }
+      finally{ M.receiving = false; localStorage.removeItem('fsm.mvtest'); lsRestore(snap2); }
+      ok('déménagement : page de réception n’écrit aucun réglage (seule la fusion écrit)', w === null);
     }
   }catch(e){ ok('déménagement : exception', false, e?.message || e); }
   const pass = results.filter(r => r.pass).length;
