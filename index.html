@@ -1046,20 +1046,10 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="row2"><div class="field"><label for="bgDay">Par jour (%)</label><input id="bgDay" type="text" inputmode="decimal" placeholder="aucun"></div><div class="field"><label for="bgMonth">Par mois (%)</label><input id="bgMonth" type="text" inputmode="decimal" placeholder="aucun"></div></div>
         <div class="field" hidden><input id="bgConfirm" type="text" inputmode="decimal"></div><small class="note">Pourcentage du plafond mensuel. Alerte à 80 % du seuil choisi. Les veilles se mettent en pause quand le budget est atteint.</small>
       </div>
-      <div class="st-sec" id="gmSec" hidden><h3>Grok Bot de gestion</h3>
-        <p class="note" style="margin:0">Réservé au statut Illimité. Grok Bot crée, suit, suspend et renouvelle les clés de tes clients, et t'envoie un rapport chaque jour. Pour ta sécurité, la clé de gestion n'est jamais copiée dans une conversation : tu l'enregistres toi-même sur l'ordinateur de Grok Bot.</p>
-        <div class="field"><label for="gmKey">Clé API de gestion (OpenRouter)</label>
-          <div class="row"><input id="gmKey" type="password" placeholder="Colle ta Management key OpenRouter" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button class="btn ghost" id="gmShow" type="button">Afficher</button></div>
-          <div class="keystat" id="gmStat" hidden></div>
-          <small>Facultatif : sert seulement à vérifier la clé et à afficher l'état de tes clés clients. Elle n'est gardée que pendant cette session et n'est jamais envoyée ailleurs qu'à OpenRouter.</small></div>
-        <div class="row"><button class="btn" id="gmCopyNoKey" type="button">Copier les instructions pour Grok Bot</button><a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir Grok Bot</a></div>
-        <textarea id="gmOut" hidden readonly style="min-height:160px;border:0;background:var(--raised);border-radius:12px;padding:11px 14px;font-size:13px"></textarea>
-        <p class="note" style="margin:0">Colle le texte dans l'app Grok Bot (iPhone, Mac ou Windows), jamais en mentionnant @bot sur X : les publications sur X sont publiques.</p>
-      </div>
       <div class="st-sec" id="backupSec"><h3>Sauvegarde</h3>
         <p class="note" id="bkInfo" style="margin:0"></p>
         <p class="note warn-t" id="bkIos" hidden style="margin:0">Sur iPhone, Safari efface les données d'un site non ouvert pendant 7 jours. Ajoute l'app à l'écran d'accueil (Partager → Sur l'écran d'accueil) et sauvegarde régulièrement.</p>
-        <label class="check"><input type="checkbox" id="bkKeys"><span>Inclure mes clés API <span class="note">(garde alors le fichier en lieu sûr)</span></span></label>
+        <p class="note" style="margin:0">Par sécurité, la sauvegarde ne contient jamais tes clés API ni tes jetons de connexion : tu les remettras dans les réglages après une restauration.</p>
         <label class="check"><input type="checkbox" id="bkVideo"><span>Inclure les vidéos <span class="note">(fichier beaucoup plus lourd)</span></span></label>
         <div class="row"><button class="btn" id="bkExport" type="button">Exporter</button><button class="btn ghost" id="bkImport" type="button">Importer</button></div>
         <input type="file" id="bkFile" accept=".json,application/json" hidden>
@@ -1113,7 +1103,6 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       </div>
       <p class="note">Grok Bot n'a pas d'API publique : les tâches passent par son application (iPhone, Mac, Windows) ou par une mention @bot sur X (compte X relié à Grok, pas encore disponible partout). Il faut un abonnement SuperGrok ou Cursor.</p>
       <button class="btn ghost" id="botGrokApi" type="button">Utiliser les modèles Grok via l'API xAI</button>
-      <button class="btn ghost" id="botGm" type="button" hidden>Connecter Grok Bot à la gestion FSM AI</button>
     </div>
   </div>
 </div>
@@ -1782,8 +1771,7 @@ function openSettings(focusKey, which){
   $('#stRouter').checked = S.set.router !== false; $('#stPython').checked = S.set.python !== false; $('#stMemory').checked = S.set.memory !== false;
   $('#bgDay').value = usdToPctInput(S.set.budgetDay); $('#bgMonth').value = usdToPctInput(S.set.budgetMonth); $('#bgConfirm').value = S.set.confirmAbove == null ? '0,50' : String(S.set.confirmAbove).replace('.', ',');
   renderBackupInfo();
-  try{ renderGm(); if (gmKey() && !GM.info) gmVerify(); }catch(e){}
-  if (which === 'budget' || which === 'backup' || which === 'gm') setTimeout(() => $('#' + which + 'Sec')?.scrollIntoView({ block:'start', behavior:'smooth' }), 80);
+  if (which === 'budget' || which === 'backup') setTimeout(() => $('#' + which + 'Sec')?.scrollIntoView({ block:'start', behavior:'smooth' }), 80);
 }
 $('#xaiKey').addEventListener('input', e => { S.xaiKey = e.target.value.trim(); LS.set('relais.xaikey', S.xaiKey); mergeXai(); refreshModelUI(); });
 const PLANS = {
@@ -6526,7 +6514,7 @@ function botWelcomeHtml(){
   return `<div class="welcome"><div class="greet"><span class="logo txt">BOT</span><h1>FSM BOT</h1><p class="note" style="margin:0;max-width:44ch">Veilles automatiques, tâches, mémoire et commandes préparées. Dis-moi ce dont tu as besoin.</p></div><div class="exs">${ex.map(x => `<button class="ex" data-act="ex" data-text="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`;
 }
 $('#fbChat').addEventListener('click', startBot);
-$('#fbGrok').addEventListener('click', () => { closeSheets(); updateBotLinks(); try{ renderGm(); }catch(e){} $('#botSheet').hidden = false; });
+$('#fbGrok').addEventListener('click', () => { closeSheets(); updateBotLinks(); $('#botSheet').hidden = false; });
 setTimeout(checkWatches, 4000);
 
 $('#btnBot').addEventListener('click', openBot);
@@ -7366,6 +7354,20 @@ function scrubVal(v, k, depth){
   }
   return undefined;
 }
+/* Sauvegardes : aucune clé API, clé de gestion, code FSMKEY ni jeton, ni à l'export ni à l'import.
+   Appliqué aux réglages et aux connexions (pas au texte des conversations). */
+const SECRET_NAME_RE = /^(key|keys|apikey|api_key|xaikey|orkey|or_key|mgmtkey|mgmt_key|managementkey|management_key|fsmkey|githubtoken|token|accesstoken|access_token|refreshtoken|refresh_token|secret|clientsecret|client_secret|password)$/i;
+const SECRET_VAL_RE = /^\s*(?:bearer\s+)?(?:sk-or-|sk-|xai-|gh[pousr]_|github_pat_|fsmkey-)[\w-]{8,}/i;
+function stripSecrets(o, depth){
+  depth = depth || 0;
+  if (!o || typeof o !== 'object' || Array.isArray(o) || depth > 6) return o;
+  for (const k of Object.keys(o)){
+    const v = o[k];
+    if (SECRET_NAME_RE.test(k) || (typeof v === 'string' && SECRET_VAL_RE.test(v))){ delete o[k]; continue; }
+    if (v && typeof v === 'object' && !Array.isArray(v)) stripSecrets(v, depth + 1);
+  }
+  return o;
+}
 function cleanBackup(d){
   const arr = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && !Array.isArray(x)) : [];
   const out = { app: d.app, exported: typeof d.exported === 'string' ? d.exported.slice(0, 40) : '' };
@@ -7395,15 +7397,17 @@ function cleanBackup(d){
   if (d.settings && typeof d.settings === 'object'){
     out.settings = {};
     for (const [k, v] of Object.entries(d.settings)){
-      if (['plan', 'variant', 'planAsked', '__proto__', 'constructor', 'prototype'].includes(k)) continue;
+      if (['plan', 'variant', 'planAsked', '__proto__', 'constructor', 'prototype'].includes(k) || SECRET_NAME_RE.test(k)) continue;
       if (k in DEFAULTS ? typeof v === typeof DEFAULTS[k] : ['boolean', 'number'].includes(typeof v) || (typeof v === 'string' && v.length < 20000)) out.settings[k] = v;
     }
   }
   if (d.ledger && typeof d.ledger === 'object') out.ledger = scrubVal(d.ledger, '', 0);
   if (d.adultOk != null) out.adultOk = !!d.adultOk;
-  if (d.keys && typeof d.keys === 'object') out.keys = { openrouter: /^sk-or-[\w-]{10,200}$/.test(d.keys.openrouter || '') ? d.keys.openrouter : '', xai: /^xai-[\w-]{10,200}$/.test(d.keys.xai || '') ? d.keys.xai : '' };
+  /* Clés API, jetons et clé de gestion : jamais importés, quel que soit le contenu du fichier */
   const cn = d.conn && typeof d.conn === 'object' ? d.conn : {};
-  out.conn = { githubToken: /^(gh[pousr]_|github_pat_)\w{10,250}$/.test(cn.githubToken || '') ? cn.githubToken : '', googleClientId: /^[\w-]{5,120}\.apps\.googleusercontent\.com$/.test(cn.googleClientId || '') ? cn.googleClientId : '' };
+  out.conn = { googleClientId: /^[\w-]{5,120}\.apps\.googleusercontent\.com$/.test(cn.googleClientId || '') ? cn.googleClientId : '' };
+  if (out.settings) stripSecrets(out.settings);
+  stripSecrets(out.conn);
   return out;
 }
 async function serializeConv(c, withVideo){
@@ -7427,17 +7431,18 @@ async function reviveConv(c){
   return c;
 }
 async function exportBackup(){
-  const withKeys = $('#bkKeys').checked, withVideo = $('#bkVideo').checked;
+  const withVideo = $('#bkVideo').checked;
   const b = $('#bkExport'); b.disabled = true; b.textContent = 'Préparation…';
   try{
     const convs = [];
     for (const x of S.index){ const c = S.live.get(x.id) || await DB.get('conv:' + x.id); if (c) convs.push(await serializeConv(c, withVideo)); }
     const data = { app:'FSM AI', version:1, exported: new Date().toISOString(),
-      settings: S.set, index: S.index, convs, projects: S.projects,
+      settings: { ...S.set }, index: S.index, convs, projects: S.projects,
       bot: { facts: S.bot.facts, tasks: S.bot.tasks, watches: S.bot.watches.map(w => ({ ...w, running:false })), model: S.bot.model },
       ledger: S.ledger, adultOk: S.adultOk,
-      conn: { ...S.conn, githubToken: withKeys ? S.conn.githubToken : '' },
-      keys: withKeys ? { openrouter: S.key, xai: S.xaiKey } : null };
+      conn: { ...S.conn, githubToken: '' },
+      keys: null };
+    stripSecrets(data.settings); stripSecrets(data.conn);
     const blob = new Blob([JSON.stringify(data)], { type:'application/json' });
     await saveBlob(blob, `fsm-ai-hub-sauvegarde-${dayKey()}.json`);
     LS.set('fsm.lastBackup', Date.now()); renderBackupInfo();
@@ -7469,8 +7474,7 @@ async function importBackup(file){
   S.index = byId(S.index, data.index || []).filter(x => have.has(x.id) || data.convs.some(c => c.id === x.id)).sort((a, b) => (b.t || 0) - (a.t || 0));
   S.bot.facts = byId(S.bot.facts, data.bot?.facts); S.bot.tasks = byId(S.bot.tasks, data.bot?.tasks); S.bot.watches = byId(S.bot.watches, data.bot?.watches);
   S.projects = byId(S.projects, data.projects);
-  if (data.keys){ if (data.keys.openrouter && (!S.key || mode === 'replace')){ S.key = data.keys.openrouter; LS.set('relais.key', S.key); } if (data.keys.xai && (!S.xaiKey || mode === 'replace')){ S.xaiKey = data.keys.xai; LS.set('relais.xaikey', S.xaiKey); } }
-  if (data.conn?.githubToken && !S.conn.githubToken){ S.conn.githubToken = data.conn.githubToken; saveConn(); }
+  /* Les clés API et jetons d'une sauvegarde ne sont jamais importés (voir cleanBackup) */
   if (data.conn?.googleClientId && !S.conn.googleClientId){ S.conn.googleClientId = data.conn.googleClientId; saveConn(); }
   LS.set('relais.index', S.index); saveSettings(); saveBot(); saveProjects(); LS.set('fsm.ledger', S.ledger);
   mergeXai(); renderProjects(); refreshModelUI(); newConv(); closeSheets();
@@ -7857,7 +7861,7 @@ function fetchKeyInfo(force){
       LS.set('fsm.keyinfo', S.keyInfo);
       keyInfoAt = Date.now();
       S.keyState = 'ok';
-      applyKeyPlan(); renderKeyStat(); try{ renderGm(); enforceClientMode(); refreshModelUI(); }catch(e){}
+      applyKeyPlan(); renderKeyStat(); try{ enforceClientMode(); refreshModelUI(); }catch(e){}
       return S.keyInfo;
     }catch(e){ if (k === S.key){ S.keyState = 'err'; renderKeyStat(); } return S.keyInfo; }
     finally{ keyInfoP = null; }
@@ -8025,87 +8029,13 @@ document.addEventListener('click', e => { if (!$('#balPop').hidden && !e.target.
 
 
 /* =====================================================================
-   8. GROK BOT DE GESTION : la clé API de gestion (OpenRouter Management key)
-      est confiée à Grok Bot, qui gère les clés clients de FSM AI depuis son ordinateur.
-      Grok Bot n'a pas d'API entrante : on lui transmet un brief prêt à coller dans son app.
+   8. CLÉ DE GESTION OPENROUTER : supprimée de l'app.
+      L'app ne demande, ne garde et n'envoie jamais de clé de gestion (Management key).
+      La gestion des clés clients se fait uniquement côté serveur FSM AI.
+      Nettoyage des anciennes versions : on efface toute trace éventuelle dans ce navigateur.
    ===================================================================== */
-const GM = { info: null };
-/* La clé de gestion n'est gardée que pour la session (jamais dans le stockage permanent, jamais copiée) */
 try{ localStorage.removeItem('fsm.mgmtkey'); }catch(e){}
-function gmKey(){ try{ return sessionStorage.getItem('fsm.mgmtkey') || ''; }catch(e){ return ''; } }
-function gmSetKey(v){ try{ v ? sessionStorage.setItem('fsm.mgmtkey', v) : sessionStorage.removeItem('fsm.mgmtkey'); }catch(e){} }
-function appLink(){ return /^https?:/.test(location.href) ? location.href.split('#')[0].split('?')[0] : 'l\'adresse GitHub Pages de l\'app FSM AI'; }
-async function gmVerify(){
-  const k = gmKey(); if (!k) return null;
-  $('#gmStat').className = 'keystat wait'; $('#gmStat').innerHTML = '<i></i><span>Vérification de la clé de gestion…</span>'; $('#gmStat').hidden = false;
-  try{
-    const r = await fetch(API + '/keys', { headers: { 'Authorization': 'Bearer ' + k } });
-    if (!r.ok){ GM.info = { ok:false, status:r.status }; }
-    else {
-      const j = await r.json(); const list = j.data || [];
-      const near = list.filter(x => x.limit > 0 && (x.usage || 0) / x.limit >= 0.8 && !x.disabled).length;
-      GM.info = { ok:true, n: list.length, active: list.filter(x => !x.disabled).length, near };
-    }
-  }catch(e){ GM.info = { ok:false, status:0 }; }
-  renderGm(); return GM.info;
-}
-function renderGm(){
-  const sec = document.getElementById('gmSec'); if (!sec) return;
-  const show = S.set.plan === 'unlimited';
-  sec.hidden = !show;
-  const gb = document.getElementById('botGm'); if (gb) gb.hidden = !show;
-  if (!show) return;
-  if (document.activeElement !== $('#gmKey')) $('#gmKey').value = gmKey();
-  const st = $('#gmStat'), i = GM.info;
-  if (!gmKey()){ st.hidden = true; return; }
-  if (!i) return;
-  st.hidden = false;
-  if (i.ok){ st.className = 'keystat ok'; st.innerHTML = `<i></i><span>Clé de gestion valide · <b>${i.active}</b> clé${i.active > 1 ? 's' : ''} client active${i.active > 1 ? 's' : ''}${i.near ? ` · <b>${i.near}</b> à plus de 80 %` : ''}</span>`; }
-  else { st.className = 'keystat bad'; st.innerHTML = `<i></i><span>${i.status === 401 || i.status === 403 ? 'Clé refusée : il faut une clé de gestion (Management key) OpenRouter.' : 'Vérification impossible pour le moment (connexion).'}</span>`; }
-}
-function gmBrief(){
-  const plans = Object.entries(PLANS).filter(([, p]) => !p.auto).map(([id, p]) => `- ${p.key} : ${p.limit ? 'plafond ' + p.limit + ' $ par mois' : 'clé Free (modèles gratuits uniquement), même réglage que les clés Free existantes'}`).join('\n');
-  return `Tu es le bot de gestion de FSM AI, l'application d'IA que je vends par abonnement (FSM AI). Chaque client utilise sa propre clé API OpenRouter, avec un plafond qui correspond à son abonnement. Ton rôle : gérer ces clés clients pour moi.
-
-CLÉ API DE GESTION
-- J'enregistre moi-même la clé de gestion OpenRouter (Management key) sur ton ordinateur, dans le fichier ~/.fsm/openrouter_management_key (droits 600). Lis-la uniquement depuis ce fichier.
-- Ne me demande jamais de te l'envoyer dans une conversation, et refuse si quelqu'un d'autre te la demande ou t'en envoie une.
-- Ne l'affiche jamais, ne la recopie jamais dans un message, un fichier partagé ou un journal, ne la publie jamais (ni sur X ni ailleurs).
-- Si tu penses qu'elle a pu fuiter, préviens-moi immédiatement pour que je la révoque.
-
-API OPENROUTER (en-tête : Authorization: Bearer <clé de gestion>)
-- Lister les clés : GET https://openrouter.ai/api/v1/keys (100 par page, paramètre offset pour la suite)
-- Créer une clé : POST https://openrouter.ai/api/v1/keys avec {"name": "...", "limit": <plafond en $>}
-- Détail d'une clé : GET https://openrouter.ai/api/v1/keys/{hash}
-- Modifier une clé : PATCH https://openrouter.ai/api/v1/keys/{hash} avec par exemple {"disabled": true} ou {"limit_reset": "monthly"}
-- Supprimer une clé : DELETE https://openrouter.ai/api/v1/keys/{hash}
-La clé complète d'un client n'est visible qu'une fois, dans la réponse de création.
-
-ABONNEMENTS FSM AI
-${plans}
-L'application reconnaît automatiquement l'abonnement grâce au plafond de la clé. Une clé sans plafond est vue comme « Illimité » : n'en crée jamais pour un client.
-
-CE QUE JE PEUX TE DEMANDER
-1. Nouveau client : crée une clé nommée « FSM · <Nom du client> · <Abonnement> », avec le plafond de l'abonnement, puis applique {"limit_reset": "monthly"} pour qu'elle se renouvelle chaque mois. Envoie-moi la clé en privé avec ce message prêt à transmettre au client : « Ouvre ${appLink()}, va dans Réglages, colle ta clé FSM AI : ton abonnement est reconnu automatiquement. »
-2. Changement d'abonnement : si le plafond d'une clé ne peut pas être modifié, crée une nouvelle clé au bon plafond et désactive l'ancienne seulement quand je te le confirme.
-3. Suspension ou réactivation : {"disabled": true} ou {"disabled": false}.
-4. Rapport : pour chaque clé client, consommation, plafond, reste et pourcentage. Signale celles à plus de 80 % et celles à la limite.
-5. Suppression : uniquement après ma confirmation explicite.
-
-ROUTINE À ENREGISTRER
-Chaque jour à 9 h (heure de Paris) : rapport court des clés à plus de 80 % ou à la limite, et des clés désactivées. Le 1er de chaque mois : bilan du mois précédent (nombre de clients par abonnement, consommation totale).
-
-RÈGLES
-- Demande-moi confirmation avant toute suppression, désactivation ou création de plus de 3 clés à la fois.
-- Ne communique jamais une clé client publiquement, uniquement à moi en privé.`;
-}
-document.getElementById('gmKey')?.addEventListener('input', e => { gmSetKey(e.target.value.trim()); GM.info = null; renderGm(); clearTimeout(GM.t); if (e.target.value.trim().length >= 20) GM.t = setTimeout(gmVerify, 450); });
-document.getElementById('gmShow')?.addEventListener('click', e => { const i = $('#gmKey'); const s = i.type === 'password'; i.type = s ? 'text' : 'password'; e.target.textContent = s ? 'Masquer' : 'Afficher'; });
-document.getElementById('gmCopyNoKey')?.addEventListener('click', async () => {
-  if (await copyText(gmBrief())) toast('Instructions copiées (sans aucune clé) : colle-les dans l\'app Grok Bot.');
-  else { $('#gmOut').hidden = false; $('#gmOut').value = gmBrief(); $('#gmOut').select(); }
-});
-document.getElementById('botGm')?.addEventListener('click', () => { closeSheets(); openSettings(false, 'gm'); });
+try{ sessionStorage.removeItem('fsm.mgmtkey'); }catch(e){}
 
 
 /* =====================================================================
@@ -8941,6 +8871,22 @@ async function productTestsBody(){
   const msg = { text:'vu <thinking>caché</thinking> fin', reasoning:'brouillon' };
   scrubMsg(msg);
   ok('scrub retire le raisonnement', !msg.reasoning && !/caché|thinking/i.test(msg.text), msg.text);
+  {
+    ok('aucun champ de clé de gestion', !document.getElementById('gmKey') && !document.getElementById('gmSec') && !document.getElementById('botGm') && !document.getElementById('bkKeys') && typeof window.gmVerify === 'undefined');
+    let mg = null; try{ mg = sessionStorage.getItem('fsm.mgmtkey') || localStorage.getItem('fsm.mgmtkey'); }catch(e){}
+    ok('aucune clé de gestion stockée', !mg);
+    const fake = { app:'FSM AI', exported:'2026-10-26T00:00:00Z', convs:[{ id:'bk-test-1', title:'T', messages:[{ role:'user', text:'bonjour' }] }],
+      settings:{ model:'t/m', apiKey:'sk-or-v1-faussecle000000000000', mgmtKey:'x', token:'y', note:'sk-or-v1-faussecle000000000000' },
+      keys:{ openrouter:'sk-or-v1-faussecle000000000000', xai:'xai-faussecle0000000000' },
+      conn:{ githubToken:'ghp_fauxjeton000000000000', googleClientId:'abc-123.apps.googleusercontent.com' } };
+    const cl = cleanBackup(fake), js = JSON.stringify(cl);
+    ok('sauvegarde importée sans clé ni jeton', !cl.keys && !/sk-or-|xai-|ghp_/.test(js) && !('apiKey' in (cl.settings || {})) && !('mgmtKey' in (cl.settings || {})) && !('token' in (cl.settings || {})) && cl.settings.model === 't/m' && cl.conn.googleClientId === 'abc-123.apps.googleusercontent.com' && cl.convs.length === 1, js.slice(0, 160));
+    const ex = { settings:{ model:'t/m', key:'sk-or-v1-x00000000000', xaiKey:'xai-00000000000' }, conn:{ githubToken:'ghp_000000000000', on:true } };
+    stripSecrets(ex.settings); stripSecrets(ex.conn);
+    ok('export sans clé ni jeton', !/sk-or-|xai-|ghp_/.test(JSON.stringify(ex)) && ex.settings.model === 't/m' && ex.conn.on === true);
+    ok('export : code sans option « inclure mes clés »', /keys: null/.test(exportBackup.toString()) && !/withKeys|S\.key|S\.xaiKey/.test(exportBackup.toString()));
+    ok('import : aucune clé restaurée', !/relais\.key|data\.keys|githubToken/.test(importBackup.toString()));
+  }
   const cases = [
     ['génère une image d\'un chat','image'],['fais-moi un visuel d\'un château','image'],['tu peux me dessiner un chien','image'],
     ['dessine un portrait','image'],['crée une vidéo d\'un coucher de soleil','video'],['une petite vidéo de la mer','video'],
