@@ -593,6 +593,7 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .sel:disabled{opacity:.75}
 .welcome.solo{margin:auto;gap:clamp(18px,3.5vh,30px)}
 .greet-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.srv-onb{max-width:460px;margin:4px auto 0;text-align:center;display:grid;gap:10px}.srv-onb p{margin:0}
 .planq{display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;min-width:0}
 .plq-t{font-size:13px;color:var(--muted)}
 .planq.ask .plq-t{color:var(--ink);font-weight:600;font-size:14.5px}
@@ -1055,13 +1056,14 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <input type="file" id="bkFile" accept=".json,application/json" hidden>
       </div>
       <div class="field" id="srvField">
-        <label class="check"><input type="checkbox" id="srvOn"><span>Mode serveur <span class="note">(essai, désactivé par défaut)</span></span></label>
+        <label class="check"><input type="checkbox" id="srvOn"><span>Mode serveur <span class="note">(recommandé)</span></span></label>
         <div id="srvRows" hidden>
+          <p class="note" id="srvHint" hidden>Entre ici ton code FSM AI : il t'a été remis personnellement. Tu n'en as pas ? Décoche « Mode serveur » et utilise ta propre clé OpenRouter, en haut des réglages.</p>
           <div class="row"><input id="srvCode" type="password" placeholder="Code client du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
           <div class="row"><input id="srvBase" type="url" placeholder="Adresse du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
           <div class="row"><button class="btn ghost" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
         </div>
-        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change.</small>
+        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, l'app utilise ta propre clé OpenRouter (mode direct). Ton choix est gardé sur cet appareil.</small>
       </div>
       <div class="danger-zone">
         <button class="btn ghost" id="btnReload">Recharger le catalogue</button>
@@ -1287,6 +1289,13 @@ const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
+/* Nouvel utilisateur = aucune donnée FSM AI sur cet appareil : aucune entrée localStorage « relais.* » ni « fsm.* »
+   (clé OpenRouter, clé xAI, réglages, conversations, choix du mode serveur…). Vérifié en tout premier, avant toute écriture.
+   Seul un nouvel utilisateur reçoit le mode serveur activé par défaut (en attente de son code). Un utilisateur existant
+   garde exactement son mode : rien n'est écrit, et sa clé n'est jamais effacée automatiquement. */
+function fsmFirstRun(){ try{ for (let i = 0; i < localStorage.length; i++){ if (/^(relais|fsm)\./.test(localStorage.key(i) || '')) return false; } return true; }catch(e){ return false; } }
+function srvBootDefault(){ if (!fsmFirstRun()) return false; LS.set('fsm.srv', { on: true, auto: true }); return true; }
+const FSM_FIRST_RUN = srvBootDefault();
 const DB = (() => {
   let dbp = null; const mem = new Map();
   function open(){
@@ -1796,12 +1805,12 @@ function renderPlan(){
 }
 $('#planSel').addEventListener('change', e => { if (e.target.value) setPlan(e.target.value); else { S.set.plan = ''; saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); } });
 let keyDeb = 0;
-$('#apiKey').addEventListener('input', e => { if (serverOn()){ e.target.value = ''; S.key = srvWipeKey(); return; } S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
+$('#apiKey').addEventListener('input', e => { if (serverOn()){ e.target.value = ''; S.key = srvWipeKey(); return; } S.key = e.target.value.trim(); LS.set('relais.key', S.key); if (S.key && srvNeedCode()){ srvSetConf({ on: false }); srvRenderUI(); } renderSend(); if (!S.conv?.messages.length) renderThread();
   S.keyInfo = null; S._exhaustToast = 0; renderBalance(); clearTimeout(keyDeb);
   if (S.set.planAuto){ S.set.plan = ''; S.set.planAuto = false; saveSettings(); renderPlan(); }
   S.keyState = S.key && S.key.length >= 20 ? 'wait' : ''; renderKeyStat();
   if (S.key.length >= 20) keyDeb = setTimeout(() => fetchKeyInfo(true), 350); refreshKeyFp(); });
-$('#srvOn').addEventListener('change', e => { srvSetConf({ on: e.target.checked }); srvKeySwitch(); srvRenderUI(); if (serverOn()) srvLimits().catch(() => {}); });
+$('#srvOn').addEventListener('change', e => { srvSetConf({ on: e.target.checked }); srvKeySwitch(); srvRenderUI(); if (!S.conv?.messages?.length) renderThread(); if (serverOn()) srvLimits().catch(() => {}); });
 $('#srvCode').addEventListener('input', e => { LS.set('fsm.srvcode', e.target.value.trim()); S.srvLimits = null; srvKeySwitch(); if (serverOn()) srvLimits().catch(() => {}); });
 $('#srvBase').addEventListener('change', e => { const v = e.target.value.trim(); if (v && !/^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(v)){ toast('Adresse du serveur invalide (https:// requis).'); e.target.value = srvConf().base; return; } srvSetConf({ base: v || SRV_DEFAULT }); S.srvLimits = null; });
 $('#btnSrvErase').addEventListener('click', () => srvErase());
@@ -2000,6 +2009,11 @@ function srvSetConf(p){ LS.set('fsm.srv', Object.assign(srvConf(), p)); }
 function srvCode(){ return String(LS.get('fsm.srvcode', '') || ''); }
 function srvBootOn(){ try{ const c = LS.get('fsm.srv', {}) || {}; return c.on === true && String(LS.get('fsm.srvcode', '') || '').length >= 16; }catch(e){ return false; } }
 function serverOn(){ return srvConf().on && srvCode().length >= 16; }
+/* mode serveur choisi mais code pas encore saisi : on guide vers le code, ou vers le mode direct */
+function srvNeedCode(){ return srvConf().on && srvCode().length < 16; }
+function srvAskCode(){ openSettings(false); setTimeout(() => { const i = $('#srvCode'); i?.scrollIntoView({ block: 'center', behavior: 'smooth' }); i?.focus(); }, 80); }
+function srvGoDirect(){ srvSetConf({ on: false }); srvKeySwitch(); srvRenderUI(); renderThread(); openSettings(true); toast('Mode direct : ajoute ta clé OpenRouter dans les réglages.'); }
+function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button><button class="keyline" data-act="srvdirect">Utiliser ma propre clé OpenRouter</button></div></div>`; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
 function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
 /* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
@@ -2017,6 +2031,7 @@ function srvRenderUI(){
     const c = srvConf();
     $('#srvOn').checked = c.on; $('#srvRows').hidden = !c.on;
     $('#srvCode').value = srvCode(); $('#srvBase').value = c.base;
+    $('#srvHint').hidden = !srvNeedCode();
     $('#apiKey').disabled = serverOn();
   }catch(e){}
 }
@@ -3510,6 +3525,7 @@ async function send(){
   const text = $('#input').value.trim();
   if (S.busy && !text && !S.pending.length){ S.abort?.abort(); return; }
   if (!text && !S.pending.length) return;
+  if (!isXai(S.set.model) && !S.key && srvNeedCode()){ srvAskCode(); toast('Entre ton code FSM AI pour commencer, ou passe en mode direct avec ta propre clé OpenRouter.'); return; }
   if (isXai(S.set.model) ? !S.xaiKey : !(S.key || serverOn())){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   if (text && !S.pending.length && !S.conv?.bot && !S.voiceActive){
     const pend = pendingPlan(S.conv), pr = planReply(text);
@@ -4715,7 +4731,7 @@ function shortPrice(m, catId){
 }
 function welcomeHtml(){
   const botBtn = `<button class="keyline botline" data-act="fsmbot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg>FSM BOT</button>`;
-  const key = S.key ? '' : `<button class="keyline" data-act="key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 9.2-9.2M17 6l3 3"/></svg>Connecter ma clé</button>`;
+  const key = srvNeedCode() && !S.key ? srvOnboardHtml() : (S.key || serverOn()) ? '' : `<button class="keyline" data-act="key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 9.2-9.2M17 6l3 3"/></svg>Connecter ma clé</button>`;
   const tiles = CATS.filter(c => c.id !== 'all' && !c.notile).map(c => {
     const locked = c.adult && !S.adultOk;
     const noVid = c.id === 'video' && isFreePlan();
@@ -4725,7 +4741,7 @@ function welcomeHtml(){
   }).join('');
   const cur = catById(S.set.category), mi = modelInfo(S.set.model);
   const pick = universalOn() ? `<div class="pick"><span>${esc(brand().name)}</span>${PLANS[S.set.plan] ? `<span>·</span><b>${esc(PLANS[S.set.plan].key)}</b>${keyExhausted() ? '<span>· limite atteinte</span>' : S.set.planAuto ? '' : '<button data-act="planchg">Changer</button>'}` : `<button data-act="more">Modèles</button>`}</div>` : `<div class="pick"><span>${esc(cur.label)} :</span><b>${esc(bare(shortName(S.set.model)))}</b>${mi ? `<span class="pp">${esc(fmtPrice(mi, cur.id))}</span>` : ''}<button data-act="more">Autres modèles</button></div>`;
-  return `<div class="welcome solo"><div class="greet"> <span class="logo" role="img" aria-label="F.S.M AI"></span><h1>Que veux-tu créer aujourd'hui ?</h1>${key ? `<div class="greet-acts">${key}</div>` : ''}</div>${planRowHtml()}${pick}</div>`;
+  return `<div class="welcome solo"><div class="greet"> <span class="logo" role="img" aria-label="F.S.M AI"></span><h1>Que veux-tu créer aujourd'hui ?</h1>${key ? (key.startsWith('<div') ? key : `<div class="greet-acts">${key}</div>`) : ''}</div>${planRowHtml()}${pick}</div>`;
 }
 function syncThread(){
   if (!S.conv || !els.size || $('#thread').classList.contains('home')) return renderThread();
@@ -4773,6 +4789,8 @@ $('#col').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act;
   if (act === 'key') return openSettings(true);
+  if (act === 'srvcode') return srvAskCode();
+  if (act === 'srvdirect') return srvGoDirect();
   if (act === 'openproj') return openProject(S.conv?.project);
   if (act === 'fsmbot') return openBot();
   if (act === 'more') return openModelSheet(S.set.category);
@@ -9634,6 +9652,58 @@ async function productTestsBody(){
       ok('déblocage restauré même après une erreur', threw && cleared && localStorage.getItem('fsm.unlock') === SENT && localStorage.getItem('fsm.weekbase') === wb);
     } finally { lsRestore(before); }
   }
+  /* ===== Mode serveur par défaut pour les nouveaux utilisateurs uniquement ===== */
+  {
+    const appKeys = () => { const a = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i) || ''; if (/^(relais|fsm)\./.test(k)) a.push(k); } return a; };
+    const before = lsSnapshot(appKeys());
+    const keep = { key: S.key, keyInfo: S.keyInfo, keyState: S.keyState, conv: S.conv, lim: S.srvLimits };
+    const clearApp = () => { for (const k of appKeys()) localStorage.removeItem(k); };
+    const KEY = 'sk-or-v1-existinguserkey0000000000000000';
+    try{
+      clearApp();
+      const fresh = fsmFirstRun(), b0 = srvBootDefault(), c0 = srvConf();
+      ok('nouvel utilisateur : mode serveur activé, en attente du code', fresh && b0 && c0.on === true && c0.base === SRV_DEFAULT && srvNeedCode() && !serverOn() && srvBootDefault() === false && srvConf().on === true);
+      S.key = ''; S.conv = null;
+      const w = welcomeHtml(); renderThread();
+      const onb = $('#srvOnb');
+      ok('nouvel utilisateur : message d\u2019accueil en français (code FSM AI ou clé OpenRouter)', /Entrer mon code FSM AI/.test(w) && /data-act="srvdirect"/.test(w) && /Utiliser ma propre clé OpenRouter/.test(w) && !/Connecter ma clé/.test(w) && !!onb && !!onb.querySelector('[data-act="srvcode"]'));
+      srvRenderUI();
+      ok('nouvel utilisateur : aide affichée dans les réglages', $('#srvHint') && $('#srvHint').hidden === false && $('#srvOn').checked === true);
+      /* choix explicite : décocher le mode serveur est gardé, et n'est jamais réactivé au démarrage suivant */
+      $('#srvOn').checked = false; $('#srvOn').dispatchEvent(new Event('change'));
+      const off1 = LS.get('fsm.srv', {}); const boot1 = srvBootDefault();
+      $('#srvOn').checked = true; $('#srvOn').dispatchEvent(new Event('change'));
+      const on2 = LS.get('fsm.srv', {}); const boot2 = srvBootDefault();
+      ok('choix du mode serveur gardé (désactivé puis réactivé)', off1.on === false && boot1 === false && LS.get('fsm.srv', {}).on === true && on2.on === true && boot2 === false && srvConf().on === true);
+      /* saisir sa propre clé pendant l'attente du code = choix du mode direct */
+      $('#apiKey').value = KEY; $('#apiKey').dispatchEvent(new Event('input'));
+      ok('clé OpenRouter saisie pendant l\u2019attente du code : mode direct choisi et clé gardée', srvConf().on === false && LS.get('relais.key', '') === KEY && S.key === KEY);
+      /* « Utiliser ma propre clé OpenRouter » */
+      clearApp(); srvBootDefault(); S.key = '';
+      srvGoDirect(); closeSheets();
+      ok('bouton mode direct : mode serveur désactivé et gardé', srvConf().on === false && LS.get('fsm.srv', {}).on === false && srvBootDefault() === false && !$('#srvOnb'));
+      /* utilisateur existant avec une clé : mode direct et clé intacts */
+      clearApp(); LS.set('relais.key', KEY);
+      const b3 = srvBootDefault();
+      ok('utilisateur existant avec clé : mode direct et clé gardés', b3 === false && localStorage.getItem('fsm.srv') === null && srvConf().on === false && LS.get('relais.key', '') === KEY && !srvNeedCode());
+      /* utilisateur existant sans clé mais avec des données (conversations, clé xAI, réglages) : rien ne change */
+      const others = [['relais.index', []], ['relais.xaikey', 'xai-existing'], ['relais.settings', {}], ['fsm.lastBackup', 1]];
+      const kept = others.every(([k, v]) => { clearApp(); LS.set(k, v); return srvBootDefault() === false && localStorage.getItem('fsm.srv') === null && srvConf().on === false; });
+      ok('utilisateur existant (conversations, clé xAI ou réglages) : mode inchangé', kept);
+      /* utilisateur existant en mode serveur : il le garde, avec son code */
+      clearApp(); LS.set('fsm.srv', { on: true, base: SRV_STAGING }); LS.set('fsm.srvcode', 'CODE-EXISTANT-0000000000');
+      const b4 = srvBootDefault();
+      ok('utilisateur existant en mode serveur : il le garde', b4 === false && srvConf().on === true && srvConf().base === SRV_STAGING && srvCode() === 'CODE-EXISTANT-0000000000' && serverOn() && !srvNeedCode());
+      /* utilisateur existant en mode direct explicite : aucune bascule */
+      clearApp(); LS.set('fsm.srv', { on: false, base: SRV_DEFAULT });
+      ok('utilisateur existant en mode direct choisi : il le garde', srvBootDefault() === false && srvConf().on === false);
+    }catch(e){ ok('mode serveur par défaut : exception', false, e?.message || e); }
+    finally{
+      clearApp(); lsRestore(before);
+      S.key = keep.key; S.keyInfo = keep.keyInfo; S.keyState = keep.keyState; S.conv = keep.conv; S.srvLimits = keep.lim;
+      try{ closeSheets(); srvRenderUI(); $('#apiKey').value = S.key; renderThread(); }catch(e){}
+    }
+  }
   /* ===== Mode serveur (essai) : fetch simulé, aucune requête réelle ===== */
   {
     const keepF = window.fetch, keepAsk = ask, keepPoll = SRV_POLL_MS, wait = ms => new Promise(r => setTimeout(r, ms));
@@ -9651,9 +9721,9 @@ async function productTestsBody(){
     const until = async (fn, ms = 3000) => { const t = Date.now(); while (!fn() && Date.now() - t < ms) await wait(10); return fn(); };
     const mkConv = (asst) => ({ id: tid, title: 'srv', messages: [{ id: uid(), role: 'user', text: 'bonjour', atts: [] }, asst] });
     try{
-      localStorage.removeItem('fsm.srv'); localStorage.removeItem('fsm.srvcode');
+      localStorage.removeItem('fsm.srv'); localStorage.removeItem('fsm.srvcode'); srvRenderUI();
       const runSrc = Function.prototype.toString.call(run);
-      ok('mode serveur désactivé par défaut', srvConf().on === false && !serverOn() && !srvUse({ model: 't/m', mode: 'chat' }, 'chat', {}) && $('#srvOn') && !$('#srvOn').checked && srvConf().base === SRV_DEFAULT && /srvUse\(asst, cat, conv\)\) await runServerJob/.test(runSrc) && /runChat\)\(asst, ctrl\.signal, conv\)/.test(runSrc));
+      ok('mode serveur : sans préférence enregistrée (utilisateur existant), reste désactivé', srvConf().on === false && !serverOn() && !srvUse({ model: 't/m', mode: 'chat' }, 'chat', {}) && $('#srvOn') && !$('#srvOn').checked && srvConf().base === SRV_DEFAULT && /srvUse\(asst, cat, conv\)\) await runServerJob/.test(runSrc) && /runChat\)\(asst, ctrl\.signal, conv\)/.test(runSrc));
       { const href0 = location.href; history.replaceState(null, '', location.pathname + '?api=staging' + location.hash); const b1 = srvApiParam(); const c1 = srvConf(); const clean = !/[?&]api=/.test(location.search);
         history.replaceState(null, '', location.pathname + '?api=prod' + location.hash); const b2 = srvApiParam(); const c2 = srvConf();
         history.replaceState(null, '', location.pathname + '?api=https://evil.test' + location.hash); const b3 = srvApiParam(); const c3 = srvConf();
