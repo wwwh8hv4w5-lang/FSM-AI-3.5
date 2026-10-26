@@ -3340,8 +3340,9 @@ async function send(){
     if (uni?.blocked){ if (weekExhausted() && canUnlock().ok) toast(uni.blocked, { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(uni.blocked); return; }
     if (uni){ cat = uni.cat; if (cat === 'videoedit') blessEditor(); }
   } else {
-    if (freeOnly() && (modeFor(S.set.model) === 'video' || cat === 'video')){ if (!isFreePlan() && weekExhausted() && canUnlock().ok) toast(limitMsg(false), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(isFreePlan() ? FREE_NO_VIDEO : limitMsg(false)); return; }
     const routed = autoRoute(text, cat);
+    /* limite vidéo vérifiée APRÈS autoRoute : un montage vidéo ou un jeu demandé en mode vidéo n'est pas une génération de vidéo */
+    if (videoGate(routed, cat)){ if (!isFreePlan() && weekExhausted() && canUnlock().ok) toast(limitMsg(false), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(isFreePlan() ? FREE_NO_VIDEO : limitMsg(false)); return; }
     /* contrôle de la limite APRÈS autoRoute : une demande de jeu peut passer en mode code, une retouche photo est bloquée sans changer de mode */
     if (routed === 'capped' || (mediaCapped() && (modeFor(S.set.model) === 'image' || ['image', 'photoedit'].includes(routed || cat)))){ imgLimitToast(); return; }
     if (routed){ cat = routed; }
@@ -7725,6 +7726,8 @@ function limitMsg(fallback){
 }
 /* La limite atteinte bascule le routeur sur les modèles gratuits */
 function freeOnly(){ return isFreePlan() || keyExhausted() || weekExhausted(); }
+/* Mode manuel : la génération de vidéo est bloquée à la limite (ou en Free), sauf si autoRoute a basculé en montage vidéo ou en code */
+function videoGate(routed, cat){ return freeOnly() && !['videoedit', 'code'].includes(routed) && (modeFor(S.set.model) === 'video' || cat === 'video'); }
 /* Abonnement payant à la limite (semaine ou mois) : la création et la retouche d'images sont bloquées comme la vidéo,
    sans repli sur un modèle payant. Le texte continue sur les modèles gratuits. « Débloquer ma limite » lève le blocage. */
 function mediaCapped(){ return !isFreePlan() && (keyExhausted() || weekExhausted()); }
@@ -9181,6 +9184,8 @@ async function productTestsBody(){
         finally{ const changed = S.set.model !== 'meta/llama-test:free' || S.set.category !== prev.cat; S.set.model = prev.model; S.pending = prev.pending; S.set.category = prev.cat;
           ok('retouche photo à la limite : pas de bascule de mode', mediaCapped() && ar === 'capped' && !changed, ar); }
         ok('contrôle de limite après autoRoute', sendSrc.indexOf('autoRoute(text, cat)') > 0 && sendSrc.indexOf("routed === 'capped'") > sendSrc.indexOf('autoRoute(text, cat)') && sendSrc.indexOf('imgLimitToast()') > sendSrc.indexOf('autoRoute(text, cat)') && !/Modèle d\\'images économique utilisé|Modèle d'images économique utilisé/.test(sendSrc));
+        const iR = sendSrc.indexOf('autoRoute(text, cat)'), iV = sendSrc.indexOf('videoGate(routed, cat)');
+        ok('montage vidéo : limite vérifiée après autoRoute', iR > 0 && iV > iR && sendSrc.indexOf('FREE_NO_VIDEO') > iR && freeOnly() && videoGate(null, 'video') === true && videoGate('videoedit', 'video') === false && videoGate('code', 'video') === false && videoGate('videoedit', 'videoedit') === false, JSON.stringify({ iR, iV }));
       }
     } finally {
       S.models = saved.models; S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo; S._keyFp = saved.fp;
