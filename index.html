@@ -3000,6 +3000,7 @@ function autoRoute(text, cat){
   }
   const lastImg = !hasImg && /photo|image|portrait|selfie/i.test(t) && lastMedia('image');
   if (!['photoedit', 'image'].includes(cat) && curMode === 'chat' && (hasImg || lastImg) && !hasVid && PEDIT_RE.test(t) && !ASK_RE.test(t)){
+    if (mediaCapped()) return 'capped'; /* limite atteinte : pas de bascule en retouche photo */
     const p = topPick(catById('photoedit')); if (!p) return null;
     S.set.model = p.id; applyPreset(catById('photoedit')); refreshModelUI();
     toast('Retouche photo activée');
@@ -3226,9 +3227,10 @@ async function send(){
     if (uni?.blocked){ if (weekExhausted() && canUnlock().ok) toast(uni.blocked, { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(uni.blocked); return; }
     if (uni){ cat = uni.cat; if (cat === 'videoedit') blessEditor(); }
   } else {
-    if (mediaCapped() && (modeFor(S.set.model) === 'image' || ['image', 'photoedit'].includes(cat))){ if (weekExhausted() && canUnlock().ok) toast(imgLimitMsg(), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(imgLimitMsg()); return; }
     if (freeOnly() && (modeFor(S.set.model) === 'video' || cat === 'video')){ if (!isFreePlan() && weekExhausted() && canUnlock().ok) toast(limitMsg(false), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(isFreePlan() ? FREE_NO_VIDEO : limitMsg(false)); return; }
     const routed = autoRoute(text, cat);
+    /* contrôle de la limite APRÈS autoRoute : une demande de jeu peut passer en mode code, une retouche photo est bloquée sans changer de mode */
+    if (routed === 'capped' || (mediaCapped() && (modeFor(S.set.model) === 'image' || ['image', 'photoedit'].includes(routed || cat)))){ imgLimitToast(); return; }
     if (routed){ cat = routed; }
   }
   if (cat === 'photoedit' && !S.pending.some(a => kindOf(a) === 'image') && !(await attachLast('image'))){ toast('Joins la photo à retoucher.'); $('#file').accept = 'image/*'; $('#file').click(); setTimeout(() => $('#file').accept = '', 1500); return; }
@@ -3256,8 +3258,8 @@ async function send(){
     if (md === 'chat+image' && mediaCapped()){ const r = freeRoute(text, item.atts, S.conv, cat); if (!r){ toast(imgLimitMsg()); return; } item.model = r.model; item.route = { ...r, cat:'chat' }; }
     else if (md === 'image' || md === 'chat+image'){
       const im = freeImageModel(cat === 'photoedit');
-      if (!im){ toast(isFreePlan() ? "Aucun modèle d'images gratuit n'est disponible pour le moment." : "Aucun modèle d'images économique n'est disponible pour le moment."); return; }
-      if (im.id !== item.model){ item.model = im.id; toast(isFreePlan() ? 'Abonnement Free : modèle d\'images gratuit utilisé' : 'Modèle d\'images économique utilisé'); }
+      if (!im){ toast("Aucun modèle d'images gratuit n'est disponible pour le moment."); return; }
+      if (im.id !== item.model){ item.model = im.id; toast('Abonnement Free : modèle d\'images gratuit utilisé'); }
     }
     else if (!mi || !isFree(mi)){ const r = freeRoute(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; toast('Abonnement Free : modèle gratuit utilisé'); } }
   }
@@ -7365,9 +7367,9 @@ function universalRoute(text, atts, conv, forceCat){
     if ((cat === 'image' || cat === 'photoedit') && capped) return { blocked: imgLimitMsg(), cat };
     if (cat === 'image' || cat === 'photoedit'){
       const im = freeImageModel(cat === 'photoedit');
-      if (im) return { cat, model: im.id, route:{ model: im.id, cat, label: INTENT_FR[cat], why: INTENT_FR[cat] + (capped ? ' · modèle le plus économique' : ' · abonnement Free'), universal:true, plan: capped ? (S.set.plan || '') : 'free', imgAspect: cat === 'photoedit' ? 'auto' : undefined } };
-      if (cat === 'photoedit') return { blocked: capped ? "Aucun modèle d'images économique ne sait retoucher une photo jointe pour le moment." : "Aucun modèle d'images gratuit ne sait retoucher une photo jointe : la retouche photo n'est pas disponible avec l'abonnement Free.", cat };
-      return { blocked: capped ? "Aucun modèle d'images économique n'est disponible pour le moment." : "Aucun modèle de génération d'images n'est disponible pour le moment.", cat };
+      if (im) return { cat, model: im.id, route:{ model: im.id, cat, label: INTENT_FR[cat], why: INTENT_FR[cat] + ' · abonnement Free', universal:true, plan: 'free', imgAspect: cat === 'photoedit' ? 'auto' : undefined } };
+      if (cat === 'photoedit') return { blocked: "Aucun modèle d'images gratuit ne sait retoucher une photo jointe : la retouche photo n'est pas disponible avec l'abonnement Free.", cat };
+      return { blocked: "Aucun modèle de génération d'images n'est disponible pour le moment.", cat };
     }
     if (cat === 'search') cat = 'chat';
     if (cat === 'videoedit' && !freeTextModel('videoedit', atts, conv, 'standard')) return { blocked: "Aucun modèle gratuit ne sait analyser une vidéo pour la monter : la retouche vidéo n'est pas disponible avec l'abonnement Free.", cat };
@@ -7589,6 +7591,7 @@ function freeOnly(){ return isFreePlan() || keyExhausted() || weekExhausted(); }
 /* Abonnement payant à la limite (semaine ou mois) : la création et la retouche d'images sont bloquées comme la vidéo,
    sans repli sur un modèle payant. Le texte continue sur les modèles gratuits. « Débloquer ma limite » lève le blocage. */
 function mediaCapped(){ return !isFreePlan() && (keyExhausted() || weekExhausted()); }
+function imgLimitToast(){ if (weekExhausted() && canUnlock().ok) toast(imgLimitMsg(), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(imgLimitMsg()); }
 function imgLimitMsg(){ return limitMsg(false) + " La création d'images reviendra à ce moment-là."; }
 
 function resetShort(){
@@ -8571,7 +8574,19 @@ function visibleMoneyHits(){
   }
   return bad;
 }
+const TEST_LS_KEYS = ['fsm.unlock', 'fsm.weekbase'];
+function lsSnapshot(keys){ const o = {}; for (const k of keys){ try{ o[k] = localStorage.getItem(k); }catch(e){ o[k] = null; } } return o; }
+function lsRestore(snap){ for (const k of Object.keys(snap)){ try{ if (snap[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, snap[k]); }catch(e){} } }
+/* les tests ne doivent jamais effacer le déblocage du mois de la personne : sauvegarde puis restauration, même en cas d'erreur */
+async function withLsGuard(keys, fn){ const snap = lsSnapshot(keys); try{ return await fn(); } finally{ lsRestore(snap); } }
 async function runProductTests(){
+  const snap = lsSnapshot(TEST_LS_KEYS);
+  const out = await withLsGuard(TEST_LS_KEYS, productTestsBody);
+  const kept = TEST_LS_KEYS.every(k => { try{ return localStorage.getItem(k) === snap[k]; }catch(e){ return false; } });
+  out.total++; if (kept) out.pass++; else out.fail.push({ name:'déblocage de la personne restauré après les tests', pass:false, detail:'' });
+  return out;
+}
+async function productTestsBody(){
   const results = [];
   const ok = (name, pass, detail) => results.push({ name, pass: !!pass, detail: detail == null ? '' : String(detail).slice(0, 180) });
   const pump = thinkPump();
@@ -9020,6 +9035,16 @@ async function runProductTests(){
       const after = go('génère une image d\'un chat');
       ok('débloquer ma limite rouvre les images', blockedBefore && unlocked && !mediaCapped() && !after.blocked && after.cat === 'image' && !!after.model);
       try{ localStorage.removeItem('fsm.weekbase'); localStorage.removeItem('fsm.unlock'); }catch(e){}
+      {
+        const prev = { model: S.set.model, pending: S.pending, cat: S.set.category };
+        const sendSrc = Function.prototype.toString.call(send);
+        S.set.model = 'meta/llama-test:free'; S.pending = photo.slice();
+        let ar = null;
+        try{ ar = autoRoute('retire le fond de cette photo', 'chat'); }
+        finally{ const changed = S.set.model !== 'meta/llama-test:free' || S.set.category !== prev.cat; S.set.model = prev.model; S.pending = prev.pending; S.set.category = prev.cat;
+          ok('retouche photo à la limite : pas de bascule de mode', mediaCapped() && ar === 'capped' && !changed, ar); }
+        ok('contrôle de limite après autoRoute', sendSrc.indexOf('autoRoute(text, cat)') > 0 && sendSrc.indexOf("routed === 'capped'") > sendSrc.indexOf('autoRoute(text, cat)') && sendSrc.indexOf('imgLimitToast()') > sendSrc.indexOf('autoRoute(text, cat)') && !/Modèle d\\'images économique utilisé|Modèle d'images économique utilisé/.test(sendSrc));
+      }
     } finally {
       S.models = saved.models; S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo; S._keyFp = saved.fp;
       if (saved.now) window.__fsmNow = saved.now; else delete window.__fsmNow;
@@ -9155,6 +9180,18 @@ async function runProductTests(){
   host.remove();
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
   ok('mouvement réduit', /prefers-reduced-motion:\s*reduce/.test(css) && /gc-mark::before\{animation:none!important\}/.test(css) && /\.gc-bar i\{/.test(css));
+  {
+    const SENT = '{"testfp":{"month":"2099-01","at":"sentinelle"}}';
+    const before = lsSnapshot(TEST_LS_KEYS);
+    let threw = false, cleared = false;
+    try{
+      localStorage.setItem('fsm.unlock', SENT);
+      const wb = localStorage.getItem('fsm.weekbase');
+      try{ await withLsGuard(TEST_LS_KEYS, async () => { localStorage.removeItem('fsm.unlock'); localStorage.setItem('fsm.weekbase', '{}'); cleared = localStorage.getItem('fsm.unlock') == null; throw new Error('échec simulé'); }); }
+      catch(e){ threw = /échec simulé/.test(e.message); }
+      ok('déblocage restauré même après une erreur', threw && cleared && localStorage.getItem('fsm.unlock') === SENT && localStorage.getItem('fsm.weekbase') === wb);
+    } finally { lsRestore(before); }
+  }
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
