@@ -1071,7 +1071,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
           <div class="row"><input id="srvBase" type="url" placeholder="Adresse du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
           <div class="row"><button class="btn ghost" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
         </div>
-        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter n'est alors ni lue ni envoyée depuis cet appareil. Désactivé, rien ne change.</small>
+        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change.</small>
       </div>
       <div class="danger-zone">
         <button class="btn ghost" id="btnReload">Recharger le catalogue</button>
@@ -1338,7 +1338,7 @@ function forgetTemperature(obj){
 const savedSet = LS.get('relais.settings', {}) || {};
 const hadTemperature = forgetTemperature(savedSet);
 const S = {
-  key: srvBootOn() ? '' : LS.get('relais.key', ''),
+  key: srvBootOn() ? srvWipeKey() : LS.get('relais.key', ''),
   set: Object.assign({}, DEFAULTS, savedSet),
   models: LS.get('relais.models', []),
   xaiKey: LS.get('relais.xaikey', ''),
@@ -1808,7 +1808,7 @@ function renderPlan(){
 }
 $('#planSel').addEventListener('change', e => { if (e.target.value) setPlan(e.target.value); else { S.set.plan = ''; saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); } });
 let keyDeb = 0;
-$('#apiKey').addEventListener('input', e => { S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
+$('#apiKey').addEventListener('input', e => { if (serverOn()){ e.target.value = ''; S.key = srvWipeKey(); return; } S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
   S.keyInfo = null; S._exhaustToast = 0; renderBalance(); clearTimeout(keyDeb);
   if (S.set.planAuto){ S.set.plan = ''; S.set.planAuto = false; saveSettings(); renderPlan(); }
   S.keyState = S.key && S.key.length >= 20 ? 'wait' : ''; renderKeyStat();
@@ -2012,9 +2012,11 @@ function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'o
 function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
 /* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
 function srvKind(asst, cat){ const md = asst.mode; if (md === 'chat+image') return ['image', 'photoedit'].includes(cat || asst.cat) ? 'image' : 'chat'; return md; }
-/* clé OpenRouter : retirée de la mémoire en mode serveur, remise en mode direct (elle reste enregistrée sur l'appareil) */
+/* clé OpenRouter : en mode serveur elle est effacée de la mémoire ET de l'appareil (localStorage), et n'est jamais réutilisée.
+   En repassant en mode direct, il faut la ressaisir dans les réglages. */
+function srvWipeKey(){ try{ localStorage.removeItem('relais.key'); }catch(e){} return ''; }
 function srvKeySwitch(){
-  if (serverOn()){ S.key = ''; S.keyInfo = null; S.keyState = ''; }
+  if (serverOn()){ S.key = srvWipeKey(); S.keyInfo = null; S.keyState = ''; }
   else if (!S.key) S.key = LS.get('relais.key', '');
   try{ $('#apiKey').value = S.key; $('#apiKey').disabled = serverOn(); renderKeyStat(); renderSend(); }catch(e){}
 }
@@ -9685,7 +9687,7 @@ async function productTestsBody(){
   /* ===== Mode serveur (essai) : fetch simulé, aucune requête réelle ===== */
   {
     const keepF = window.fetch, keepAsk = ask, keepPoll = SRV_POLL_MS, wait = ms => new Promise(r => setTimeout(r, ms));
-    const snap = lsSnapshot(['fsm.srv', 'fsm.srvcode', 'fsm.srvsince', 'relais.index']);
+    const snap = lsSnapshot(['fsm.srv', 'fsm.srvcode', 'fsm.srvsince', 'relais.index', 'relais.key']);
     const keep = { key: S.key, keyInfo: S.keyInfo, keyState: S.keyState, lim: S.srvLimits, plan: S.set.plan, planAuto: S.set.planAuto, index: S.index.slice() };
     const tid = 'test-srv-' + uid(), JID = '11111111-1111-4111-8111-111111111111', CODE = 'test-code-' + '0'.repeat(20);
     const calls = []; let routes = {};
@@ -9704,8 +9706,8 @@ async function productTestsBody(){
       ok('mode serveur désactivé par défaut', srvConf().on === false && !serverOn() && !srvUse({ model: 't/m', mode: 'chat' }, 'chat', {}) && $('#srvOn') && !$('#srvOn').checked && srvConf().base === SRV_DEFAULT && /srvUse\(asst, cat, conv\)\) await runServerJob/.test(runSrc) && /runChat\)\(asst, ctrl\.signal, conv\)/.test(runSrc));
       window.fetch = mock; SRV_POLL_MS = 5; S.set.plan = 'entreprise';
       LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); LS.set('fsm.srvcode', CODE); S.srvLimits = null;
-      S.key = 'sk-or-v1-servermodetestkey000000000000'; srvKeySwitch();
-      ok('mode serveur : clé OpenRouter retirée de la mémoire', serverOn() && S.key === '' && !srvUse({ model: 'xai:grok', mode: 'chat' }, 'chat', {}) && !srvUse({ model: 't/m', mode: 'chat' }, 'videoedit', {}) && srvUse({ model: 't/m', mode: 'image' }, 'image', {}));
+      S.key = 'sk-or-v1-servermodetestkey000000000000'; LS.set('relais.key', S.key); srvKeySwitch();
+      ok('mode serveur : clé OpenRouter effacée de la mémoire et de l\u2019appareil', localStorage.getItem('relais.key') === null && serverOn() && S.key === '' && !srvUse({ model: 'xai:grok', mode: 'chat' }, 'chat', {}) && !srvUse({ model: 't/m', mode: 'chat' }, 'videoedit', {}) && srvUse({ model: 't/m', mode: 'image' }, 'image', {}));
       /* 1. texte : création, flux par morceaux */
       routes = {
         'POST /v1/jobs': () => J({ id: JID, status: 'queued', gen: 0, seq: 0 }, 201),
@@ -9782,8 +9784,10 @@ async function productTestsBody(){
       LS.set('fsm.srvcode', 'mauvais-code-' + '1'.repeat(10)); routes = {}; routes['GET /v1/limits'] = () => J({ error: { code: 'unauthorized', message: 'x' } }, 401);
       let e9 = null; try{ await srvLimits(); }catch(e){ e9 = e; }
       ok('mode serveur : code refusé expliqué', e9?.status === 401 && /Code client du serveur FSM AI refusé/.test(e9.message));
+      LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); srvKeySwitch();
+      ok('mode serveur : clé jamais réenregistrée ni utilisée', localStorage.getItem('relais.key') === null && S.key === '' && /srvWipeKey\(\)/.test(Function.prototype.toString.call(srvKeySwitch)));
       LS.set('fsm.srv', { on: false }); srvKeySwitch();
-      ok('mode serveur désactivé : clé remise', S.key === LS.get('relais.key', '') && !serverOn());
+      ok('mode serveur désactivé : clé non remise (à ressaisir)', S.key === '' && localStorage.getItem('relais.key') === null && !serverOn());
     }catch(e){ ok('mode serveur : exception', false, e?.message || e); }
     finally{
       await wait(40);
