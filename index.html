@@ -1989,7 +1989,11 @@ async function resumeJob(m, c){
    Désactivé par défaut : le mode direct actuel ne change pas. Activé (avec un code client), les réponses, images et vidéos
    sont créées par le serveur : elles continuent l'application fermée et sont reprises à la réouverture.
    La clé OpenRouter n'est ni lue ni envoyée depuis le navigateur dans ce mode. Le serveur fait foi pour les limites. */
-const SRV_DEFAULT = 'https://fsm-ai-api-staging.fsm-infra.workers.dev';
+const SRV_DEFAULT = 'https://api.fsmai.app';
+const SRV_STAGING = 'https://api-staging.fsmai.app';
+/* ?api=staging (serveur d'essai) ou ?api=prod : change seulement l'adresse, n'active jamais le mode serveur */
+function srvApiParam(){ try{ const u = new URL(location.href); const v = (u.searchParams.get('api') || '').toLowerCase(); if (!v) return ''; const base = v === 'staging' ? SRV_STAGING : (v === 'prod' || v === 'production') ? SRV_DEFAULT : ''; if (!base) return ''; const c = LS.get('fsm.srv', {}) || {}; LS.set('fsm.srv', Object.assign({}, c, { base })); u.searchParams.delete('api'); history.replaceState(null, '', u.pathname + u.search + u.hash); return base; }catch(e){ return ''; } }
+srvApiParam();
 let SRV_POLL_MS = 1000;
 function srvConf(){ const c = LS.get('fsm.srv', {}) || {}; return { on: c.on === true, base: String(c.base || SRV_DEFAULT).replace(/\/+$/, '') }; }
 function srvSetConf(p){ LS.set('fsm.srv', Object.assign(srvConf(), p)); }
@@ -9650,6 +9654,11 @@ async function productTestsBody(){
       localStorage.removeItem('fsm.srv'); localStorage.removeItem('fsm.srvcode');
       const runSrc = Function.prototype.toString.call(run);
       ok('mode serveur désactivé par défaut', srvConf().on === false && !serverOn() && !srvUse({ model: 't/m', mode: 'chat' }, 'chat', {}) && $('#srvOn') && !$('#srvOn').checked && srvConf().base === SRV_DEFAULT && /srvUse\(asst, cat, conv\)\) await runServerJob/.test(runSrc) && /runChat\)\(asst, ctrl\.signal, conv\)/.test(runSrc));
+      { const href0 = location.href; history.replaceState(null, '', location.pathname + '?api=staging' + location.hash); const b1 = srvApiParam(); const c1 = srvConf(); const clean = !/[?&]api=/.test(location.search);
+        history.replaceState(null, '', location.pathname + '?api=prod' + location.hash); const b2 = srvApiParam(); const c2 = srvConf();
+        history.replaceState(null, '', location.pathname + '?api=https://evil.test' + location.hash); const b3 = srvApiParam(); const c3 = srvConf();
+        history.replaceState(null, '', href0); localStorage.removeItem('fsm.srv');
+        ok('mode serveur : production par défaut, essai via ?api=staging sans activation', SRV_DEFAULT === 'https://api.fsmai.app' && b1 === SRV_STAGING && c1.base === SRV_STAGING && c1.on === false && clean && b2 === SRV_DEFAULT && c2.base === SRV_DEFAULT && c2.on === false && b3 === '' && c3.base === SRV_DEFAULT && srvConf().base === SRV_DEFAULT); }
       window.fetch = mock; SRV_POLL_MS = 5; S.set.plan = 'entreprise';
       LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); LS.set('fsm.srvcode', CODE); S.srvLimits = null;
       S.key = 'sk-or-v1-servermodetestkey000000000000'; LS.set('relais.key', S.key); srvKeySwitch();
