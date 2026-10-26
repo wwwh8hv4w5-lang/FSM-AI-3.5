@@ -2179,6 +2179,12 @@ function srvBody(asst, user, conv, cat){
   if (k === 'image'){ const refs = (user.atts || []).filter(a => kindOf(a) === 'image' && a.data).map(a => a.data).slice(0, 4); if (refs.length) b.input_references = refs; }
   return b;
 }
+/* étapes affichées au client pendant une tâche : jamais de mention du serveur */
+function srvStepMsg(m, kind, cat){
+  if (kind === 'chat') return 'Réflexion en cours…';
+  if (kind === 'video') return 'Création de ta vidéo…';
+  return (cat || m.cat) === 'photoedit' ? 'Retouche de ton image…' : 'Création de ton image…';
+}
 async function runServerJob(asst, user, signal, conv, cat){
   const kind = asst.srv?.kind || srvKind(asst, cat);
   if (!asst.srv && kind !== 'chat'){
@@ -2186,7 +2192,7 @@ async function runServerJob(asst, user, signal, conv, cat){
     if (mediaCapped()) throw Object.assign(new Error(kind === 'video' ? limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.' : imgLimitMsg()), { limit: true });
   }
   if (!asst.srv){
-    asst.status = 'Envoi au serveur FSM AI…'; paint(asst);
+    asst.status = srvStepMsg(asst, kind, cat); paint(asst);
     const j = await srvFetch('/v1/jobs', { method: 'POST', body: srvBody(asst, user, conv, cat), signal });
     if (!j?.id) throw new Error('Réponse invalide du serveur FSM AI.');
     asst.srv = { id: j.id, kind, t0: Date.now() };
@@ -2214,7 +2220,7 @@ async function srvFollow(asst, signal){
     }
     if (v.status === 'error') throw Object.assign(new Error(v.error?.message || 'Erreur du serveur FSM AI.'), { code: v.error?.code || '', srvJob: true });
     if (v.status === 'cancelled') throw new DOMException('Arrêté', 'AbortError');
-    asst.status = chat ? (asst.text ? '' : 'Réflexion en cours…') : srv.kind === 'image' ? 'Création de l\'image sur le serveur FSM AI…' : 'Création de la vidéo sur le serveur FSM AI…';
+    asst.status = chat ? (asst.text ? '' : 'Réflexion en cours…') : srvStepMsg(asst, srv.kind);
     paint(asst);
     await sleep(chat ? SRV_POLL_MS : SRV_POLL_MS * 3, signal);
   }
@@ -2254,7 +2260,7 @@ async function resumeSrv(m, c){
   Object.defineProperty(m, '_live', { value: true, writable: true, configurable: true });
   Object.defineProperty(m, '_conv', { value: c, configurable: true });
   m.mode = m.srv.kind || m.mode; m.images = m.images || []; m.videos = m.videos || [];
-  m.status = 'Reprise depuis le serveur FSM AI…'; delete m.interrupted;
+  m.status = srvStepMsg(m, m.srv.kind); delete m.interrupted;
   paint(m); const unlock = genLock(c.id); let keep = false;
   try{ await srvFollow(m, new AbortController().signal); }
   catch(e){
@@ -4662,6 +4668,7 @@ function mediaOf(m){
 }
 
 /* ---------- Carte de génération animée (images, vidéos, retouches, montage) ---------- */
+const GEN_IMAGE_MSG = 'Création de ton image';
 const GEN_STAGES = {
   image: ['Composition', 'Formes', 'Lumière', 'Couleurs', 'Détails', 'Finitions'],
   edit: ['Analyse de la photo', 'Masques', 'Retouche', 'Harmonisation', 'Finitions'],
@@ -4695,7 +4702,7 @@ function genCardHtml(m, kind){
     <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div><div class="gc-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span>${GEN_MARK}</div>
       <div class="gc-bar${pc != null ? ' det' : ''}"${pc != null ? ` style="--p:${pc}%"` : ''}><i></i></div>
-      ${kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Réflexion en cours|Création de l'image|Création de l'image avec Grok|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
+      ${kind === 'image' ? `<div class="gc-sub"><span class="gc-msg">${GEN_IMAGE_MSG}</span></div>` : kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Réflexion en cours|Création de l'image|Création de l'image avec Grok|Création de ton image|Création de ta vidéo|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
 }
 const VIDEO_LATER = 'Revenez plus tard, votre vidéo est en cours de préparation.';
 let genTick = 0;
@@ -9605,6 +9612,11 @@ async function productTestsBody(){
   const devCard = devCardHtml('canvas', 'html');
   ok('image sans compteur', imgCard.includes('class="gc-mark"') && !imgCard.includes('gc-time') && imgCard.includes('gc-bar') && !/\d+:\d{2}/.test(imgCard));
   ok('image : réflexion en cours', /<span class="gc-title">Réflexion en cours<\/span>/.test(imgCard) && !/Création de l'image/.test(imgCard) && !/Réflexion en cours · /.test(imgCard) && /aria-label="Réflexion en cours"/.test(imgCard) && !/en cours en cours/.test(imgCard) && !/Création de l'image/.test(genCardHtml({ status: "Création de l'image avec Grok…" }, 'image')) && !/ · /.test(genCardHtml({ status: "Création de l'image avec Grok…" }, 'image').split('gc-msg')[1] || ''));
+  { const srvImg = genCardHtml({ status: srvStepMsg({}, 'image'), imgAspect: '1:1' }, 'image'), oldSrv = genCardHtml({ status: "Création de l'image sur le serveur FSM AI…" }, 'image');
+    const sub = c => (c.match(/<div class="gc-sub">([\s\S]*?)<\/div>/) || [])[1] || '';
+    const txt = c => sub(c).replace(/<[^>]+>/g, '');
+    ok('image : titre Réflexion en cours, ligne unique « Création de ton image »', [imgCard, srvImg, oldSrv].every(c => /<span class="gc-title">Réflexion en cours<\/span>/.test(c) && txt(c) === 'Création de ton image' && !/gc-stage/.test(sub(c)) && !/serveur|Détails/i.test(c.replace(/<[^>]*>/g, ' '))));
+    ok('étapes client sans mention du serveur', srvStepMsg({}, 'image') === 'Création de ton image…' && srvStepMsg({ cat: 'photoedit' }, 'image') === 'Retouche de ton image…' && srvStepMsg({}, 'image', 'photoedit') === 'Retouche de ton image…' && srvStepMsg({}, 'video') === 'Création de ta vidéo…' && srvStepMsg({}, 'chat') === 'Réflexion en cours…' && ![runServerJob, srvFollow, resumeSrv].some(f => /status = '[^']*serveur/i.test(Function.prototype.toString.call(f))) && !/serveur/i.test(genCardHtml({ status: srvStepMsg({ cat: 'photoedit' }, 'image') }, 'edit').replace(/<[^>]*>/g, ' ')) && !/serveur/i.test(vidCard)); }
   ok('vidéo sans compteur', vidCard.includes('class="gc-mark"') && !vidCard.includes('gc-time') && vidCard.includes('class="gc-bar"') && /Revenez plus tard/.test(vidCard));
   ok('code sans compteur', devCard.includes('class="gc-mark"') && !devCard.includes('gc-time') && devCard.includes('gc-bar'));
   const host = document.createElement('div');
