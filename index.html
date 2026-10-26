@@ -1804,8 +1804,8 @@ $('#xaiKey').addEventListener('input', e => { if (srvLocked()){ e.target.value =
 const PLANS = {
   free:{ name:'FSM AI Free', key:'Free', limit:0 },
   entreprise:{ name:'FSM AI Entreprise', key:'Entreprise', limit:18 },
-  competence:{ name:'FSM AI Compétence', key:'Compétence', limit:50 },
-  elite:{ name:'FSM AI Élite', key:'Élite', limit:200 },
+  competence:{ name:'FSM AI Compétence', key:'Compétence', limit:45 },
+  elite:{ name:'FSM AI Élite', key:'Élite', limit:180 },
   unlimited:{ name:'FSM AI Illimité', key:'Illimité', limit:null, auto:true }
 };
 function renderPlan(){
@@ -8454,10 +8454,10 @@ const TIER_CARDS = {
   entreprise:{ plan:'Entreprise', model:'FSM AI CORSER 5.0', price:'18 $', hue:'tier-e', power:2,
     pitch:"L'essentiel de l'IA professionnelle, sans compter chaque question.",
     perks:["3 modèles CORSER (5.0, PRO 5.5, MAX 6.0)", "Les grands modèles du marché, choisis pour chaque demande", "Création d'images et de vidéos, retouche photo et montage vidéo avec FSM AI EDITUM", "Recherche web à jour, analyse de PDF, de photos et de vidéos", "FSM BOT, mode vocal, connecteurs Gmail, Agenda, Drive et GitHub", "Usage du mois optimisé au meilleur coût"] },
-  competence:{ plan:'Compétence', model:'FSM AI NEURAL 5.5', price:'50 $', hue:'tier-c', power:4,
+  competence:{ plan:'Compétence', model:'FSM AI NEURAL 5.5', price:'45 $', hue:'tier-c', power:4,
     pitch:"La puissance des meilleurs modèles dès que ta demande devient sérieuse.",
     perks:["3 modèles NEURAL (5.5, PRO 5.8, MAX 6.0) + toute la gamme CORSER", "Les modèles les plus puissants pour les analyses, le code et la rédaction exigeante", "Raisonnement approfondi activé automatiquement sur les sujets complexes", "Images et retouches avec les meilleurs modèles du moment, pas les plus économiques", "Vidéos plus nombreuses et plus longues", "La liberté de travailler sans retenue dans ton forfait"] },
-  elite:{ plan:'Élite', model:'FSM AI OMEGA 8.0', price:'200 $', hue:'tier-o', power:5,
+  elite:{ plan:'Élite', model:'FSM AI OMEGA 8.0', price:'180 $', hue:'tier-o', power:5,
     pitch:"Le sommet de FSM AI : chaque réponse, chaque image, chaque vidéo au niveau maximal.",
     perks:["3 modèles OMEGA (8.0, PRO 8.5, MAX 9.0) + les gammes NEURAL et CORSER", "Le modèle le plus puissant disponible dès que la demande le justifie", "Un modèle haut de gamme même pour les questions du quotidien", "Images, retouches et vidéos premium, sans compromis sur la qualité", "Projets intensifs : rapports, campagnes, code, montages en série", "Le plus haut volume d'usage, bien au-delà de l'Entreprise"] }
 };
@@ -8987,6 +8987,7 @@ async function productTestsBody(){
   const msg = { text:'vu <thinking>caché</thinking> fin', reasoning:'brouillon' };
   scrubMsg(msg);
   ok('scrub retire le raisonnement', !msg.reasoning && !/caché|thinking/i.test(msg.text), msg.text);
+  ok('plafonds des abonnements 18 / 45 / 180 $ (quota semaine 30 %)', PLANS.entreprise.limit === 18 && PLANS.competence.limit === 45 && PLANS.elite.limit === 180 && TIER_CARDS.entreprise.price === '18 $' && TIER_CARDS.competence.price === '45 $' && TIER_CARDS.elite.price === '180 $' && WEEK_SHARE === 0.30, [PLANS.entreprise.limit, PLANS.competence.limit, PLANS.elite.limit].join('/'));
   {
     ok('aucun champ de clé de gestion', !document.getElementById('gmKey') && !document.getElementById('gmSec') && !document.getElementById('botGm') && !document.getElementById('bkKeys') && typeof window.gmVerify === 'undefined');
     let mg = null; try{ mg = sessionStorage.getItem('fsm.mgmtkey') || localStorage.getItem('fsm.mgmtkey'); }catch(e){}
