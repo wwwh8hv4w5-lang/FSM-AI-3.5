@@ -1281,6 +1281,294 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 <div class="drop" id="drop" hidden>Dépose tes fichiers ici</div>
 <div class="toast" id="toast" hidden></div>
 
+<script>
+/* ===== Déménagement : ancienne adresse (github.io) → domaine FSM AI =====
+   Interrupteur unique : FSM_MOVE.on. Activé (true) par le dernier commit de la PR : fusionner = mise en service,
+   annuler ce seul commit (git revert) = retour arrière (on: false, l'app redevient normale pour tous).
+   - Ancienne adresse (from) : page de transition ; le transfert ouvre la nouvelle adresse dans un nouvel onglet
+     et lui passe les données par postMessage (origines vérifiées dans les deux sens). Rien ne passe par une URL,
+     un serveur ou un stockage tiers. Sans données : redirection directe. Après un transfert réussi : redirection.
+   - Nouvelle adresse (to + path) : page de réception ; fusion sans écraser les données plus récentes.
+   - En cas d'échec, les données restent intactes sur l'ancienne adresse (rien n'y est effacé) et le transfert
+     manuel (Réglages › Sauvegarde, fichier sans clé) est proposé. */
+const FSM_MOVE = Object.freeze({ on: true, from: 'https://wwwh8hv4w5-lang.github.io', to: 'https://app.fsmai.app', path: '/migrer' });
+const FSMMove = (() => {
+  const V = 1, TIMEOUT = 90000;
+  const LS_KEYS = ['relais.settings', 'relais.models', 'relais.tts', 'relais.stt', 'relais.adult18', 'relais.index', 'relais.draft',
+    'fsm.projects', 'fsm.bot', 'fsm.bottask', 'fsm.ledger', 'fsm.usage', 'fsm.unlock', 'fsm.levelhint', 'fsm.weekbase',
+    'fsm.lastBackup', 'fsm.conn', 'fsm.srv', 'fsm.srvsince', 'fsm.onboard'];
+  const CONV_KEY = /^conv:[\w-]{1,80}$/;
+  const BAD_KEY = k => k === '__proto__' || k === 'constructor' || k === 'prototype';
+  const SECRET_NAME = /^(key|keys|apikey|api_key|xaikey|orkey|or_key|mgmtkey|mgmt_key|managementkey|management_key|fsmkey|githubtoken|token|accesstoken|access_token|refreshtoken|refresh_token|secret|clientsecret|client_secret|password)$/i;
+  const SECRET_VAL = /^\s*(?:bearer\s+)?(?:sk-or-|sk-|xai-|gh[pousr]_|github_pat_|fsmkey-)[\w-]{8,}/i;
+  const OR_RE = /^sk-or-v1-[\w-]{16,200}$/, XAI_RE = /^xai-[\w-]{10,200}$/, CODE_RE = /^[\w-]{16,200}$/;
+  const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  const parse = raw => { if (raw == null) return undefined; try{ return JSON.parse(raw); }catch(e){ return undefined; } };
+  function strip(o, d){
+    d = d || 0; if (!isObj(o) || d > 6) return o;
+    for (const k of Object.keys(o)){
+      const v = o[k];
+      if (BAD_KEY(k) || SECRET_NAME.test(k) || (typeof v === 'string' && SECRET_VAL.test(v))){ delete o[k]; continue; }
+      if (isObj(v)) strip(v, d + 1);
+    }
+    return o;
+  }
+  /* stockage réel du navigateur (localStorage + IndexedDB « relais », magasin « kv ») */
+  function browserStore(){
+    let dbp = null;
+    const db = () => dbp || (dbp = new Promise(res => { try{ const r = indexedDB.open('relais', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }catch(e){ res(null); } }));
+    const req = q => new Promise((res, rej) => { q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    return {
+      lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+      lsSet(k, v){ localStorage.setItem(k, v); },
+      async kvKeys(){ const d = await db(); return d ? req(d.transaction('kv').objectStore('kv').getAllKeys()) : []; },
+      async kvGet(k){ const d = await db(); return d ? req(d.transaction('kv').objectStore('kv').get(k)) : undefined; },
+      async kvSet(k, v){ const d = await db(); if (!d) throw new Error('IndexedDB indisponible');
+        const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k);
+        await new Promise((res, rej) => { tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); }); }
+    };
+  }
+  async function convKeys(store){ return (await store.kvKeys()).map(String).filter(k => CONV_KEY.test(k)); }
+  /* « a des données » : conversations, projets, souvenirs, réglages modifiés, clé ou code. Les caches (liste de modèles…) ne comptent pas. */
+  async function hasData(store){
+    const full = k => { const v = parse(store.lsGet(k)); return Array.isArray(v) ? v.length > 0 : isObj(v) ? Object.keys(v).length > 0 : typeof v === 'string' ? v.length > 0 : false; };
+    if (['relais.index', 'fsm.projects', 'relais.settings', 'relais.key', 'relais.xaikey', 'fsm.srvcode'].some(full)) return true;
+    const b = parse(store.lsGet('fsm.bot'));
+    if (isObj(b) && ['facts', 'tasks', 'watches'].some(f => Array.isArray(b[f]) && b[f].length)) return true;
+    try{ return (await convKeys(store)).length > 0; }catch(e){ return true; }
+  }
+  /* paquet transmis UNIQUEMENT par postMessage vers l'origine cible exacte ; jamais écrit dans un fichier ni une URL */
+  async function buildPayload(store){
+    const ls = {};
+    for (const k of LS_KEYS){ const v = parse(store.lsGet(k)); if (v === undefined) continue; if (isObj(v)) strip(v); ls[k] = JSON.stringify(v); }
+    const kv = [];
+    for (const k of await convKeys(store)){ const v = await store.kvGet(k); if (isObj(v)) kv.push([k, v]); }
+    const secrets = {};
+    const srv = parse(store.lsGet('fsm.srv')), code = parse(store.lsGet('fsm.srvcode'));
+    const srvOn = isObj(srv) && srv.on === true && typeof code === 'string' && code.length >= 16;
+    const orKey = parse(store.lsGet('relais.key')), xai = parse(store.lsGet('relais.xaikey'));
+    const locked = parse(store.lsGet('fsm.onboard')) === 'serveur';   /* utilisateur marqué (PR #20) : aucune clé OpenRouter ni xAI */
+    if (!srvOn && !locked && typeof orKey === 'string' && OR_RE.test(orKey)) secrets.orKey = orKey;   /* mode serveur : la clé OpenRouter ne part jamais (règle PR #19) */
+    if (!locked && typeof xai === 'string' && XAI_RE.test(xai)) secrets.xaiKey = xai;
+    if (typeof code === 'string' && CODE_RE.test(code)) secrets.srvCode = code;
+    return { fsmMove: 'data', v: V, ls, kv, secrets };
+  }
+  function validate(p){
+    if (!isObj(p) || p.fsmMove !== 'data' || p.v !== V || !isObj(p.ls) || !Array.isArray(p.kv) || p.kv.length > 20000) throw new Error('format');
+    const out = { ls: {}, kv: [], secrets: {} };
+    for (const k of LS_KEYS){
+      const raw = p.ls[k]; if (typeof raw !== 'string' || raw.length > 5e6) continue;
+      const v = parse(raw); if (v === undefined) continue; if (isObj(v)) strip(v); out.ls[k] = v;
+    }
+    if (out.ls['relais.index'] !== undefined && !Array.isArray(out.ls['relais.index'])) delete out.ls['relais.index'];
+    if (out.ls['fsm.onboard'] !== undefined && out.ls['fsm.onboard'] !== 'serveur') delete out.ls['fsm.onboard'];
+    for (const e of p.kv){
+      if (!Array.isArray(e) || e.length !== 2) continue;
+      const [k, v] = e;
+      if (typeof k !== 'string' || !CONV_KEY.test(k) || !isObj(v) || v.id !== k.slice(5) || !Array.isArray(v.messages)) continue;
+      out.kv.push([k, v]);
+    }
+    const s = isObj(p.secrets) ? p.secrets : {};
+    if (typeof s.orKey === 'string' && OR_RE.test(s.orKey)) out.secrets.orKey = s.orKey;
+    if (typeof s.xaiKey === 'string' && XAI_RE.test(s.xaiKey)) out.secrets.xaiKey = s.xaiKey;
+    if (typeof s.srvCode === 'string' && CODE_RE.test(s.srvCode)) out.secrets.srvCode = s.srvCode;
+    if (isObj(out.ls['fsm.srv']) && out.ls['fsm.srv'].on === true && out.secrets.srvCode) delete out.secrets.orKey;
+    if (out.ls['fsm.onboard'] === 'serveur'){ delete out.secrets.orKey; delete out.secrets.xaiKey; }
+    return out;
+  }
+  /* fusion : ce qui existe déjà côté nouveau gagne ; les listes à id sont réunies ; les conversations les plus récentes gagnent */
+  function mergeVal(cur, inc){
+    if (cur === undefined || cur === null) return inc;
+    if (Array.isArray(cur) && Array.isArray(inc)){
+      if (!cur.concat(inc).every(x => isObj(x) && typeof x.id === 'string')) return cur;
+      const ids = new Set(cur.map(x => x.id)); return cur.concat(inc.filter(x => !ids.has(x.id)));
+    }
+    if (isObj(cur) && isObj(inc)){ for (const k of Object.keys(inc)) if (!BAD_KEY(k)) cur[k] = mergeVal(cur[k], inc[k]); return cur; }
+    return cur;
+  }
+  async function merge(store, d){
+    const r = { convAdded: 0, convUpdated: 0, convKept: 0, settings: 0, secrets: 0 };
+    const curIdx = parse(store.lsGet('relais.index'));
+    const have = await convKeys(store);
+    const fresh = !have.length && !(Array.isArray(curIdx) && curIdx.length) && !['relais.key', 'relais.xaikey', 'fsm.srvcode'].some(k => parse(store.lsGet(k)));
+    const titles = [];
+    for (const [k, v] of d.kv){
+      const cur = await store.kvGet(k);
+      if (!isObj(cur)){ await store.kvSet(k, v); r.convAdded++; }
+      else if ((+v.t || 0) > (+cur.t || 0)){ await store.kvSet(k, v); r.convUpdated++; }
+      else r.convKept++;
+      titles.push({ id: v.id, title: typeof v.title === 'string' ? v.title : 'Conversation', t: +v.t || 0 });
+    }
+    for (const [k, inc] of Object.entries(d.ls)){
+      if (k === 'relais.index') continue;
+      const raw = store.lsGet(k), next = fresh ? inc : mergeVal(parse(raw), inc), out = JSON.stringify(next);
+      if (out !== raw){ store.lsSet(k, out); r.settings++; }
+    }
+    const byId = new Map();
+    for (const x of [].concat(Array.isArray(curIdx) ? curIdx : [], d.ls['relais.index'] || [], titles)){
+      if (!isObj(x) || typeof x.id !== 'string' || BAD_KEY(x.id)) continue;
+      const p = byId.get(x.id); if (!p || (+x.t || 0) > (+p.t || 0)) byId.set(x.id, p ? Object.assign({}, p, x) : x);
+    }
+    store.lsSet('relais.index', JSON.stringify([...byId.values()].sort((a, b) => (+b.t || 0) - (+a.t || 0))));
+    const put = (k, v) => { if (v && !parse(store.lsGet(k))){ store.lsSet(k, JSON.stringify(v)); r.secrets++; } };
+    put('fsm.srvcode', d.secrets.srvCode);
+    const srv = parse(store.lsGet('fsm.srv')), code = parse(store.lsGet('fsm.srvcode')), locked = parse(store.lsGet('fsm.onboard')) === 'serveur';
+    if (!locked) put('relais.xaikey', d.secrets.xaiKey);   /* le marqueur « serveur » n'est jamais retiré ; marqué = aucune clé écrite */
+    if (!locked && !(isObj(srv) && srv.on === true && typeof code === 'string' && code.length >= 16)) put('relais.key', d.secrets.orKey);
+    store.lsSet('fsm.move.in', JSON.stringify({ t: Date.now(), n: d.kv.length }));
+    return r;
+  }
+  const rand = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return [...a].map(x => x.toString(16).padStart(2, '0')).join(''); };
+  /* côté ancienne adresse */
+  function send(env){
+    return new Promise(resolve => {
+      const nonce = rand(); let pop = null, sent = false, over = false, timer = 0;
+      const finish = (res, extra) => { if (over) return; over = true; clearTimeout(timer); env.win.removeEventListener('message', on); resolve(Object.assign({ res }, extra || {})); };
+      async function on(ev){
+        if (ev.origin !== env.to || !pop || ev.source !== pop || !isObj(ev.data)) return;
+        const m = ev.data;
+        if (m.fsmMove === 'ready' && !sent){
+          sent = true; let p;
+          try{ p = await buildPayload(env.store); }catch(e){ return finish('error', { why: 'lecture des données impossible' }); }
+          p.nonce = nonce;
+          try{ pop.postMessage(p, env.to); }catch(e){ return finish('error', { why: 'envoi impossible' }); }
+          env.onStep && env.onStep('sent');
+        } else if (m.fsmMove === 'done' && m.nonce === nonce){
+          try{ env.store.lsSet('fsm.move.done', JSON.stringify({ t: Date.now(), to: env.to })); }catch(e){}
+          try{ pop.postMessage({ fsmMove: 'close', nonce }, env.to); }catch(e){}
+          finish('done', { stats: isObj(m.res) ? m.res : {} });
+        } else if (m.fsmMove === 'fail' && m.nonce === nonce) finish('fail', { why: 'la nouvelle adresse n’a pas pu enregistrer les données' });
+      }
+      env.win.addEventListener('message', on);
+      try{ pop = env.open(env.to + env.path); }catch(e){ pop = null; }
+      if (!pop) return finish('blocked');
+      timer = setTimeout(() => finish('timeout'), env.timeout || TIMEOUT);
+    });
+  }
+  /* côté nouvelle adresse */
+  function receive(env){
+    return new Promise(resolve => {
+      if (!env.opener) return resolve({ res: 'noopener' });
+      let got = false, over = false, nonce = '', stats = null, timer = 0, iv = 0, closeT = 0;
+      const finish = (res, extra) => { if (over) return; over = true; clearTimeout(timer); clearTimeout(closeT); clearInterval(iv); env.win.removeEventListener('message', on); resolve(Object.assign({ res }, extra || {})); };
+      const reply = m => { try{ env.opener.postMessage(m, env.from); }catch(e){} };
+      async function on(ev){
+        if (ev.origin !== env.from || ev.source !== env.opener || !isObj(ev.data)) return;
+        const m = ev.data;
+        if (m.fsmMove === 'data' && !got){
+          got = true; clearInterval(iv); nonce = typeof m.nonce === 'string' ? m.nonce.slice(0, 64) : '';
+          try{ stats = await merge(env.store, validate(m)); }
+          catch(e){ reply({ fsmMove: 'fail', nonce }); return finish('fail'); }
+          env.onStep && env.onStep('merged', stats);
+          reply({ fsmMove: 'done', nonce, res: stats });
+          closeT = setTimeout(() => finish('done', { stats }), env.closeWait || 4000);
+        } else if (m.fsmMove === 'close' && got && m.nonce === nonce) finish('done', { stats, closed: true });
+      }
+      env.win.addEventListener('message', on);
+      reply({ fsmMove: 'ready', v: V });
+      iv = setInterval(() => { if (!got) reply({ fsmMove: 'ready', v: V }); }, 600);
+      timer = setTimeout(() => finish('timeout'), env.timeout || TIMEOUT);
+    });
+  }
+  /* ----- écrans ----- */
+  const CSS = '#fsmMove{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:24px;background:radial-gradient(1200px 600px at 50% -10%,#2a2a33 0%,#121214 60%);color:#ECECF0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}'
+    + '#fsmMove .mv-card{width:min(460px,100%);background:#1B1B1F;border:1px solid #2E2E34;border-radius:22px;padding:28px 24px;box-shadow:0 30px 80px rgba(0,0,0,.45);text-align:center}'
+    + '#fsmMove .mv-logo{width:64px;height:64px;margin:0 auto 14px;border-radius:16px;background:var(--fsm-logo,#25252A) center/cover no-repeat}'
+    + '#fsmMove h1{font:650 22px/1.25 -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;margin:0 0 8px}'
+    + '#fsmMove .mv-addr{display:inline-block;margin:2px 0 14px;padding:4px 12px;border-radius:999px;background:#25252A;border:1px solid #3A3A41;font-weight:600}'
+    + '#fsmMove p{margin:0 0 12px;color:#A0A0AA}#fsmMove p b{color:#ECECF0}'
+    + '#fsmMove .mv-btns{display:flex;flex-direction:column;gap:10px;margin-top:18px}'
+    + '#fsmMove button{appearance:none;border:0;border-radius:14px;padding:13px 16px;font:600 15px/1.2 inherit;cursor:pointer}'
+    + '#fsmMove .mv-main{background:#ECECF0;color:#121214}#fsmMove .mv-main[disabled]{opacity:.6;cursor:default}'
+    + '#fsmMove .mv-ghost{background:transparent;color:#A0A0AA;border:1px solid #3A3A41}'
+    + '#fsmMove .mv-link{background:none;color:#A0A0AA;text-decoration:underline;padding:6px}'
+    + '#fsmMove .mv-err{color:#F6B1AB}#fsmMove .mv-ok{color:#9BE3B0}'
+    + '#fsmMove .mv-spin{width:22px;height:22px;margin:6px auto 0;border:3px solid #3A3A41;border-top-color:#ECECF0;border-radius:50%;animation:mvspin .9s linear infinite}@keyframes mvspin{to{transform:rotate(360deg)}}';
+  function el(tag, attrs, text){ const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; }
+  function shell(){
+    let root = document.getElementById('fsmMove');
+    if (!root){ const st = el('style'); st.textContent = CSS; document.head.appendChild(st); root = el('div', { id: 'fsmMove', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'mvTitle' }); document.body.appendChild(root); }
+    root.textContent = ''; const card = el('div', { class: 'mv-card' }); card.appendChild(el('div', { class: 'mv-logo', 'aria-hidden': 'true' })); root.appendChild(card); return card;
+  }
+  function screen(o){
+    const card = shell();
+    card.appendChild(el('h1', { id: 'mvTitle' }, o.title));
+    if (o.addr) card.appendChild(el('div', { class: 'mv-addr' }, o.addr));
+    for (const p of o.paras || []){ const e = el('p', p.cls ? { class: p.cls } : {}, p.text); card.appendChild(e); }
+    if (o.spin) card.appendChild(el('div', { class: 'mv-spin', 'aria-label': 'Patiente' }));
+    const btns = el('div', { class: 'mv-btns' });
+    for (const b of o.buttons || []){ const e = el('button', { type: 'button', class: b.cls || 'mv-main', id: b.id || '' }, b.label); e.addEventListener('click', b.on); btns.appendChild(e); }
+    if ((o.buttons || []).length) card.appendChild(btns);
+    const first = card.querySelector('button'); if (first) try{ first.focus(); }catch(e){}
+  }
+  const host = u => u.replace(/^https?:\/\//, '');
+  function closeUI(){ const r = document.getElementById('fsmMove'); if (r) r.remove(); }
+  function manual(){
+    screen({ title: 'Transfert manuel', paras: [
+      { text: '1. Ici, ouvre Réglages › Sauvegarde et touche « Exporter » : un fichier est enregistré sur ton appareil.' },
+      { text: '2. Sur ' + host(FSM_MOVE.to) + ', ouvre Réglages › Sauvegarde, touche « Importer » et choisis ce fichier.' },
+      { text: 'Par sécurité, le fichier ne contient ni clé ni code d’accès : il faudra les ressaisir sur la nouvelle adresse.' } ],
+      buttons: [
+        { label: 'Ouvrir la sauvegarde', on: () => { closeUI(); try{ openSettings(false, 'backup'); }catch(e){} } },
+        { label: 'Ouvrir ' + host(FSM_MOVE.to), cls: 'mv-ghost', on: () => window.open(FSM_MOVE.to + '/', '_blank', 'noopener') },
+        { label: 'Retour', cls: 'mv-link', on: () => senderUI(api.store) } ] });
+  }
+  function senderUI(store){
+    api.store = store;
+    screen({ title: 'FSM AI déménage', addr: host(FSM_MOVE.to), paras: [
+      { text: 'FSM AI a maintenant sa propre adresse. Tes conversations, projets, souvenirs et réglages vont être copiés depuis cet appareil vers la nouvelle adresse.' },
+      { text: 'Le transfert se fait directement dans ton navigateur : rien ne passe par un serveur, et tes données restent aussi ici.' } ],
+      buttons: [
+        { label: 'Transférer et continuer', id: 'mvGo', on: () => go(store) },
+        { label: 'Plus tard', cls: 'mv-ghost', on: () => { try{ sessionStorage.setItem('fsm.move.later', '1'); }catch(e){} closeUI(); } },
+        { label: 'Transfert manuel (fichier)', cls: 'mv-link', on: manual } ] });
+  }
+  async function go(store){
+    screen({ title: 'Transfert en cours…', addr: host(FSM_MOVE.to), paras: [{ text: 'Un nouvel onglet FSM AI s’ouvre et reçoit tes données. Ne ferme pas cette page.' }], spin: true });
+    const r = await send({ win: window, store, to: FSM_MOVE.to, path: FSM_MOVE.path, open: u => window.open(u, 'fsm-move') });
+    if (r.res === 'done'){
+      const n = (r.stats.convAdded || 0) + (r.stats.convUpdated || 0);
+      screen({ title: 'C’est fait !', addr: host(FSM_MOVE.to), paras: [{ cls: 'mv-ok', text: n + ' conversation' + (n > 1 ? 's' : '') + ' transférée' + (n > 1 ? 's' : '') + '. Ouverture de FSM AI…' }], spin: true });
+      setTimeout(() => location.replace(FSM_MOVE.to + '/'), 1200);
+      return;
+    }
+    const why = r.res === 'blocked' ? 'Ton navigateur a bloqué l’ouverture du nouvel onglet. Autorise les fenêtres pour cette page, puis réessaie.'
+      : r.res === 'timeout' ? 'La nouvelle adresse n’a pas répondu à temps.' : 'Le transfert n’a pas abouti (' + (r.why || r.res) + ').';
+    screen({ title: 'Transfert interrompu', paras: [{ cls: 'mv-err', text: why }, { text: 'Tes données sont intactes ici. Tu peux réessayer, faire le transfert manuel, ou continuer sur cette adresse pour l’instant.' }],
+      buttons: [ { label: 'Réessayer', on: () => go(store) }, { label: 'Transfert manuel (fichier)', cls: 'mv-ghost', on: manual },
+        { label: 'Rester ici pour l’instant', cls: 'mv-link', on: () => { try{ sessionStorage.setItem('fsm.move.later', '1'); }catch(e){} closeUI(); } } ] });
+  }
+  async function receiverUI(store){
+    screen({ title: 'Réception de tes données…', addr: host(FSM_MOVE.to), paras: [{ text: 'Garde cet onglet ouvert quelques secondes.' }], spin: true });
+    const r = await receive({ win: window, opener: window.opener, store, from: FSM_MOVE.from, closeWait: 2500 });
+    if (r.res === 'done'){
+      screen({ title: 'Bienvenue sur ' + host(FSM_MOVE.to), paras: [{ cls: 'mv-ok', text: 'Tes données sont arrivées.' }], spin: true });
+      try{ window.close(); }catch(e){}
+      setTimeout(() => location.replace('/'), 600);
+      return;
+    }
+    screen({ title: r.res === 'noopener' ? 'Aucun transfert en cours' : 'Transfert interrompu',
+      paras: [{ text: r.res === 'noopener' ? 'Pour transférer tes données, ouvre l’ancienne adresse de FSM AI et touche « Transférer et continuer ».' : 'Rien n’a été perdu : tes données sont toujours sur l’ancienne adresse. Reviens-y pour réessayer ou faire le transfert manuel.' }],
+      buttons: [{ label: 'Ouvrir FSM AI', on: () => location.replace('/') }] });
+  }
+  function gate(){
+    if (!FSM_MOVE.on) return;
+    try{
+      if (location.origin === FSM_MOVE.from){
+        const store = browserStore();
+        if (store.lsGet('fsm.move.done')) return location.replace(FSM_MOVE.to + '/');
+        try{ if (sessionStorage.getItem('fsm.move.later')) return; }catch(e){}
+        hasData(store).then(h => h ? senderUI(store) : location.replace(FSM_MOVE.to + '/'), () => senderUI(store));
+      } else if (location.origin === FSM_MOVE.to && location.pathname === FSM_MOVE.path){
+        api.receiving = true; receiverUI(browserStore());
+      }
+    }catch(e){}
+  }
+  const api = { receiving: false, store: null, LS_KEYS, hasData, buildPayload, validate, merge, send, receive, browserStore, gate };
+  return api;
+})();
+FSMMove.gate();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
 <script>
@@ -1294,7 +1582,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 /* ---------- Stockage ---------- */
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  set(k, v){ if (FSMMove.receiving) return; /* page de réception : seule la fusion écrit, sinon les réglages par défaut de cette page écraseraient ceux transférés */ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 /* Nouvel utilisateur = aucune donnée FSM AI sur cet appareil : aucune entrée localStorage « relais.* » ni « fsm.* »
    (clé OpenRouter, clé xAI, réglages, conversations, choix du mode serveur…). Vérifié en tout premier, avant toute écriture.
@@ -1305,7 +1593,7 @@ function fsmFirstRun(){ try{ for (let i = 0; i < localStorage.length; i++){ if (
    mais aucune clé, aucune conversation, aucun code ni choix de mode est traité comme nouveau. Ailleurs, la règle stricte ci-dessus s'applique. */
 const FSM_USER_DATA = ['relais.key', 'relais.xaikey', 'relais.index', 'fsm.srv', 'fsm.srvcode', 'fsm.onboard', 'fsm.mgmtkey', 'fsm.gtok', 'fsm.imgkeys', 'fsm.projects', 'fsm.bot', 'fsm.bottask', 'fsm.conn', 'fsm.ledger', 'fsm.spend', 'fsm.usage', 'fsm.keyinfo', 'fsm.lastBackup'];
 function fsmStrayNew(host){ try{ if ((host ?? location.hostname) !== 'app.fsmai.app') return false; return FSM_USER_DATA.every(k => { const r = localStorage.getItem(k); if (r == null) return true; let v; try{ v = JSON.parse(r); }catch(e){ v = r; } return v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length); }); }catch(e){ return false; } }
-function srvBootDefault(host){ if (!fsmFirstRun() && !fsmStrayNew(host)) return false; LS.set('fsm.onboard', 'serveur'); LS.set('fsm.srv', { on: true, auto: true }); return true; }
+function srvBootDefault(host){ if (FSMMove.receiving) return false; /* page de réception du déménagement : l'origine est vide mais l'utilisateur n'est pas nouveau */ if (!fsmFirstRun() && !fsmStrayNew(host)) return false; LS.set('fsm.onboard', 'serveur'); LS.set('fsm.srv', { on: true, auto: true }); return true; }
 /* Marqueur permanent « fsm.onboard = serveur » : posé une seule fois, au premier démarrage d'un nouvel utilisateur.
    Il est stocké à part (jamais réécrit par les réglages ni par une restauration) et n'a pas de chemin de retour public.
    Utilisateur marqué : mode serveur imposé, aucune clé OpenRouter ou xAI lue ni enregistrée, aucun modèle xAI direct.
@@ -10086,12 +10374,129 @@ async function productTestsBody(){
       await DB.del('conv:' + tid);
     }
   }
+  /* ---- déménagement vers le domaine FSM AI (FSMMove) : faux stockages + fausses fenêtres, aucune vraie donnée touchée ---- */
+  try{
+    const M = FSMMove, A = 'https://ancien.test', N = 'https://nouveau.test';
+    const FK = 'sk-or-v1-faussecle000000000000', FX = 'xai-faussecle0000000000', FC = 'code-faux-0000000000000';
+    const mem = (ls, kv, failKv) => { const L = new Map(Object.entries(ls || {})), K = new Map(Object.entries(kv || {}));
+      return { L, K, lsGet: k => L.has(k) ? L.get(k) : null, lsSet: (k, v) => { L.set(k, String(v)); },
+        kvKeys: async () => [...K.keys()], kvGet: async k => K.get(k), kvSet: async (k, v) => { if (failKv) throw new Error('quota'); K.set(k, structuredClone(v)); } }; };
+    const J = JSON.stringify;
+    const conv = (id, t, title) => ({ id, title: title || id, t, messages: [{ role: 'user', text: 'bonjour ' + id }] });
+    const mkWin = origin => { const w = { origin, hs: new Set(), closed: false, views: new Map(),
+      addEventListener(t, h){ if (t === 'message') w.hs.add(h); }, removeEventListener(t, h){ w.hs.delete(h); } }; return w; };
+    const view = (a, b) => { if (!a.views.has(b)) a.views.set(b, { get closed(){ return b.closed; }, close(){ b.closed = true; },
+      postMessage(data, target){ if (target !== b.origin) return; const d = structuredClone(data); setTimeout(() => b.hs.forEach(h => h({ data: d, origin: a.origin, source: view(b, a) })), 0); } }); return a.views.get(b); };
+    const run = async (src, dst, o) => { o = o || {}; const wa = mkWin(A), wn = mkWin(o.realOrigin || N); let url = null, rp = null;
+      const sp = M.send({ win: wa, store: src, to: N, path: '/migrer', timeout: o.timeout || 3000,
+        open: u => { url = u; if (o.blocked) return null; if (!o.silent) rp = M.receive({ win: wn, opener: view(wn, wa), store: dst, from: o.expectFrom || A, timeout: o.timeout || 3000, closeWait: 300 }); return view(wa, wn); } });
+      const s = await sp; const r = rp ? await rp : null; return { s, r, url }; };
+    ok('déménagement : interrupteur activé, cible configurée (github.io → app.fsmai.app/migrer), rien ailleurs', FSM_MOVE.on === true && Object.isFrozen(FSM_MOVE) && FSM_MOVE.from === 'https://wwwh8hv4w5-lang.github.io' && FSM_MOVE.to === 'https://app.fsmai.app' && FSM_MOVE.path === '/migrer' && (location.origin === FSM_MOVE.from || location.origin === FSM_MOVE.to || !document.getElementById('fsmMove')));
+    { /* 1. transfert réussi */
+      const src = mem({ 'relais.index': J([{ id: 'a1', title: 'A', t: 5 }]), 'relais.settings': J({ model: 'x/y', apiKey: FK }), 'fsm.conn': J({ githubToken: 'ghp_faux000000000000000000', googleClientId: 'cid' }),
+        'fsm.projects': J([{ id: 'p1', name: 'P' }]), 'relais.key': J(FK), 'relais.xaikey': J(FX), 'fsm.imgkeys': J({ k: 'v' }) }, { 'conv:a1': conv('a1', 5), 'autre': { x: 1 } });
+      const dst = mem();
+      const { s, r, url } = await run(src, dst);
+      ok('déménagement : transfert réussi', s.res === 'done' && r && r.res === 'done' && r.closed === true && dst.K.get('conv:a1')?.messages?.length === 1 && J(JSON.parse(dst.lsGet('relais.index')).map(x => x.id)) === '["a1"]' && JSON.parse(dst.lsGet('fsm.projects'))[0].id === 'p1', J([s.res, r && r.res]));
+      ok('déménagement : clés reçues uniquement via postMessage', JSON.parse(dst.lsGet('relais.key')) === FK && JSON.parse(dst.lsGet('relais.xaikey')) === FX && url === N + '/migrer' && !/sk-|xai-|code-/.test(url), url);
+      ok('déménagement : jetons et clés d’image non transférés', !dst.L.has('fsm.imgkeys') && !/ghp_/.test(dst.lsGet('fsm.conn') || '') && !/sk-or/.test(dst.lsGet('relais.settings') || '') && !dst.K.has('autre'));
+      ok('déménagement : ancienne adresse intacte et marquée', src.K.has('conv:a1') && JSON.parse(src.lsGet('relais.key')) === FK && !!src.lsGet('fsm.move.done'));
+    }
+    { /* 2. échecs → repli, rien perdu */
+      const base = { 'relais.index': J([{ id: 'b1', t: 1 }]) }, kv = { 'conv:b1': conv('b1', 1) };
+      const s1 = mem(base, kv), f1 = await run(s1, mem({}, {}, true));
+      ok('déménagement : échec d’écriture → repli', f1.s.res === 'fail' && f1.r.res === 'fail' && !s1.lsGet('fsm.move.done') && s1.K.has('conv:b1'), f1.s.res);
+      const s2 = mem(base, kv), f2 = await run(s2, mem(), { blocked: true });
+      ok('déménagement : onglet bloqué → repli', f2.s.res === 'blocked' && !s2.lsGet('fsm.move.done'), f2.s.res);
+      const s3 = mem(base, kv), f3 = await run(s3, mem(), { silent: true, timeout: 120 });
+      ok('déménagement : pas de réponse → délai dépassé', f3.s.res === 'timeout' && !s3.lsGet('fsm.move.done') && s3.K.has('conv:b1'), f3.s.res);
+      const r4 = await M.receive({ win: mkWin(N), opener: null, store: mem(), from: A });
+      ok('déménagement : réception sans ancienne page', r4.res === 'noopener');
+    }
+    { /* 3. sans données → redirection simple */
+      ok('déménagement : sans données détecté', !(await M.hasData(mem())) && !(await M.hasData(mem({ 'relais.models': J([{ id: 'm' }]), 'relais.index': '[]', 'fsm.bot': J({ facts: [] }) }))));
+      ok('déménagement : données détectées', (await M.hasData(mem({}, { 'conv:z': conv('z', 1) }))) && (await M.hasData(mem({ 'fsm.srvcode': J(FC) }))) && (await M.hasData(mem({ 'fsm.bot': J({ facts: [{ id: 'f' }] }) }))));
+    }
+    { /* 4. données déjà présentes côté nouveau */
+      const src = mem({ 'relais.index': J([{ id: 'c1', t: 10 }, { id: 'c2', t: 30 }, { id: 'c3', t: 5 }]), 'relais.settings': J({ model: 'ancien/m', voice: 'v' }),
+        'fsm.bot': J({ facts: [{ id: 'f1' }, { id: 'f2' }] }), 'fsm.ledger': J({ d: { '2026-10-20': 1 } }), 'relais.key': J(FK) },
+        { 'conv:c1': conv('c1', 10, 'vieux'), 'conv:c2': conv('c2', 30, 'neuf'), 'conv:c3': conv('c3', 5) });
+      const dst = mem({ 'relais.index': J([{ id: 'c1', t: 20 }, { id: 'c2', t: 2 }]), 'relais.settings': J({ model: 'nouveau/m' }), 'fsm.bot': J({ facts: [{ id: 'f2', x: 1 }] }),
+        'fsm.ledger': J({ d: { '2026-10-20': 7 } }), 'relais.key': J('sk-or-v1-autrecle0000000000000') }, { 'conv:c1': conv('c1', 20, 'récent'), 'conv:c2': conv('c2', 2) });
+      const { s, r } = await run(src, dst);
+      const idx = JSON.parse(dst.lsGet('relais.index')), set = JSON.parse(dst.lsGet('relais.settings')), bot = JSON.parse(dst.lsGet('fsm.bot'));
+      ok('déménagement : conversations plus récentes conservées', s.res === 'done' && dst.K.get('conv:c1').title === 'récent' && dst.K.get('conv:c2').title === 'neuf' && dst.K.has('conv:c3') && r.stats.convKept === 1 && r.stats.convUpdated === 1 && r.stats.convAdded === 1, J(r && r.stats));
+      ok('déménagement : fusion sans écrasement', J(idx.map(x => x.id)) === '["c2","c1","c3"]' && set.model === 'nouveau/m' && set.voice === 'v' && bot.facts.length === 2 && bot.facts[0].x === 1 && JSON.parse(dst.lsGet('fsm.ledger')).d['2026-10-20'] === 7 && JSON.parse(dst.lsGet('relais.key')) === 'sk-or-v1-autrecle0000000000000', J(idx));
+      const d2 = mem(); await M.merge(d2, M.validate(await M.buildPayload(src))); const n1 = d2.K.size, i1 = d2.lsGet('relais.index');
+      await M.merge(d2, M.validate(await M.buildPayload(src)));
+      ok('déménagement : fusion rejouable sans doublon', d2.K.size === n1 && d2.lsGet('relais.index') === i1);
+    }
+    { /* 5. origines refusées */
+      const src = mem({ 'relais.key': J(FK) }, { 'conv:e1': conv('e1', 1) });
+      const dst = mem(), wn = mkWin(N), evil = mkWin('https://pirate.test'), wa = mkWin(A);
+      const rp = M.receive({ win: wn, opener: view(wn, wa), store: dst, from: A, timeout: 250 });
+      const p = await M.buildPayload(src); p.nonce = 'x';
+      view(evil, wn).postMessage(p, N); /* mauvaise origine */
+      setTimeout(() => wn.hs.forEach(h => h({ data: p, origin: A, source: view(wn, evil) })), 5); /* bonne origine annoncée, mauvaise fenêtre */
+      const rr = await rp;
+      ok('déménagement : réception refuse une autre origine', rr.res === 'timeout' && dst.K.size === 0 && !dst.lsGet('relais.key'), rr.res);
+      const s2 = mem({ 'relais.index': J([{ id: 'e1', t: 1 }]) }, { 'conv:e1': conv('e1', 1) });
+      const f = await run(s2, mem(), { realOrigin: 'https://pirate.test', timeout: 250 });
+      ok('déménagement : envoi refuse une autre origine', f.s.res === 'timeout' && !s2.lsGet('fsm.move.done'), f.s.res);
+      const posted = []; const wa2 = mkWin(A);
+      const sp = M.send({ win: wa2, store: s2, to: N, path: '/migrer', timeout: 200, open: () => ({ closed: false, postMessage: (d, t) => posted.push(t) }) });
+      wa2.hs.forEach(h => h({ data: { fsmMove: 'ready' }, origin: 'https://pirate.test', source: null }));
+      await sp;
+      ok('déménagement : aucune donnée envoyée à une origine inconnue', posted.length === 0);
+      const bad = M.validate({ fsmMove: 'data', v: 1, ls: { 'relais.settings': '{"__proto__":{"pollue":1},"model":"m"}', 'fsm.imgkeys': '{"a":1}' },
+        kv: [['conv:ok', conv('ok', 1)], ['conv:x', conv('autre', 1)], ['config', {}], ['conv:../x', conv('../x', 1)]], secrets: { orKey: 'pas-une-cle', srvCode: 'court' } });
+      const d3 = mem({ 'relais.settings': J({ a: 1 }), 'relais.key': J(FK) }); await M.merge(d3, bad);
+      ok('déménagement : paquet hostile filtré', bad.kv.length === 1 && !('fsm.imgkeys' in bad.ls) && !bad.secrets.orKey && !bad.secrets.srvCode && ({}).pollue === undefined && JSON.parse(d3.lsGet('relais.settings')).model === 'm');
+    }
+    { /* 6. règles des sauvegardes (#18/#19) */
+      const srvSrc = mem({ 'fsm.srv': J({ on: true }), 'fsm.srvcode': J(FC), 'relais.key': J(FK), 'fsm.conn': J({ githubToken: 'ghp_faux000000000000000000' }) });
+      const p = await M.buildPayload(srvSrc);
+      ok('déménagement : mode serveur → clé OpenRouter jamais envoyée', !p.secrets.orKey && p.secrets.srvCode === FC && !/sk-or|ghp_/.test(J(p.ls)));
+      const forced = M.validate({ fsmMove: 'data', v: 1, ls: { 'fsm.srv': J({ on: true }) }, kv: [], secrets: { orKey: FK, srvCode: FC } });
+      const d = mem(); await M.merge(d, forced);
+      ok('déménagement : réception en mode serveur sans clé', !forced.secrets.orKey && !d.lsGet('relais.key') && JSON.parse(d.lsGet('fsm.srvcode')) === FC);
+      let leaked = false; try{ for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (/^fsm\.move/.test(k)) leaked = true; } }catch(e){}
+      ok('déménagement : tests sans effet sur le vrai stockage', !leaked);
+    }
+    { /* 7. utilisateurs marqués « serveur » (PR #20) */
+      const FC2 = 'code-faux-1111111111111';
+      const marked = mem({ 'fsm.onboard': J('serveur'), 'fsm.srv': J({ on: true, auto: true }), 'fsm.srvcode': J(FC2), 'relais.key': J(FK), 'relais.xaikey': J(FX), 'relais.index': J([{ id: 'm1', t: 3 }]) }, { 'conv:m1': conv('m1', 3) });
+      const p = await M.buildPayload(marked);
+      ok('déménagement : marqué → marqueur et code transmis, aucune clé', p.ls['fsm.onboard'] === J('serveur') && p.secrets.srvCode === FC2 && !p.secrets.orKey && !p.secrets.xaiKey);
+      const dst = mem(); const { s } = await run(marked, dst);
+      ok('déménagement : marqué → nouvelle adresse marquée, code reçu, sans clé', s.res === 'done' && JSON.parse(dst.lsGet('fsm.onboard')) === 'serveur' && JSON.parse(dst.lsGet('fsm.srvcode')) === FC2 && JSON.parse(dst.lsGet('fsm.srv')).on === true && !dst.lsGet('relais.key') && !dst.lsGet('relais.xaikey') && dst.K.has('conv:m1'));
+      const forged = M.validate({ fsmMove: 'data', v: 1, ls: { 'fsm.onboard': J('serveur') }, kv: [], secrets: { orKey: FK, xaiKey: FX } });
+      const odd = M.validate({ fsmMove: 'data', v: 1, ls: { 'fsm.onboard': J('autre') }, kv: [], secrets: {} });
+      ok('déménagement : paquet marqué → clés refusées', !forged.secrets.orKey && !forged.secrets.xaiKey && !('fsm.onboard' in odd.ls));
+      const tgt = mem({ 'fsm.onboard': J('serveur'), 'fsm.srv': J({ on: true, auto: true }), 'relais.index': J([{ id: 'q', t: 1 }]) }, { 'conv:q': conv('q', 1) });
+      await M.merge(tgt, M.validate(await M.buildPayload(mem({ 'relais.key': J(FK), 'relais.xaikey': J(FX), 'fsm.srv': J({ on: false }) }))));
+      ok('déménagement : nouvelle adresse déjà marquée → marqueur gardé, aucune clé écrite', JSON.parse(tgt.lsGet('fsm.onboard')) === 'serveur' && !tgt.lsGet('relais.key') && !tgt.lsGet('relais.xaikey'));
+      const direct = mem({ 'relais.key': J(FK), 'fsm.srv': J({ on: false }), 'relais.index': J([{ id: 'd1', t: 1 }]) }, { 'conv:d1': conv('d1', 1) });
+      const empty = mem(); await run(direct, empty);
+      ok('déménagement : utilisateur direct non marqué → reste en mode direct', JSON.parse(empty.lsGet('relais.key')) === FK && !empty.lsGet('fsm.onboard') && JSON.parse(empty.lsGet('fsm.srv')).on === false);
+      const appKeys = () => { const a = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i) || ''; if (/^(relais|fsm)\./.test(k)) a.push(k); } return a; };
+      const snap = lsSnapshot(appKeys()); let b = null, mark = null;
+      try{ for (const k of appKeys()) localStorage.removeItem(k); M.receiving = true; b = srvBootDefault(); mark = localStorage.getItem('fsm.onboard'); }
+      finally{ M.receiving = false; for (const k of appKeys()) localStorage.removeItem(k); lsRestore(snap); }
+      ok('déménagement : page de réception ne marque pas l’utilisateur', b === false && mark === null);
+      const snap2 = lsSnapshot(['fsm.mvtest']); let w = 'x';
+      try{ M.receiving = true; LS.set('fsm.mvtest', 1); w = localStorage.getItem('fsm.mvtest'); }
+      finally{ M.receiving = false; localStorage.removeItem('fsm.mvtest'); lsRestore(snap2); }
+      ok('déménagement : page de réception n’écrit aucun réglage (seule la fusion écrit)', w === null);
+    }
+  }catch(e){ ok('déménagement : exception', false, e?.message || e); }
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
 window.runSecurityTests = runSecurityTests;
 window.runProductTests = runProductTests;
 (function init(){
+  if (FSMMove.receiving) return; /* page de réception du déménagement : l'app ne démarre pas, la fusion s'en charge */
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
   mergeXai(); srvLockSanitize(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
