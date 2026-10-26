@@ -4,7 +4,7 @@ Application web de FERAL SYSTEM MEDIA : chat multi-modèles, mode vocal et FSM B
 
 👉 **Ouvrir l'application : https://wwwh8hv4w5-lang.github.io/FSM-AI-3.5/**
 
-FSM AI passe sur son domaine définitif : **https://fsmai.app**
+FSM AI passe sur son domaine définitif : **https://app.fsmai.app**
 
 ## Abonnements FSM AI 5.0
 
@@ -27,7 +27,7 @@ Pour t'abonner ou pour toute question, contacte FERAL SYSTEM MEDIA : camillafsm.
 2. Connecte-toi avec ton compte abonné FSM AI.
 3. C'est tout : ton abonnement est reconnu automatiquement.
 
-Pendant la migration vers https://fsmai.app, les clés FSM AI existantes continuent de fonctionner.
+Pendant la migration vers https://app.fsmai.app, les clés FSM AI existantes continuent de fonctionner.
 
 La clé xAI (modèles Grok en direct) est facultative.
 
