@@ -2009,7 +2009,9 @@ function srvCode(){ return String(LS.get('fsm.srvcode', '') || ''); }
 function srvBootOn(){ try{ const c = LS.get('fsm.srv', {}) || {}; return c.on === true && String(LS.get('fsm.srvcode', '') || '').length >= 16; }catch(e){ return false; } }
 function serverOn(){ return srvConf().on && srvCode().length >= 16; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
-function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video'].includes(asst.mode); }
+function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
+/* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
+function srvKind(asst, cat){ const md = asst.mode; if (md === 'chat+image') return ['image', 'photoedit'].includes(cat || asst.cat) ? 'image' : 'chat'; return md; }
 /* clé OpenRouter : retirée de la mémoire en mode serveur, remise en mode direct (elle reste enregistrée sur l'appareil) */
 function srvKeySwitch(){
   if (serverOn()){ S.key = ''; S.keyInfo = null; S.keyState = ''; }
@@ -2075,26 +2077,27 @@ function srvMessages(asst, conv){
   }
   return msgs;
 }
-function srvBody(asst, user, conv){
-  const ref = asst.id + (asst.retried ? ':' + asst.retried : '');
-  if (asst.mode === 'chat') return { kind: 'chat', model: asst.model, messages: srvMessages(asst, conv), clientRef: ref };
-  const b = { kind: asst.mode, model: asst.model, prompt: user.apiText || user.text || (asst.mode === 'image' ? 'Une image' : 'Une vidéo'), clientRef: ref };
-  const asp = asst.mode === 'image' ? (asst.imgAspect || S.set.imgAspect) : (asst.vidAspect || S.set.vidAspect);
+function srvBody(asst, user, conv, cat){
+  const k = srvKind(asst, cat), ref = asst.id + (asst.retried ? ':' + asst.retried : '');
+  if (k === 'chat') return { kind: 'chat', model: asst.model, messages: srvMessages(asst, conv), clientRef: ref };
+  const b = { kind: k, model: asst.model, prompt: user.apiText || user.text || (k === 'image' ? 'Une image' : 'Une vidéo'), clientRef: ref };
+  const asp = k === 'image' ? (asst.imgAspect || S.set.imgAspect) : (asst.vidAspect || S.set.vidAspect);
   if (asp && asp !== 'auto') b.aspect_ratio = asp;
-  if (asst.mode === 'video'){ if (S.set.vidDuration) b.duration = parseInt(S.set.vidDuration, 10); if (S.set.vidRes) b.resolution = S.set.vidRes; }
-  if (asst.mode === 'image'){ const refs = (user.atts || []).filter(a => kindOf(a) === 'image' && a.data).map(a => a.data).slice(0, 4); if (refs.length) b.input_references = refs; }
+  if (k === 'video'){ if (S.set.vidDuration) b.duration = parseInt(S.set.vidDuration, 10); if (S.set.vidRes) b.resolution = S.set.vidRes; }
+  if (k === 'image'){ const refs = (user.atts || []).filter(a => kindOf(a) === 'image' && a.data).map(a => a.data).slice(0, 4); if (refs.length) b.input_references = refs; }
   return b;
 }
-async function runServerJob(asst, user, signal, conv){
-  if (!asst.srv && asst.mode !== 'chat'){
+async function runServerJob(asst, user, signal, conv, cat){
+  const kind = asst.srv?.kind || srvKind(asst, cat);
+  if (!asst.srv && kind !== 'chat'){
     if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
-    if (mediaCapped()) throw Object.assign(new Error(asst.mode === 'video' ? limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.' : imgLimitMsg()), { limit: true });
+    if (mediaCapped()) throw Object.assign(new Error(kind === 'video' ? limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.' : imgLimitMsg()), { limit: true });
   }
   if (!asst.srv){
     asst.status = 'Envoi au serveur FSM AI…'; paint(asst);
-    const j = await srvFetch('/v1/jobs', { method: 'POST', body: srvBody(asst, user, conv), signal });
+    const j = await srvFetch('/v1/jobs', { method: 'POST', body: srvBody(asst, user, conv, cat), signal });
     if (!j?.id) throw new Error('Réponse invalide du serveur FSM AI.');
-    asst.srv = { id: j.id, kind: asst.mode, t0: Date.now() };
+    asst.srv = { id: j.id, kind, t0: Date.now() };
     if (j.downgraded) asst.downgraded = true;
     saveConv(conv);
   }
@@ -3676,7 +3679,8 @@ async function run(user, conv, model, cat, route){
     for (;;){
       try{
         const x = isXai(asst.model);
-        if (srvUse(asst, cat, conv)) await runServerJob(asst, user, ctrl.signal, conv);
+        if (srvUse(asst, cat, conv)) await runServerJob(asst, user, ctrl.signal, conv, cat);
+        else if (serverOn()) throw new Error("Cette fonction n'est pas encore disponible en mode serveur (assistant vocal, FSM BOT, montage vidéo ou modèles xAI). Désactive le mode serveur dans les réglages pour l'utiliser avec ta clé.");
         else if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
         else if (asst.mode === 'video') await (x ? runXaiVideo : runVideo)(asst, user, ctrl.signal);
         else if (asst.mode === 'image') await (x ? runXaiImage : runImage)(asst, user, ctrl.signal);
@@ -9764,6 +9768,10 @@ async function productTestsBody(){
       let e7 = null; const a7 = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'image' };
       try{ await runServerJob(a7, { text: 'un chat', atts: [] }, new AbortController().signal, mkConv(a7)); }catch(e){ e7 = e; }
       ok('mode serveur : limite 429 du serveur affichée', e7?.limit === true && e7.message === 'Limite hebdomadaire atteinte.' && !canFallback(e7, a7, 0) && S.srvLimits?.weekExhausted === true);
+      /* 7b. modèle « texte + image » : image si la catégorie le demande, sinon texte ; fonctions non prises en charge refusées sans appel direct */
+      const a7b = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'chat+image' };
+      const bImg = srvBody(a7b, { text: 'un chat', atts: [] }, mkConv(a7b), 'image'), bTxt = srvBody(a7b, { text: 'bonjour', atts: [] }, mkConv(a7b), 'chat');
+      ok('mode serveur : modèle texte + image routé (image ou texte)', srvUse(a7b, 'image', mkConv(a7b)) && bImg.kind === 'image' && bImg.prompt === 'un chat' && bTxt.kind === 'chat' && Array.isArray(bTxt.messages) && !srvUse(a7b, 'videoedit', mkConv(a7b)), JSON.stringify({ i: bImg.kind, t: bTxt.kind }));
       /* 8. arrêt et effacement */
       calls.length = 0; routes['DELETE /v1/jobs/' + JID] = () => J({ deleted: true }); routes['DELETE /v1/me'] = () => J({ erased: true });
       srvCancel({ id: JID }); await wait(20);
