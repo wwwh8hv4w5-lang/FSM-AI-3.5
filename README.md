@@ -12,8 +12,8 @@ L'application ne fonctionne qu'avec une **clé API FSM AI**. Cette clé **ne se 
 |---|---|---|
 | FSM AI 5.0 Free | Clé Free | Gratuit (modèles gratuits uniquement) |
 | FSM AI 5.0 Entreprise | Clé Entreprise | 18 $ / mois |
-| FSM AI 5.0 Compétence | Clé Compétence | 50 $ / mois |
-| FSM AI 5.0 Élite | Clé Élite | 200 $ / mois |
+| FSM AI 5.0 Compétence | Clé Compétence | 45 $ / mois |
+| FSM AI 5.0 Élite | Clé Élite | 180 $ / mois |
 
 Free est limité aux modèles gratuits. Les abonnements payants donnent accès à tous les modèles.
 
