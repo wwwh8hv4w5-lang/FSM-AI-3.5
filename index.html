@@ -1054,6 +1054,15 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="row"><button class="btn" id="bkExport" type="button">Exporter</button><button class="btn ghost" id="bkImport" type="button">Importer</button></div>
         <input type="file" id="bkFile" accept=".json,application/json" hidden>
       </div>
+      <div class="field" id="srvField">
+        <label class="check"><input type="checkbox" id="srvOn"><span>Mode serveur <span class="note">(essai, désactivé par défaut)</span></span></label>
+        <div id="srvRows" hidden>
+          <div class="row"><input id="srvCode" type="password" placeholder="Code client du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
+          <div class="row"><input id="srvBase" type="url" placeholder="Adresse du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
+          <div class="row"><button class="btn ghost" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
+        </div>
+        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change.</small>
+      </div>
       <div class="danger-zone">
         <button class="btn ghost" id="btnReload">Recharger le catalogue</button>
         <button class="btn ghost" id="btnWipe">Effacer les conversations</button>
@@ -1318,7 +1327,7 @@ function forgetTemperature(obj){
 const savedSet = LS.get('relais.settings', {}) || {};
 const hadTemperature = forgetTemperature(savedSet);
 const S = {
-  key: LS.get('relais.key', ''),
+  key: srvBootOn() ? srvWipeKey() : LS.get('relais.key', ''),
   set: Object.assign({}, DEFAULTS, savedSet),
   models: LS.get('relais.models', []),
   xaiKey: LS.get('relais.xaikey', ''),
@@ -1752,7 +1761,7 @@ $('#customId').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prev
 function openSettings(focusKey, which){
   $('#planSel').value = S.set.plan || ''; renderPlan();
   renderKeyStat(); fetchKeyInfo(true).then(() => { $('#planSel').value = S.set.plan || ''; renderPlan(); renderKeyStat(); });
-  $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; $('#sysPrompt').value = S.set.system;
+  $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; srvRenderUI(); $('#sysPrompt').value = S.set.system;
   $('#fileHints').checked = !!S.set.fileHints;
   $('#illus').checked = S.set.illus !== false;
   { const k = LS.get('fsm.imgkeys', {}) || {}; $('#ikPexels').value = k.pexels || ''; $('#ikUnsplash').value = k.unsplash || ''; }
@@ -1787,11 +1796,15 @@ function renderPlan(){
 }
 $('#planSel').addEventListener('change', e => { if (e.target.value) setPlan(e.target.value); else { S.set.plan = ''; saveSettings(); renderPlan(); if (!S.conv?.messages?.length) renderThread(); } });
 let keyDeb = 0;
-$('#apiKey').addEventListener('input', e => { S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
+$('#apiKey').addEventListener('input', e => { if (serverOn()){ e.target.value = ''; S.key = srvWipeKey(); return; } S.key = e.target.value.trim(); LS.set('relais.key', S.key); renderSend(); if (!S.conv?.messages.length) renderThread();
   S.keyInfo = null; S._exhaustToast = 0; renderBalance(); clearTimeout(keyDeb);
   if (S.set.planAuto){ S.set.plan = ''; S.set.planAuto = false; saveSettings(); renderPlan(); }
   S.keyState = S.key && S.key.length >= 20 ? 'wait' : ''; renderKeyStat();
   if (S.key.length >= 20) keyDeb = setTimeout(() => fetchKeyInfo(true), 350); refreshKeyFp(); });
+$('#srvOn').addEventListener('change', e => { srvSetConf({ on: e.target.checked }); srvKeySwitch(); srvRenderUI(); if (serverOn()) srvLimits().catch(() => {}); });
+$('#srvCode').addEventListener('input', e => { LS.set('fsm.srvcode', e.target.value.trim()); S.srvLimits = null; srvKeySwitch(); if (serverOn()) srvLimits().catch(() => {}); });
+$('#srvBase').addEventListener('change', e => { const v = e.target.value.trim(); if (v && !/^https:\/\/[^\s/]+(\/[^\s]*)?$/.test(v)){ toast('Adresse du serveur invalide (https:// requis).'); e.target.value = srvConf().base; return; } srvSetConf({ base: v || SRV_DEFAULT }); S.srvLimits = null; });
+$('#btnSrvErase').addEventListener('click', () => srvErase());
 $('#btnShowKey').addEventListener('click', e => { const i = $('#apiKey'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; e.target.textContent = show ? 'Masquer' : 'Afficher'; });
 $('#sysPrompt').addEventListener('input', e => { S.set.system = e.target.value; saveSettings(); });
 $('#fileHints').addEventListener('change', e => { S.set.fileHints = e.target.checked; saveSettings(); });
@@ -1941,6 +1954,8 @@ function reviveStuck(c, keepTime){
   let changed = false, hit = 0;
   for (const m of c.messages){
     if (m.role !== 'assistant' || m._live) continue;
+    if (m.srv && m.stopped){ delete m.srv; changed = true; }
+    if (m.srv && (!m.error || m.srvRetry) && serverOn()){ delete m.error; delete m.srvRetry; resumeSrv(m, c); continue; }
     if (m.job && m.stopped){ delete m.job; changed = true; }
     if (m.job && !m.videos?.length && !m.error && !m.stopped){ resumeJob(m, c); continue; }
     if (m.status || m.inflight){
@@ -1970,6 +1985,193 @@ async function resumeJob(m, c){
     if (S.conv !== c && m.videos?.length){ c._unread = true; toast(`Votre vidéo est prête dans « ${c.title} »`); }
   }
 }
+/* ===== Mode serveur (essai) : les générations passent par le serveur de tâches FSM AI =====
+   Désactivé par défaut : le mode direct actuel ne change pas. Activé (avec un code client), les réponses, images et vidéos
+   sont créées par le serveur : elles continuent l'application fermée et sont reprises à la réouverture.
+   La clé OpenRouter n'est ni lue ni envoyée depuis le navigateur dans ce mode. Le serveur fait foi pour les limites. */
+const SRV_DEFAULT = 'https://api.fsmai.app';
+const SRV_STAGING = 'https://api-staging.fsmai.app';
+/* ?api=staging (serveur d'essai) ou ?api=prod : change seulement l'adresse, n'active jamais le mode serveur */
+function srvApiParam(){ try{ const u = new URL(location.href); const v = (u.searchParams.get('api') || '').toLowerCase(); if (!v) return ''; const base = v === 'staging' ? SRV_STAGING : (v === 'prod' || v === 'production') ? SRV_DEFAULT : ''; if (!base) return ''; const c = LS.get('fsm.srv', {}) || {}; LS.set('fsm.srv', Object.assign({}, c, { base })); u.searchParams.delete('api'); history.replaceState(null, '', u.pathname + u.search + u.hash); return base; }catch(e){ return ''; } }
+srvApiParam();
+let SRV_POLL_MS = 1000;
+function srvConf(){ const c = LS.get('fsm.srv', {}) || {}; return { on: c.on === true, base: String(c.base || SRV_DEFAULT).replace(/\/+$/, '') }; }
+function srvSetConf(p){ LS.set('fsm.srv', Object.assign(srvConf(), p)); }
+function srvCode(){ return String(LS.get('fsm.srvcode', '') || ''); }
+function srvBootOn(){ try{ const c = LS.get('fsm.srv', {}) || {}; return c.on === true && String(LS.get('fsm.srvcode', '') || '').length >= 16; }catch(e){ return false; } }
+function serverOn(){ return srvConf().on && srvCode().length >= 16; }
+function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
+function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
+/* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
+function srvKind(asst, cat){ const md = asst.mode; if (md === 'chat+image') return ['image', 'photoedit'].includes(cat || asst.cat) ? 'image' : 'chat'; return md; }
+/* clé OpenRouter : en mode serveur elle est effacée de la mémoire ET de l'appareil (localStorage), et n'est jamais réutilisée.
+   En repassant en mode direct, il faut la ressaisir dans les réglages. */
+function srvWipeKey(){ try{ localStorage.removeItem('relais.key'); }catch(e){} return ''; }
+function srvKeySwitch(){
+  if (serverOn()){ S.key = srvWipeKey(); S.keyInfo = null; S.keyState = ''; }
+  else if (!S.key) S.key = LS.get('relais.key', '');
+  try{ $('#apiKey').value = S.key; $('#apiKey').disabled = serverOn(); renderKeyStat(); renderSend(); }catch(e){}
+}
+function srvRenderUI(){
+  try{
+    const c = srvConf();
+    $('#srvOn').checked = c.on; $('#srvRows').hidden = !c.on;
+    $('#srvCode').value = srvCode(); $('#srvBase').value = c.base;
+    $('#apiKey').disabled = serverOn();
+  }catch(e){}
+}
+async function srvFetch(path, opt = {}){
+  const code = srvCode();
+  if (code.length < 16) throw Object.assign(new Error('Mode serveur : ajoute ton code client dans les réglages.'), { status: 401 });
+  const h = { 'Authorization': 'Bearer ' + code };
+  if (opt.body) h['Content-Type'] = 'application/json';
+  const r = await fetch(srvConf().base + path, { method: opt.method || 'GET', headers: h, body: opt.body ? JSON.stringify(opt.body) : undefined, signal: opt.signal });
+  if (opt.raw && r.ok) return r;
+  let d = null; try{ d = await r.json(); }catch(e){}
+  if (!r.ok){
+    const code2 = d?.error?.code || '';
+    if (d?.limits) srvApplyLimits(d.limits);
+    const msg = r.status === 401 ? 'Code client du serveur FSM AI refusé : vérifie-le dans les réglages (Mode serveur).' : (d?.error?.message || `Serveur FSM AI indisponible (erreur ${r.status}).`);
+    throw Object.assign(new Error(msg), { status: r.status, code: code2, limit: code2 === 'week_limit' || code2 === 'month_limit' });
+  }
+  return d;
+}
+function srvApplyLimits(l){
+  if (!l || typeof l !== 'object') return;
+  S.srvLimits = l;
+  if (l.plan && PLANS[l.plan] && S.set.plan !== l.plan){ S.set.plan = l.plan; S.set.planAuto = true; saveSettings(); }
+  try{ renderBalance(); renderPlan(); }catch(e){}
+}
+async function srvLimits(){ const d = await srvFetch('/v1/limits'); srvApplyLimits(d?.limits || d); return S.srvLimits; }
+async function srvUnlock(){
+  try{
+    const d = await srvFetch('/v1/limits/unlock', { method: 'POST' });
+    srvApplyLimits(d?.limits);
+    toast('Semaine débloquée. Le plafond du mois reste le même.');
+    try{ renderUsage(); }catch(e){}
+    return true;
+  }catch(e){ toast(e?.message || String(e)); return false; }
+}
+async function srvErase(){
+  if (!serverOn()) return toast('Active le mode serveur et ajoute ton code client.');
+  const v = await ask({ title: 'Effacer mes données du serveur', body: '<p>Les tâches, textes, images et vidéos gardés par le serveur FSM AI pour ce code client seront supprimés. Les conversations de cet appareil ne changent pas.</p>', buttons: [{ label: 'Effacer', value: 'yes' }, { label: 'Annuler', value: null, ghost: true }] });
+  if (v !== 'yes') return false;
+  try{ await srvFetch('/v1/me', { method: 'DELETE' }); LS.set('fsm.srvsince', 0); toast('Données du serveur effacées.'); return true; }
+  catch(e){ toast(e?.message || String(e)); return false; }
+}
+function srvCancel(srv){ if (srv?.id) srvFetch('/v1/jobs/' + encodeURIComponent(srv.id), { method: 'DELETE' }).catch(() => {}); }
+function srvMessages(asst, conv){
+  const msgs = [], sys = buildSystem(conv, asst.cat);
+  if (sys) msgs.push({ role: 'system', content: sys });
+  const hist = conv.messages.slice(0, Math.max(0, conv.messages.indexOf(asst))).slice(-40);
+  const keep = new Set(hist.filter(m => m.role === 'user').slice(-3).map(m => m.id));
+  for (const m of hist){
+    if (m.role === 'user') msgs.push({ role: 'user', content: userParts(m, !keep.has(m.id)) });
+    else if (!m.error && (m.text || m.images?.length || m.videos?.length)) msgs.push({ role: 'assistant', content: assistantHistText(m) });
+  }
+  return msgs;
+}
+function srvBody(asst, user, conv, cat){
+  const k = srvKind(asst, cat), ref = asst.id + (asst.retried ? ':' + asst.retried : '');
+  if (k === 'chat') return { kind: 'chat', model: asst.model, messages: srvMessages(asst, conv), clientRef: ref };
+  const b = { kind: k, model: asst.model, prompt: user.apiText || user.text || (k === 'image' ? 'Une image' : 'Une vidéo'), clientRef: ref };
+  const asp = k === 'image' ? (asst.imgAspect || S.set.imgAspect) : (asst.vidAspect || S.set.vidAspect);
+  if (asp && asp !== 'auto') b.aspect_ratio = asp;
+  if (k === 'video'){ if (S.set.vidDuration) b.duration = parseInt(S.set.vidDuration, 10); if (S.set.vidRes) b.resolution = S.set.vidRes; }
+  if (k === 'image'){ const refs = (user.atts || []).filter(a => kindOf(a) === 'image' && a.data).map(a => a.data).slice(0, 4); if (refs.length) b.input_references = refs; }
+  return b;
+}
+async function runServerJob(asst, user, signal, conv, cat){
+  const kind = asst.srv?.kind || srvKind(asst, cat);
+  if (!asst.srv && kind !== 'chat'){
+    if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
+    if (mediaCapped()) throw Object.assign(new Error(kind === 'video' ? limitMsg(false) + ' La génération de vidéos reviendra à ce moment-là.' : imgLimitMsg()), { limit: true });
+  }
+  if (!asst.srv){
+    asst.status = 'Envoi au serveur FSM AI…'; paint(asst);
+    const j = await srvFetch('/v1/jobs', { method: 'POST', body: srvBody(asst, user, conv, cat), signal });
+    if (!j?.id) throw new Error('Réponse invalide du serveur FSM AI.');
+    asst.srv = { id: j.id, kind, t0: Date.now() };
+    if (j.downgraded) asst.downgraded = true;
+    saveConv(conv);
+  }
+  await srvFollow(asst, signal);
+}
+/* suit une tâche : le texte arrive par morceaux (GET ?from=N), la reprise repart du dernier morceau reçu */
+async function srvFollow(asst, signal){
+  const srv = asst.srv, id = encodeURIComponent(srv.id), chat = srv.kind === 'chat';
+  let from = +srv.seq || 0, gen = srv.gen ?? null;
+  if (chat && !from) asst.text = '';
+  for (let guard = 0; guard < 20000; guard++){
+    if (signal?.aborted) throw new DOMException('Arrêté', 'AbortError');
+    const v = await srvFetch('/v1/jobs/' + id + (chat ? '?from=' + from : ''), { signal });
+    if (gen != null && v.gen !== gen){ asst.text = ''; from = 0; srv.seq = 0; gen = srv.gen = v.gen; if (chat) continue; }
+    gen = srv.gen = v.gen;
+    if (chat && typeof v.text === 'string' && (v.from == null || v.from === from)){ asst.text += v.text; from = srv.seq = +v.seq || 0; }
+    if (v.downgraded) asst.downgraded = true;
+    if (v.status === 'done'){
+      if (!chat) await srvMedia(asst, v, signal);
+      srvLimits().catch(() => {});
+      return;
+    }
+    if (v.status === 'error') throw Object.assign(new Error(v.error?.message || 'Erreur du serveur FSM AI.'), { code: v.error?.code || '', srvJob: true });
+    if (v.status === 'cancelled') throw new DOMException('Arrêté', 'AbortError');
+    asst.status = chat ? (asst.text ? '' : 'Réflexion en cours…') : srv.kind === 'image' ? 'Création de l\'image sur le serveur FSM AI…' : 'Création de la vidéo sur le serveur FSM AI…';
+    paint(asst);
+    await sleep(chat ? SRV_POLL_MS : SRV_POLL_MS * 3, signal);
+  }
+  throw new Error('Le serveur FSM AI met trop de temps à répondre.');
+}
+async function srvMedia(asst, v, signal){
+  const list = Array.isArray(v.media) ? v.media : [];
+  for (let i = 0; i < list.length; i++){
+    const r = await srvFetch('/v1/jobs/' + encodeURIComponent(asst.srv.id) + '/media/' + i, { raw: true, signal });
+    const blob = await r.blob(), type = list[i].type || blob.type || '';
+    if (/^video\//.test(type) || (!type && asst.srv.kind === 'video')) asst.videos.push({ blob, type: type || 'video/mp4' });
+    else asst.images.push({ url: await readAs(blob, 'readAsDataURL') });
+  }
+}
+/* réouverture : liste des tâches modifiées depuis la dernière visite */
+async function srvJobsSince(){
+  const since = +LS.get('fsm.srvsince', 0) || 0;
+  const d = await srvFetch('/v1/jobs?since=' + Math.max(0, since - 60000));
+  if (d?.now) LS.set('fsm.srvsince', +d.now);
+  const map = new Map();
+  for (const j of d?.jobs || []) if (j.clientRef) map.set(String(j.clientRef).split(':')[0], j);
+  return map;
+}
+/* une réponse fermée juste après l'envoi (avant l'enregistrement du suivi) est rattachée à sa tâche grâce à clientRef */
+function srvAttach(c, sj){
+  let n = 0;
+  for (const m of c.messages){
+    if (m.role !== 'assistant' || m._live || m.srv || m.stopped || m.error) continue;
+    const j = sj.get(m.id);
+    if (j && (m.inflight || m.status) && j.status !== 'cancelled'){ m.srv = { id: j.id, kind: j.kind, t0: j.createdAt || Date.now() }; n++; }
+  }
+  return n;
+}
+async function resumeSrv(m, c){
+  if (m._resuming) return;
+  Object.defineProperty(m, '_resuming', { value: true, writable: true, configurable: true });
+  Object.defineProperty(m, '_live', { value: true, writable: true, configurable: true });
+  Object.defineProperty(m, '_conv', { value: c, configurable: true });
+  m.mode = m.srv.kind || m.mode; m.images = m.images || []; m.videos = m.videos || [];
+  m.status = 'Reprise depuis le serveur FSM AI…'; delete m.interrupted;
+  paint(m); const unlock = genLock(c.id); let keep = false;
+  try{ await srvFollow(m, new AbortController().signal); }
+  catch(e){
+    if (e?.name === 'AbortError') m.stopped = true;
+    else if (isNetErr(e)){ keep = true; m.error = 'Connexion au serveur FSM AI impossible pour le moment : la réponse sera reprise à la prochaine ouverture.'; }
+    else m.error = e?.message || String(e);
+  }
+  finally{
+    unlock();
+    m.status = ''; m._live = false; m._resuming = false; delete m.inflight;
+    if (keep) m.srvRetry = true; else { delete m.srv; delete m.srvRetry; }
+    paint(m); await saveConv(c);
+    if (S.conv !== c && !m.error && !keep){ c._unread = true; toast(`« ${c.title} » : réponse prête`); }
+  }
+}
 /* Retour dans l'application : une réponse muette depuis plus de 12 s a sûrement perdu sa connexion pendant la mise en veille → reconnexion immédiate */
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible'){
@@ -1989,11 +2191,14 @@ window.addEventListener('pagehide', () => { for (const c of S.live.values()) if 
    les autres réponses coupées sont signalées (sans relance automatique) */
 setTimeout(async () => {
   const cut = [];
+  /* mode serveur : les tâches terminées pendant la fermeture sont retrouvées (GET /v1/jobs?since=) */
+  const sj = serverOn() ? await srvJobsSince().catch(() => null) : null;
   for (const x of (S.index || []).slice(0, 15)){
     try{
       const c = S.live.get(x.id) || await DB.get('conv:' + x.id); if (!c) continue;
       if (c._busy) continue;
-      const stuck = c.messages.some(m => m.role === 'assistant' && !m._live && ((m.job && !m.videos?.length && !m.error && !m.stopped) || m.inflight || m.status));
+      if (sj) srvAttach(c, sj);
+      const stuck = c.messages.some(m => m.role === 'assistant' && !m._live && ((m.srv && (!m.error || m.srvRetry)) || (m.job && !m.videos?.length && !m.error && !m.stopped) || m.inflight || m.status));
       if (!stuck) continue;
       /* génération encore en cours dans un autre onglet : on n'y touche pas */
       if (!(await genLockFree(c.id))) continue;
@@ -3305,7 +3510,7 @@ async function send(){
   const text = $('#input').value.trim();
   if (S.busy && !text && !S.pending.length){ S.abort?.abort(); return; }
   if (!text && !S.pending.length) return;
-  if (isXai(S.set.model) ? !S.xaiKey : !S.key){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
+  if (isXai(S.set.model) ? !S.xaiKey : !(S.key || serverOn())){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   if (text && !S.pending.length && !S.conv?.bot && !S.voiceActive){
     const pend = pendingPlan(S.conv), pr = planReply(text);
     if (pend && pr === 'ok'){ $('#input').value = ''; autosize(); renderSend(); try{ localStorage.removeItem('relais.draft'); }catch(e){} return acceptPlan(pend); }
@@ -3468,12 +3673,14 @@ async function run(user, conv, model, cat, route){
     for (;;){
       try{
         const x = isXai(asst.model);
-        if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
+        if (srvUse(asst, cat, conv)) await runServerJob(asst, user, ctrl.signal, conv, cat);
+        else if (serverOn()) throw new Error("Cette fonction n'est pas encore disponible en mode serveur (assistant vocal, FSM BOT, montage vidéo ou modèles xAI). Désactive le mode serveur dans les réglages pour l'utiliser avec ta clé.");
+        else if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
         else if (asst.mode === 'video') await (x ? runXaiVideo : runVideo)(asst, user, ctrl.signal);
         else if (asst.mode === 'image') await (x ? runXaiImage : runImage)(asst, user, ctrl.signal);
         else await (x ? runXaiChat : runChat)(asst, ctrl.signal, conv);
         if (!asst.text.trim() && !asst.images.length && !asst.videos.length) throw Object.assign(new Error('Réponse vide. Réessaie dans un instant.'), { empty: true });
-        if (!fixed && asst.mode === 'chat' && !asst.images.length && !asst.videos.length){
+        if (!fixed && !serverOn() && asst.mode === 'chat' && !asst.images.length && !asst.videos.length){
           const fx = await mediaFix(user, conv, asst).catch(() => null);
           if (fx){
             fixed = true;
@@ -3494,7 +3701,7 @@ async function run(user, conv, model, cat, route){
           net++;
           asst.status = NET_MSG; paint(asst);
           await waitOnline(ctrl.signal, Math.min(30000, 1500 * 2 ** Math.min(net, 4)));
-          if (asst.mode !== 'video'){ asst.text = ''; asst.images = []; asst.sources = []; asst.steps = []; asst.reasoning = ''; }
+          if (asst.mode !== 'video' && !asst.srv){ asst.text = ''; asst.images = []; asst.sources = []; asst.steps = []; asst.reasoning = ''; }
           asst.status = 'Reconnexion…'; paint(asst);
           continue;
         }
@@ -3506,7 +3713,7 @@ async function run(user, conv, model, cat, route){
         /* FSM AI s'adapte : un autre modèle reprend la demande */
         asst.model = alt; asst.mode = modeFor(alt);
         /* autre outil : on repart d'une nouvelle demande, l'ancien suivi de vidéo est oublié */
-        if (asst._job) asst._job = null; delete asst.job;
+        if (asst._job) asst._job = null; delete asst.job; delete asst.srv;
         asst.text = ''; asst.images = []; asst.videos = []; asst.sources = []; asst.steps = []; asst.reasoning = '';
         asst.retried = (asst.retried || 0) + 1;
         asst.status = 'Nouvelle tentative avec un autre outil…'; paint(asst);
@@ -3518,14 +3725,14 @@ async function run(user, conv, model, cat, route){
     else if (isNetErr(e)) asst.error = "Connexion internet perdue depuis trop longtemps. Touche Réessayer quand elle sera rétablie.";
     else asst.error = e?.message || String(e);
   }finally{
-    stopAutosave(); wakeRelease(); unlockGen(); delete asst.inflight;
+    stopAutosave(); wakeRelease(); unlockGen(); delete asst.inflight; if (asst.stopped && asst.srv) srvCancel(asst.srv); delete asst.srv;
     asst.status = ''; conv._abort = null; conv._busy = false;
     { const seen = new Set(); asst.images = asst.images.filter(im => { const k = String(im.url).length + ':' + String(im.url).slice(-200); if (seen.has(k)) return false; seen.add(k); return true; }); }
     const hadMedia = asst.images.length || asst.videos.length;
     asst._live = false; if (hadMedia){ asst._fresh = true; setTimeout(() => { asst._fresh = false; }, 1600); }
     if (+asst.cost > 0){ addSpend(asst.cost, isXai(asst.model) ? 'xai' : 'openrouter', asst.estimated); usageAdd(+asst.cost, asst.cat); }
     scrubMsg(asst); paint(asst); await saveConv(conv);
-    if (!asst.error && !asst.stopped && !S.voiceActive) autoIllustrate(asst, user);
+    if (!asst.error && !asst.stopped && !S.voiceActive && !serverOn()) autoIllustrate(asst, user);
     if (!isXai(asst.model)) setTimeout(() => fetchKeyInfo(asst.error ? true : false), 1500);
     if (conv === S.conv) scrollEnd();
     else if (!asst.stopped){ conv._unread = true; toast(`« ${conv.title} » : ${asst.error ? 'erreur' : 'réponse prête'}`); }
@@ -7701,13 +7908,13 @@ function renderKeyStat(){
   }
   el.className = 'keystat ' + cls; el.innerHTML = h ? '<i></i><span>' + h + '</span>' : ''; el.hidden = !h;
 }
-function keyExhausted(){ const ki = S.keyInfo; return !!(ki && ki.limit != null && ki.limit > 0 && ki.remaining != null && ki.remaining <= 0.005); }
+function keyExhausted(){ const sl = srvLim(); if (sl) return !!sl.keyExhausted; const ki = S.keyInfo; return !!(ki && ki.limit != null && ki.limit > 0 && ki.remaining != null && ki.remaining <= 0.005); }
 /* Limite hebdomadaire : 30 % du crédit de l'abonnement par semaine (UTC, du lundi au lundi), pour ne pas épuiser le mois en quelques jours.
    Le plafond mensuel reste imposé par OpenRouter sur la clé. */
 const WEEK_SHARE = 0.30;
-function weekQuota(){ const ki = S.keyInfo; return ki && ki.limit > 0 && ['entreprise', 'competence', 'elite'].includes(S.set.plan) ? ki.limit * WEEK_SHARE : 0; }
-function weekRatio(){ const q = weekQuota(); return q ? effectiveWeekly() / q : null; }
-function weekExhausted(){ const r = weekRatio(); return r != null && r >= 1 && !keyExhausted(); }
+function weekQuota(){ const sl = srvLim(); if (sl) return sl.weekQuotaSet ? 1 : 0; const ki = S.keyInfo; return ki && ki.limit > 0 && ['entreprise', 'competence', 'elite'].includes(S.set.plan) ? ki.limit * WEEK_SHARE : 0; }
+function weekRatio(){ const sl = srvLim(); if (sl) return sl.weekRatio == null ? null : +sl.weekRatio; const q = weekQuota(); return q ? effectiveWeekly() / q : null; }
+function weekExhausted(){ const sl = srvLim(); if (sl) return !!sl.weekExhausted; const r = weekRatio(); return r != null && r >= 1 && !keyExhausted(); }
 function keyUsedRatio(){ const ki = S.keyInfo; if (!(ki && ki.limit > 0)) return null; return Math.min(2, Math.max(ki.used / ki.limit, weekRatio() || 0)); }
 function fsmNow(){ return window.__fsmNow ? new Date(window.__fsmNow) : new Date(); }
 function nextMondayUTC(){ const d = fsmNow(), n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); n.setUTCDate(n.getUTCDate() + ((8 - n.getUTCDay()) % 7 || 7)); return n; }
@@ -8479,11 +8686,13 @@ function unlockState(){
   return rec && rec.month === monthIdUTC() ? rec : null;
 }
 function monthLeftRatio(){
+  const sl = srvLim(); if (sl) return sl.monthRatio == null ? 1 : Math.max(0, 1 - +sl.monthRatio);
   const ki = S.keyInfo; if (!(ki && ki.limit > 0)) return 0;
   if (ki.remaining != null) return Math.max(0, +ki.remaining / ki.limit);
   return Math.max(0, 1 - ((+ki.used || 0) / ki.limit));
 }
 function canUnlock(){
+  { const sl = srvLim(); if (sl) return sl.canUnlock && typeof sl.canUnlock === 'object' ? sl.canUnlock : { ok:false, why:'Déblocage indisponible.' }; }
   if (!(weekQuota() > 0)) return { ok:false, why:"Cet abonnement n'a pas de limite hebdomadaire." };
   if (!(monthLeftRatio() > 0) || keyExhausted()) return { ok:false, why:'Le crédit mensuel est épuisé.' };
   if (unlockState()) return { ok:false, why:'used' };
@@ -8517,6 +8726,7 @@ async function confirmUnlock(){
   return applyUnlock();
 }
 function applyUnlock(){
+  if (srvLim()) return srvUnlock();
   if (!canUnlock().ok) return false;
   const fp = S._keyFp, base = LS.get('fsm.weekbase', {});
   base[fp] = { week: weekKeyUTC(), base: +(S.keyInfo?.weekly || 0) };
@@ -9424,6 +9634,125 @@ async function productTestsBody(){
       ok('déblocage restauré même après une erreur', threw && cleared && localStorage.getItem('fsm.unlock') === SENT && localStorage.getItem('fsm.weekbase') === wb);
     } finally { lsRestore(before); }
   }
+  /* ===== Mode serveur (essai) : fetch simulé, aucune requête réelle ===== */
+  {
+    const keepF = window.fetch, keepAsk = ask, keepPoll = SRV_POLL_MS, wait = ms => new Promise(r => setTimeout(r, ms));
+    const snap = lsSnapshot(['fsm.srv', 'fsm.srvcode', 'fsm.srvsince', 'relais.index', 'relais.key']);
+    const keep = { key: S.key, keyInfo: S.keyInfo, keyState: S.keyState, lim: S.srvLimits, plan: S.set.plan, planAuto: S.set.planAuto, index: S.index.slice() };
+    const tid = 'test-srv-' + uid(), JID = '11111111-1111-4111-8111-111111111111', CODE = 'test-code-' + '0'.repeat(20);
+    const calls = []; let routes = {};
+    const J = (o, st = 200) => new Response(JSON.stringify(o), { status: st, headers: { 'Content-Type': 'application/json' } });
+    const mock = async (url, o = {}) => {
+      const u = String(url), m = (o.method || 'GET'), path = u.replace('https://srv.test', '');
+      calls.push({ m, u, path, auth: o.headers?.Authorization || '', body: o.body || '' });
+      const f = routes[m + ' ' + path] || routes[m + ' ' + path.replace(/\?.*$/, '')];
+      return f ? f(o) : J({ error: { code: 'not_found', message: 'x' } }, 404);
+    };
+    const until = async (fn, ms = 3000) => { const t = Date.now(); while (!fn() && Date.now() - t < ms) await wait(10); return fn(); };
+    const mkConv = (asst) => ({ id: tid, title: 'srv', messages: [{ id: uid(), role: 'user', text: 'bonjour', atts: [] }, asst] });
+    try{
+      localStorage.removeItem('fsm.srv'); localStorage.removeItem('fsm.srvcode');
+      const runSrc = Function.prototype.toString.call(run);
+      ok('mode serveur désactivé par défaut', srvConf().on === false && !serverOn() && !srvUse({ model: 't/m', mode: 'chat' }, 'chat', {}) && $('#srvOn') && !$('#srvOn').checked && srvConf().base === SRV_DEFAULT && /srvUse\(asst, cat, conv\)\) await runServerJob/.test(runSrc) && /runChat\)\(asst, ctrl\.signal, conv\)/.test(runSrc));
+      { const href0 = location.href; history.replaceState(null, '', location.pathname + '?api=staging' + location.hash); const b1 = srvApiParam(); const c1 = srvConf(); const clean = !/[?&]api=/.test(location.search);
+        history.replaceState(null, '', location.pathname + '?api=prod' + location.hash); const b2 = srvApiParam(); const c2 = srvConf();
+        history.replaceState(null, '', location.pathname + '?api=https://evil.test' + location.hash); const b3 = srvApiParam(); const c3 = srvConf();
+        history.replaceState(null, '', href0); localStorage.removeItem('fsm.srv');
+        ok('mode serveur : production par défaut, essai via ?api=staging sans activation', SRV_DEFAULT === 'https://api.fsmai.app' && b1 === SRV_STAGING && c1.base === SRV_STAGING && c1.on === false && clean && b2 === SRV_DEFAULT && c2.base === SRV_DEFAULT && c2.on === false && b3 === '' && c3.base === SRV_DEFAULT && srvConf().base === SRV_DEFAULT); }
+      window.fetch = mock; SRV_POLL_MS = 5; S.set.plan = 'entreprise';
+      LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); LS.set('fsm.srvcode', CODE); S.srvLimits = null;
+      S.key = 'sk-or-v1-servermodetestkey000000000000'; LS.set('relais.key', S.key); srvKeySwitch();
+      ok('mode serveur : clé OpenRouter effacée de la mémoire et de l\u2019appareil', localStorage.getItem('relais.key') === null && serverOn() && S.key === '' && !srvUse({ model: 'xai:grok', mode: 'chat' }, 'chat', {}) && !srvUse({ model: 't/m', mode: 'chat' }, 'videoedit', {}) && srvUse({ model: 't/m', mode: 'image' }, 'image', {}));
+      /* 1. texte : création, flux par morceaux */
+      routes = {
+        'POST /v1/jobs': () => J({ id: JID, status: 'queued', gen: 0, seq: 0 }, 201),
+        ['GET /v1/jobs/' + JID + '?from=0']: () => J({ id: JID, status: 'running', gen: 0, seq: 1, from: 0, text: 'Bon' }),
+        ['GET /v1/jobs/' + JID + '?from=1']: () => J({ id: JID, status: 'done', gen: 0, seq: 2, from: 1, text: 'jour' }),
+        'GET /v1/limits': () => J({ weekExhausted: false, keyExhausted: false, mediaCapped: false, freeOnly: false, weekQuotaSet: true, weekRatio: 0.1, monthRatio: 0.1, canUnlock: { ok: true } }),
+      };
+      const a1 = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/m', mode: 'chat', cat: 'chat', status: '' };
+      const c1 = mkConv(a1);
+      await runServerJob(a1, c1.messages[0], new AbortController().signal, c1);
+      const post = calls.find(c => c.m === 'POST'), pb = post ? JSON.parse(post.body) : {};
+      ok('mode serveur : texte envoyé au serveur puis reçu par morceaux', a1.text === 'Bonjour' && a1.srv?.id === JID && pb.kind === 'chat' && pb.model === 't/m' && pb.clientRef === a1.id && Array.isArray(pb.messages) && pb.messages[pb.messages.length - 1].role === 'user' && calls.filter(c => /\?from=/.test(c.path)).map(c => c.path.split('=')[1]).join(',') === '0,1', JSON.stringify({ t: a1.text, p: calls.map(c => c.m + ' ' + c.path) }));
+      ok('mode serveur : aucune clé OpenRouter envoyée', calls.length > 0 && calls.every(c => c.u.startsWith('https://srv.test/') && c.auth === 'Bearer ' + CODE && !/sk-or-/.test(c.body + c.auth)) && !calls.some(c => /openrouter\.ai/.test(c.u)));
+      /* 2. réouverture : la réponse reprend au dernier morceau reçu (from=N) */
+      calls.length = 0;
+      const a2 = { id: uid(), role: 'assistant', text: 'Bon', images: [], videos: [], sources: [], model: 't/m', mode: 'chat', status: 'Le modèle répond…', inflight: Date.now(), srv: { id: JID, kind: 'chat', seq: 1, gen: 0 } };
+      const c2 = mkConv(a2);
+      reviveStuck(c2, true);
+      await until(() => !a2._resuming && !a2.srv);
+      ok('mode serveur : conversation fermée puis rouverte, réponse complète', a2.text === 'Bonjour' && !a2.srv && !a2.error && !a2.interrupted && !a2.inflight && calls[0]?.path === '/v1/jobs/' + JID + '?from=1', JSON.stringify({ t: a2.text, e: a2.error, p: calls.map(c => c.path) }));
+      /* 3. nouvelle tentative côté serveur (gen change) : le texte repart de zéro */
+      routes['GET /v1/jobs/' + JID + '?from=1'] = () => J({ id: JID, status: 'running', gen: 1, seq: 0, from: 1, text: '' });
+      routes['GET /v1/jobs/' + JID + '?from=0'] = () => J({ id: JID, status: 'done', gen: 1, seq: 1, from: 0, text: 'Salut' });
+      const a3 = { id: uid(), role: 'assistant', text: 'Bon', images: [], videos: [], sources: [], model: 't/m', mode: 'chat', srv: { id: JID, kind: 'chat', seq: 1, gen: 0 } };
+      await srvFollow(a3, new AbortController().signal);
+      ok('mode serveur : nouvelle tentative du serveur, texte repris de zéro', a3.text === 'Salut' && a3.srv.gen === 1, a3.text);
+      /* 4. image terminée application fermée : retrouvée par GET /v1/jobs?since=, puis téléchargée */
+      calls.length = 0; LS.set('fsm.srvsince', 0);
+      const png = new Blob([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], { type: 'image/png' });
+      const a4 = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'image', status: 'Création de l\'image…', inflight: Date.now() };
+      const c4 = mkConv(a4);
+      routes = Object.assign(routes, {
+        'GET /v1/jobs?since=0': () => J({ jobs: [{ id: JID, clientRef: a4.id, kind: 'image', status: 'done', media: [{ type: 'image/png', url: '/v1/jobs/' + JID + '/media/0' }] }], now: 1234567 }),
+        ['GET /v1/jobs/' + JID]: () => J({ id: JID, kind: 'image', status: 'done', gen: 0, seq: 0, media: [{ type: 'image/png', url: '/v1/jobs/' + JID + '/media/0' }] }),
+        ['GET /v1/jobs/' + JID + '/media/0']: () => new Response(png, { status: 200, headers: { 'Content-Type': 'image/png' } }),
+      });
+      const sj = await srvJobsSince();
+      const att = srvAttach(c4, sj);
+      reviveStuck(c4, true);
+      await until(() => !a4._resuming && !a4.srv);
+      ok('mode serveur : image finie application fermée, retrouvée à la réouverture', att === 1 && +LS.get('fsm.srvsince', 0) === 1234567 && a4.images.length === 1 && /^data:image\/png;base64,/.test(a4.images[0].url) && !a4.error && !a4.interrupted && calls.some(c => c.path === '/v1/jobs/' + JID + '/media/0' && c.auth === 'Bearer ' + CODE), JSON.stringify({ att, n: a4.images.length, e: a4.error, p: calls.map(c => c.path) }));
+      /* 5. limites : le serveur fait foi */
+      S.keyInfo = null;
+      srvApplyLimits({ weekExhausted: true, keyExhausted: false, mediaCapped: true, freeOnly: true, weekQuotaSet: true, weekRatio: 1.2, monthRatio: 0.5, canUnlock: { ok: true } });
+      calls.length = 0; let le = null;
+      const a5 = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'image' };
+      try{ await runServerJob(a5, { text: 'un chat', atts: [] }, new AbortController().signal, mkConv(a5)); }catch(e){ le = e; }
+      const onSrv = weekExhausted() && mediaCapped() && freeOnly() && canUnlock().ok && Math.abs(monthLeftRatio() - 0.5) < 1e-9;
+      LS.set('fsm.srv', { on: false, base: 'https://srv.test' });
+      const offOk = !weekExhausted() && !keyExhausted() && canUnlock().ok === false;
+      LS.set('fsm.srv', { on: true, base: 'https://srv.test' });
+      ok('mode serveur : limites lues sur le serveur (mode direct inchangé)', onSrv && offOk && le?.limit === true && calls.length === 0, JSON.stringify({ onSrv, offOk, le: le?.message }));
+      /* 6. déblocage côté serveur */
+      routes['POST /v1/limits/unlock'] = () => J({ unlocked: true, limits: { weekExhausted: false, keyExhausted: false, mediaCapped: false, freeOnly: false, weekQuotaSet: true, weekRatio: 0, monthRatio: 0.5, canUnlock: { ok: false, why: 'used' } } });
+      const un = await applyUnlock();
+      ok('mode serveur : déblocage demandé au serveur', un === true && calls.some(c => c.m === 'POST' && c.path === '/v1/limits/unlock') && !weekExhausted() && canUnlock().why === 'used');
+      /* 7. limite refusée par le serveur (429) : pas de nouvel essai avec un autre modèle */
+      S.srvLimits = null;
+      routes['POST /v1/jobs'] = () => J({ error: { code: 'week_limit', message: 'Limite hebdomadaire atteinte.' }, limits: { weekExhausted: true, mediaCapped: true, freeOnly: true, weekQuotaSet: true, canUnlock: { ok: true } } }, 429);
+      let e7 = null; const a7 = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'image' };
+      try{ await runServerJob(a7, { text: 'un chat', atts: [] }, new AbortController().signal, mkConv(a7)); }catch(e){ e7 = e; }
+      ok('mode serveur : limite 429 du serveur affichée', e7?.limit === true && e7.message === 'Limite hebdomadaire atteinte.' && !canFallback(e7, a7, 0) && S.srvLimits?.weekExhausted === true);
+      /* 7b. modèle « texte + image » : image si la catégorie le demande, sinon texte ; fonctions non prises en charge refusées sans appel direct */
+      const a7b = { id: uid(), role: 'assistant', text: '', images: [], videos: [], sources: [], model: 't/img', mode: 'chat+image' };
+      const bImg = srvBody(a7b, { text: 'un chat', atts: [] }, mkConv(a7b), 'image'), bTxt = srvBody(a7b, { text: 'bonjour', atts: [] }, mkConv(a7b), 'chat');
+      ok('mode serveur : modèle texte + image routé (image ou texte)', srvUse(a7b, 'image', mkConv(a7b)) && bImg.kind === 'image' && bImg.prompt === 'un chat' && bTxt.kind === 'chat' && Array.isArray(bTxt.messages) && !srvUse(a7b, 'videoedit', mkConv(a7b)), JSON.stringify({ i: bImg.kind, t: bTxt.kind }));
+      /* 8. arrêt et effacement */
+      calls.length = 0; routes['DELETE /v1/jobs/' + JID] = () => J({ deleted: true }); routes['DELETE /v1/me'] = () => J({ erased: true });
+      srvCancel({ id: JID }); await wait(20);
+      ask = async () => 'yes';
+      const er = await srvErase();
+      ok('mode serveur : arrêt annule la tâche, effacement DELETE /v1/me', calls.some(c => c.m === 'DELETE' && c.path === '/v1/jobs/' + JID) && er === true && calls.some(c => c.m === 'DELETE' && c.path === '/v1/me') && /srvCancel\(asst\.srv\)/.test(runSrc));
+      /* 9. code refusé */
+      LS.set('fsm.srvcode', 'mauvais-code-' + '1'.repeat(10)); routes = {}; routes['GET /v1/limits'] = () => J({ error: { code: 'unauthorized', message: 'x' } }, 401);
+      let e9 = null; try{ await srvLimits(); }catch(e){ e9 = e; }
+      ok('mode serveur : code refusé expliqué', e9?.status === 401 && /Code client du serveur FSM AI refusé/.test(e9.message));
+      LS.set('fsm.srv', { on: true, base: 'https://srv.test' }); srvKeySwitch();
+      ok('mode serveur : clé jamais réenregistrée ni utilisée', localStorage.getItem('relais.key') === null && S.key === '' && /srvWipeKey\(\)/.test(Function.prototype.toString.call(srvKeySwitch)));
+      LS.set('fsm.srv', { on: false }); srvKeySwitch();
+      ok('mode serveur désactivé : clé non remise (à ressaisir)', S.key === '' && localStorage.getItem('relais.key') === null && !serverOn());
+    }catch(e){ ok('mode serveur : exception', false, e?.message || e); }
+    finally{
+      await wait(40);
+      window.fetch = keepF; ask = keepAsk; SRV_POLL_MS = keepPoll;
+      lsRestore(snap);
+      S.key = keep.key; S.keyInfo = keep.keyInfo; S.keyState = keep.keyState; S.srvLimits = keep.lim; S.set.plan = keep.plan; S.set.planAuto = keep.planAuto; S.index = keep.index;
+      try{ $('#apiKey').disabled = false; srvRenderUI(); }catch(e){}
+      await DB.del('conv:' + tid);
+    }
+  }
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
@@ -9435,6 +9764,7 @@ window.runProductTests = runProductTests;
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
   try{ enforceClientMode(); }catch(e){} renderBalance(); fetchKeyInfo(true); refreshKeyFp();
+  if (serverOn()) srvLimits().catch(() => {});
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') fetchKeyInfo(); });
 })();
 </script>
