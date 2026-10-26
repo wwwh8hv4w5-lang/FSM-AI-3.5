@@ -8974,7 +8974,7 @@ const ABO_VIEWS = {
     b.innerHTML = `<div class="abo-v"><p class="note" role="status">Confirmation du paiement en cours…</p></div>`;
     let st = null;
     for (let i = 0; i < 12; i++){
-      try{ st = await aboStatus(); }catch(e){ if (e.code === 'no_session') throw e; }
+      try{ st = await aboStatus(); }catch(e){ if (e.status === 401) throw e; }
       if (st?.subscription?.active && (st.code || st.hasCode)) break;
       if (ABO.view !== 'active') return;
       await new Promise(r => setTimeout(r, i < 4 ? 1000 : 2500));
@@ -9142,7 +9142,7 @@ async function aboGo(btn, path, body){
     (ABO._assign || (u => location.assign(u)))(j.url);
   }catch(e){
     btn.disabled = false;
-    if (e.code === 'no_session'){ ABO.after = { view: ABO.view }; return aboShow('login'); }
+    if (e.status === 401 || e.code === 'no_session'){ ABO.after = { view: ABO.view }; return aboShow('login'); }
     if (er){ er.textContent = aboErrMsg(e); er.hidden = false; } else toast(aboErrMsg(e));
   }
 }
