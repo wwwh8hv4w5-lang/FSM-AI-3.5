@@ -2102,7 +2102,7 @@ function srvCodeInput(el, done){
 }
 /* état sous le champ : '' (rien), 'wait', 'ok' (code actif), 'err' (message rouge) */
 function srvCodeStatus(kind, text){ const m = $('#srvCodeMsg'); if (!m) return; m.className = 'code-card-st' + (kind ? ' is-' + kind : ''); m.textContent = kind ? text : ''; m.hidden = !kind; $('#srvCode')?.setAttribute('aria-invalid', kind === 'err' ? 'true' : 'false'); }
-function srvCodeActiveText(){ const l = S.srvLimits, p = l && PLANS[l.plan]; return '\u2705 Code actif' + (p ? ' \u00b7 ' + p.name : ''); }
+function srvCodeActiveText(){ const l = S.srvLimits, p = l && PLANS[l.plan]; return '\u2705 Code actif' + (l && l.owner === true ? ' \u00b7 Accès propriétaire' : p ? ' \u00b7 ' + p.name : ''); }
 let srvCheckSeq = 0;
 async function srvCodeCheck(){
   const n = ++srvCheckSeq, code = srvCode(); if (!serverOn()) return false;
@@ -2138,6 +2138,8 @@ function srvPlanForget(){ if (S.set.planSrv){ S.set.plan = ''; S.set.planAuto = 
 function srvAskCode(){ openSettings(false); setTimeout(() => { const i = $('#srvCode'); i?.scrollIntoView({ block: 'center', behavior: 'smooth' }); i?.focus(); }, 80); }
 function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button></div></div>${typeof aboOnbHtml === 'function' ? aboOnbHtml() : ''}`; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
+/* accès propriétaire : décidé par le SERVEUR (rôle « owner » de son code), jamais par un réglage local ; pas avec une session d'abonné */
+function srvOwner(){ const l = srvLim(); return !!(l && l.owner === true && !srvSess() && srvCode()); }
 function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
 /* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
 function srvKind(asst, cat){ const md = asst.mode; if (md === 'chat+image') return ['image', 'photoedit'].includes(cat || asst.cat) ? 'image' : 'chat'; return md; }
@@ -2210,7 +2212,7 @@ function srvApplyLimits(l){
   const first = !S.srvLimits || S.srvBad; S.srvLimits = l; S.srvBad = '';
   let ch = false;
   if (l.plan && PLANS[l.plan] && (S.set.plan !== l.plan || !S.set.planAuto || !S.set.planSrv)){ ch = S.set.plan !== l.plan; S.set.plan = l.plan; S.set.planAuto = true; S.set.planSrv = true; S.planEdit = false; if (S.conv && !S.conv.messages?.length) S.conv.plan = l.plan; saveSettings(); }
-  try{ renderBalance(); renderPlan(); }catch(e){}
+  try{ renderBalance(); renderPlan(); aboRenderEntry(); aboRefreshOnb(); }catch(e){}
   if (ch || first) srvHomeRefresh();
 }
 async function srvLimits(){ const d = await srvFetch('/v1/limits'); srvApplyLimits(d?.limits || d); return S.srvLimits; }
@@ -8125,6 +8127,7 @@ function resetText(){
 function limitMsg(fallback){
   const p = PLANS[S.set.plan];
   const suite = fallback ? ' Le texte passe sur les modèles gratuits. Les images et la vidéo reprendront au renouvellement.' : '';
+  if (srvOwner()) return 'Plafond de sécurité du mois atteint (accès propriétaire).' + (fallback ? ' Le texte passe sur les modèles gratuits. Les images et la vidéo reprendront le mois prochain.' : '');
   if (weekExhausted()) return `Limite hebdomadaire de ton abonnement${p ? ' ' + p.key : ''} atteinte. Elle se réinitialise ${fmtReset(nextMondayUTC())}.` + suite;
   const base = `Limite mensuelle de ton abonnement${p ? ' ' + p.key : ''} atteinte.` + resetText();
   return base + suite;
@@ -8179,9 +8182,20 @@ function usCard(title, ratio, sub){
   const txt = pctLabel(ratio) + ' utilisé';
   return `<div class="us-card"><div class="us-top"><b>${esc(title)}</b><span>${txt}</span></div><div class="us-bar${pc >= 100 ? ' over' : pc >= 80 ? ' warn' : ''}"><i style="width:${Math.min(100, pc).toFixed(1)}%"></i></div>${sub ? `<div class="us-sub">${sub}</div>` : ''}</div>`;
 }
+/* fiche d'usage du propriétaire : sa consommation réelle (en $), aucune limite hebdomadaire ; le plafond de sécurité n'est pas affiché */
+const ownerUsd = n => (Math.round((+n || 0) * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
+function ownerUsageHtml(l){
+  const u = l.usage || {}, mReset = l.monthResetsAt && !isNaN(Date.parse(l.monthResetsAt)) ? new Date(l.monthResetsAt) : nextMonthUTC();
+  return `
+    <div class="us-sec">Accès propriétaire</div>
+    <div class="us-card" id="usOwnerMonth"><div class="us-top"><b>Ce mois-ci</b><span>${esc(ownerUsd(u.month))}</span></div><div class="us-sub">${l.keyExhausted ? 'Plafond de sécurité du mois atteint : le texte passe sur les modèles gratuits, les images et la vidéo reprennent ' + esc(fmtReset(mReset)) + '. ' : ''}Consommation réelle de ton code ce mois-ci.</div></div>
+    <div class="us-card" id="usOwnerWeek"><div class="us-top"><b>Cette semaine</b><span>${esc(ownerUsd(u.week))}</span></div><div class="us-sub">Aucune limite hebdomadaire. Tous les modèles et toutes les fonctions.</div></div>
+    ${aboOn() ? '<button class="btn ghost" data-abo="admin">Administration</button>' : ''}`;
+}
 function renderUsage(){
   const el = document.getElementById('usBody'); if (!el) return;
   const ki = S.keyInfo, p = PLANS[S.set.plan];
+  if (srvOwner()){ el.innerHTML = ownerUsageHtml(srvLim()); return; }
   if (S.set.plan === 'unlimited'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Illimité</b><span>Aucune limite</span></div><div class="us-sub">Ta clé n'a pas de plafond : aucune limite hebdomadaire ni mensuelle.</div></div>`; return; }
   if (S.set.plan === 'free'){ el.innerHTML = `<div class="us-card"><div class="us-top"><b>Abonnement Free</b><span>Modèles gratuits</span></div><div class="us-sub">Les modèles gratuits n'ont pas de limite de crédit. Pour la vidéo et les modèles les plus puissants, passe à un abonnement supérieur.</div></div><button class="btn us-up" data-usup>Voir les abonnements</button>`; return; }
   if (serverOn() && !srvLim()){ el.innerHTML = '<p class="note">Lecture de ton utilisation…</p>'; if (!renderUsage._busy){ renderUsage._busy = true; srvLimits().catch(() => {}).finally(() => { renderUsage._busy = false; if (srvLim()) renderUsage(); else el.innerHTML = '<p class="note">Serveur FSM AI injoignable pour l\u2019instant : réessaie dans un moment.</p>'; }); } return; }
@@ -8859,20 +8873,24 @@ function aboErrMsg(e){ return ABO_ERR[e?.code] || e?.message || 'Une erreur est 
 async function aboFetch(path, body, method){
   const m = method || (body === undefined ? 'GET' : 'POST');
   const h = {};
-  if (m !== 'GET'){ h['Content-Type'] = 'application/json'; if (ABO.csrf) h['X-FSM-CSRF'] = ABO.csrf; }
+  /* administration par le code propriétaire (sans compte) : code en en-tête Authorization, aucun cookie */
+  const byCode = aboCodeAdmin(path);
+  if (m !== 'GET'){ h['Content-Type'] = 'application/json'; if (ABO.csrf && !byCode) h['X-FSM-CSRF'] = ABO.csrf; }
+  if (byCode) h.Authorization = 'Bearer ' + srvCode();
   let r;
-  try{ r = await fetch(ABO_API + path, { method:m, credentials:'include', headers:h, body: m === 'GET' ? undefined : JSON.stringify(body || {}) }); }
+  try{ r = await fetch((byCode ? srvConf().base : ABO_API) + path, { method:m, credentials: byCode ? 'omit' : 'include', headers:h, body: m === 'GET' ? undefined : JSON.stringify(body || {}) }); }
   catch(e){ const er = new Error('Connexion impossible au serveur. Vérifie ta connexion.'); er.code = 'network'; throw er; }
   let j = null; try{ j = await r.json(); }catch(e){}
   if (!r.ok){
     const er = new Error(j?.error?.message || ('Erreur ' + r.status)); er.code = j?.error?.code || (r.status === 401 ? 'no_session' : 'http_' + r.status); er.status = r.status;
-    if (r.status === 401){ ABO.acc = null; ABO.csrf = ''; ABO.st = null; try{ srvSessSet(false); }catch(e){} }
+    if (r.status === 401 && !byCode){ ABO.acc = null; ABO.csrf = ''; ABO.st = null; try{ srvSessSet(false); }catch(e){} }
     throw er;
   }
   if (j && j.csrf) ABO.csrf = j.csrf;
   if (j && 'account' in j) ABO.acc = j.account || null;
   return j || {};
 }
+function aboCodeAdmin(path){ return /^\/v1\/admin\//.test(path) && !ABO.acc && srvOwner(); }
 async function aboSession(){ try{ await aboFetch('/v1/account/session'); }catch(e){ ABO.acc = null; } return ABO.acc; }
 async function aboPlans(){ if (!ABO.plans) ABO.plans = await aboFetch('/v1/billing/plans'); return ABO.plans; }
 /* abonné actif : l'app passe d'elle-même en mode serveur avec la session du compte (aucun code n'existe ni ne s'affiche) */
@@ -8895,7 +8913,7 @@ function aboEntryHtml(){
   if (!aboOn()) return '';
   return ABO.acc
     ? `<div class="abo-acts"><button class="btn ghost" data-abo="mine">Mon abonnement</button></div>`
-    : `<div class="abo-acts"><button class="btn" data-abo="signup">Créer un compte</button><button class="btn ghost" data-abo="login">Se connecter</button></div>`;
+    : `<div class="abo-acts">${srvOwner() ? '<button class="btn ghost" data-abo="admin">Administration</button>' : ''}<button class="btn" data-abo="signup">Créer un compte</button><button class="btn ghost" data-abo="login">Se connecter</button></div>`;
 }
 function aboRenderEntry(){ const el = document.getElementById('aboEntry'); if (!el) return; const h = aboEntryHtml(); el.innerHTML = h; el.hidden = !h; }
 function aboOnbHtml(){ return aboOn() ? `<div class="abo-onb" id="aboOnb">${aboEntryHtml()}</div>` : ''; }
@@ -8913,13 +8931,14 @@ async function aboShow(view, arg){
   $('#aboTitle').textContent = ABO_TITLES[view] || 'Mon compte';
   const b = $('#aboBody');
   const needAcc = ['plans','active','mine','topup','del','admin','gift','giftTopup'].includes(view);
-  if (needAcc && !ABO.acc){
+  const byCode = ['admin','gift','giftTopup'].includes(view) && !ABO.acc && srvOwner();
+  if (needAcc && !ABO.acc && !byCode){
     b.innerHTML = '<p class="note">Chargement…</p>';
     await aboSession();
     if (!ABO.acc){ ABO.after = { view, arg }; return aboShow('login'); }
   }
   try{ await (ABO_VIEWS[view] || ABO_VIEWS.login)(b, arg); }
-  catch(e){ b.innerHTML = `<div class="abo-v"><p class="abo-err" role="alert">${esc(aboErrMsg(e))}</p><button class="btn ghost" data-abo="${ABO.acc ? 'mine' : 'login'}">Retour</button></div>`; }
+  catch(e){ b.innerHTML = `<div class="abo-v"><p class="abo-err" role="alert">${esc(aboErrMsg(e))}</p><button class="btn ghost" data-abo="${ABO.acc ? 'mine' : byCode ? 'admin' : 'login'}">Retour</button></div>`; }
 }
 function aboForm(b, html, onSubmit){
   b.innerHTML = `<form class="abo-v" novalidate>${html}<p class="abo-err" role="alert" hidden></p></form>`;
@@ -10757,6 +10776,45 @@ async function runAboTests(){
     srvRenderUI();
     ok('déconnexion : mode serveur désactivé sur l\u2019appareil', !srvSess() && !ABO.acc);
     ok('réglages (sans session) : « Code d\u2019accès (anciens utilisateurs) » visible', !$('#srvCodeCard').hidden && /Code d\u2019accès \(anciens utilisateurs\)/.test($('#srvCodeTitle').textContent));
+
+    /* ---- accès propriétaire (code du chef, rôle « owner » décidé par le serveur) ---- */
+    const ownKeep = { plan: S.set.plan, auto: S.set.planAuto, srv: S.set.planSrv };
+    try{
+      ABO.acc = null; ABO.csrf = ''; srvSessSet(false);
+      LS.set('fsm.srv', { on: true, base: SRV_STAGING }); LS.set('fsm.srvcode', 'FSM-TEST-OWNR-0000-0000');
+      const mr = new Date(Date.UTC(2026, 10, 1)).toISOString();
+      const own = { plan:'unlimited', owner:true, weekQuotaSet:false, weekRatio:null, monthRatio:0.1234, keyExhausted:false, weekExhausted:false, freeOnly:false, mediaCapped:false, canUnlock:{ ok:false }, usage:{ week:3.5, month:12.34 }, weekResetsAt: mr, monthResetsAt: mr, source:'openrouter' };
+      const cli = { plan:'entreprise', weekQuotaSet:true, weekRatio:0.5, monthRatio:0.2, keyExhausted:false, weekExhausted:false, freeOnly:false, mediaCapped:false, canUnlock:{ ok:true }, weekResetsAt: mr, monthResetsAt: mr, source:'openrouter' };
+      // client ordinaire : rien ne change
+      srvApplyLimits(cli); renderUsage();
+      const cu = $('#usBody').innerHTML;
+      ok('code client : pas d\u2019accès propriétaire (modèles, admin, fiche)', !srvOwner() && !isOwner() && S.set.plan === 'entreprise' && !/data-abo="admin"/.test(aboEntryHtml()) && !aboCodeAdmin('/v1/admin/accounts') && !/Accès propriétaire/.test(cu) && /Cette semaine/.test(cu) && !/\$/.test(cu), cu.slice(0, 200));
+      // un « plan unlimited » sans le drapeau owner du serveur n'ouvre pas l'admin
+      srvApplyLimits({ ...cli, plan:'unlimited' });
+      ok('plan Illimité sans drapeau owner : pas d\u2019administration', !srvOwner() && !/data-abo="admin"/.test(aboEntryHtml()));
+      // propriétaire
+      srvApplyLimits(own); renderUsage();
+      const ou = $('#usBody').innerHTML, ot = $('#usBody').textContent;
+      ok('propriétaire : tous les modèles (isOwner), statut « Accès propriétaire »', srvOwner() && isOwner() && S.set.plan === 'unlimited' && /Accès propriétaire/.test(srvCodeActiveText()));
+      ok('propriétaire : fiche d\u2019usage = consommation réelle, sans limite hebdomadaire ni plafond affiché', /12,34 \$/.test(ot) && /3,50 \$/.test(ot) && /Aucune limite hebdomadaire/.test(ot) && !/100/.test(ot) && !/us-bar/.test(ou) && !/Débloquer/.test(ot), ot.slice(0, 300));
+      ok('propriétaire : bouton Administration (réglages et fiche)', /data-abo="admin"/.test(aboEntryHtml()) && /data-abo="admin"/.test(ou));
+      const oc = [];
+      window.fetch = async (url, o = {}) => { oc.push({ u: String(url), o }); if (String(url) === SRV_STAGING + '/v1/admin/accounts') return J({ accounts:[{ id:'a_9', email:'client@entreprise.fr', role:'client', status:'active', plan:'entreprise', subStatus:'active', active:true, gift:false, giftTopups:[] }], giftLimits:{ months:12, topupEur:250, packs:[] } }); return J({ error:{ code:'x' } }, 404); };
+      await aboShow('admin'); await wait(40);
+      const ac = oc.find(c => /\/v1\/admin\/accounts$/.test(c.u));
+      ok('propriétaire : l\u2019admin s\u2019ouvre avec son code (en-tête Authorization, sans cookie ni CSRF)', ac && ac.o.headers.Authorization === 'Bearer FSM-TEST-OWNR-0000-0000' && ac.o.credentials === 'omit' && !ac.o.headers['X-FSM-CSRF'] && /client@entreprise\.fr/.test($('#aboBody').textContent) && ABO.view === 'admin', JSON.stringify(ac?.o?.credentials));
+      ok('propriétaire : le code ne part pas vers les routes de compte', !aboCodeAdmin('/v1/billing/status') && !aboCodeAdmin('/v1/account/session'));
+      // plafond de sécurité atteint : message propriétaire, montant du plafond jamais affiché
+      srvApplyLimits({ ...own, keyExhausted:true, freeOnly:true, mediaCapped:true, usage:{ week:40, month:100 } }); renderUsage();
+      const xt = $('#usBody').textContent;
+      ok('propriétaire : plafond de sécurité atteint signalé, sans montant de plafond', /Plafond de sécurité du mois atteint/.test(xt) && /Plafond de sécurité/.test(limitMsg(true)) && !/Illimité/.test(limitMsg(true)), xt.slice(0, 200));
+      // une session d'abonné ne devient jamais propriétaire, même si une réponse le prétend
+      srvSessSet(true); srvApplyLimits(own);
+      ok('session d\u2019abonné : jamais d\u2019accès propriétaire par le code', !srvOwner() && !aboCodeAdmin('/v1/admin/accounts'));
+      srvSessSet(false);
+    } finally {
+      window.fetch = snap.fetch; S.set.plan = ownKeep.plan; S.set.planAuto = ownKeep.auto; S.set.planSrv = ownKeep.srv;
+    }
   }catch(e){ ok('exception : ' + (e?.message || e), false); }
   finally{
     window.fetch = snap.fetch; ask = keepAsk; delete ABO._assign; delete ABO._t_acc; delete ABO.adm;
