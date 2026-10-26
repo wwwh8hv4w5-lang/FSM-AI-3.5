@@ -9181,7 +9181,7 @@ const ABO_VIEWS = {
   giftTopup(b, id){
     const a = (ABO.adm?.list || []).find(x => x.id === id), lim = ABO.adm?.lim || { topupEur: 250, packs: [] };
     if (!a) return aboShow('admin');
-    const packs = lim.packs?.length ? lim.packs : [{ id:'r10', eur:10 }, { id:'r25', eur:25 }, { id:'r50', eur:50 }];
+    const packs = lim.packs?.length ? lim.packs : [{ id:'r10', eur:10 }, { id:'r20', eur:20 }, { id:'r50', eur:50 }];
     const f = aboForm(b, `
       <p class="note">Pour <b style="overflow-wrap:anywhere">${esc(a.email)}</b>. Valable 12 mois, utilisée après le quota mensuel, hors limite hebdomadaire.</p>
       <fieldset class="field" style="border:0;padding:0;margin:0"><legend style="padding:0;margin-bottom:6px">Montant</legend><div class="abo-form-row">
@@ -10625,7 +10625,7 @@ async function runAboTests(){
   const results = []; const ok = (name, pass, info) => results.push({ name, pass: !!pass, info: pass ? undefined : info });
   const snap = { srv: localStorage.getItem('fsm.srv'), code: localStorage.getItem('fsm.srvcode'), abo: sessionStorage.getItem('fsm.abo'), lim: S.srvLimits, fetch: window.fetch, abo2: JSON.stringify({ acc: ABO.acc, csrf: ABO.csrf }), assign: null };
   const calls = []; let status = null;
-  const plans = { plans:[{ id:'entreprise', name:'FSM AI Entreprise', eur:25 }, { id:'competence', name:'FSM AI Compétence', eur:60 }, { id:'elite', name:'FSM AI Élite', eur:250 }], packs:[{ id:'r10', eur:10 }, { id:'r25', eur:25 }, { id:'r50', eur:50 }], vat:'TVA non applicable, art. 293 B du CGI' };
+  const plans = { plans:[{ id:'entreprise', name:'FSM AI Entreprise', eur:25 }, { id:'competence', name:'FSM AI Compétence', eur:60 }, { id:'elite', name:'FSM AI Élite', eur:250 }], packs:[{ id:'r10', eur:10 }, { id:'r20', eur:20 }, { id:'r50', eur:50 }], vat:'TVA non applicable, art. 293 B du CGI' };
   const J = (b, st = 200) => new Response(JSON.stringify(b), { status: st, headers: { 'Content-Type': 'application/json' } });
   window.fetch = async (url, o = {}) => {
     const u = String(url), path = u.replace(ABO_API, ''); calls.push({ u, path, o });
@@ -10696,9 +10696,9 @@ async function runAboTests(){
     ok('limites d\u2019utilisation : « Se renouvelle le » à la date d\u2019abonnement (pas le 1er)', /Se renouvelle le 25 novembre 2026/.test(ust) && !/le 1er/.test(ust), ust.slice(0, 300));
     ok('Mon abonnement : aucune somme en $', !/\$/.test(mt));
     await aboShow('topup'); await wait(50);
-    ok('recharges : packs 10/25/50 € et conditions (après quota, 12 mois, non remboursable)', ['10 €','25 €','50 €'].every(x => $('#aboBody').textContent.includes(x)) && /12 mois/.test($('#aboBody').textContent) && /non remboursable/.test($('#aboBody').textContent) && !/\$/.test($('#aboBody').textContent));
-    $('#aboBody [data-abo-pack="r25"]').click(); await wait(60);
-    ok('recharge : paiement unique du pack choisi', JSON.parse(calls.filter(c => c.path === '/v1/billing/topup').pop()?.o.body || '{}').pack === 'r25' && assigned.length === 2);
+    ok('recharges : packs 10/20/50 € et conditions (après quota, 12 mois, non remboursable)', ['10 €','20 €','50 €'].every(x => $('#aboBody').textContent.includes(x)) && /12 mois/.test($('#aboBody').textContent) && /non remboursable/.test($('#aboBody').textContent) && !/\$/.test($('#aboBody').textContent));
+    $('#aboBody [data-abo-pack="r20"]').click(); await wait(60);
+    ok('recharge : paiement unique du pack choisi', JSON.parse(calls.filter(c => c.path === '/v1/billing/topup').pop()?.o.body || '{}').pack === 'r20' && assigned.length === 2);
     status.canTopup = false; await aboShow('topup'); await wait(40);
     ok('recharge refusée sans abonnement actif', !$('#aboBody [data-abo-pack]') && /abonnement actif/.test($('#aboBody').textContent));
     S.srvLimits = { canTopup:true, topup:{ has:true, ratio:0.5, active:true, expiresAt:'2027-10-26T00:00:00Z' }, onTopup:true };
@@ -10717,14 +10717,14 @@ async function runAboTests(){
     /* administration : cadeaux (propriétaire) */
     ABO.acc = { id:'a_owner', email:'chef@fsm.fr', role:'owner' };
     const accs = [
-      { id:'a_1', email:'cadeau@entreprise.fr', role:'client', status:'active', plan:'elite', subStatus:'active', active:true, gift:true, giftUntil:'2027-01-26T00:00:00Z', renewsAt:'2026-11-26T00:00:00Z', giftTopups:[{ id:'tp_1', eur:25, expiresAt:'2027-10-26T00:00:00Z' }] },
+      { id:'a_1', email:'cadeau@entreprise.fr', role:'client', status:'active', plan:'elite', subStatus:'active', active:true, gift:true, giftUntil:'2027-01-26T00:00:00Z', renewsAt:'2026-11-26T00:00:00Z', giftTopups:[{ id:'tp_1', eur:20, expiresAt:'2027-10-26T00:00:00Z' }] },
       { id:'a_2', email:'nouveau@entreprise.fr', role:'client', status:'active', plan:null, subStatus:null, active:false, gift:false, giftTopups:[] }
     ];
     const adm = [];
-    window.fetch = async (url, o = {}) => { const path = String(url).replace(ABO_API, ''); adm.push({ path, o, body: o.body ? JSON.parse(o.body) : null }); if (path === '/v1/admin/accounts') return J({ accounts: accs, giftLimits:{ months:12, topupEur:250, packs:[{ id:'r10', eur:10 }, { id:'r25', eur:25 }, { id:'r50', eur:50 }] } }); if (/\/gift$/.test(path)) return J({ ok:true, gift:{ label:'Abonnement offert jusqu\'au 26 janvier 2027' } }); return J({ ok:true }); };
+    window.fetch = async (url, o = {}) => { const path = String(url).replace(ABO_API, ''); adm.push({ path, o, body: o.body ? JSON.parse(o.body) : null }); if (path === '/v1/admin/accounts') return J({ accounts: accs, giftLimits:{ months:12, topupEur:250, packs:[{ id:'r10', eur:10 }, { id:'r20', eur:20 }, { id:'r50', eur:50 }] } }); if (/\/gift$/.test(path)) return J({ ok:true, gift:{ label:'Abonnement offert jusqu\'au 26 janvier 2027' } }); return J({ ok:true }); };
     await aboShow('admin'); await wait(40);
     const ad = $('#aboBody').textContent;
-    ok('admin : compte offert marqué « Offert jusqu\u2019au », recharge offerte en €', /Offert jusqu\u2019au 26 janvier 2027/.test(ad) && /Recharge offerte 25 €/.test(ad) && !/\$/.test(ad), ad.slice(0, 300));
+    ok('admin : compte offert marqué « Offert jusqu\u2019au », recharge offerte en €', /Offert jusqu\u2019au 26 janvier 2027/.test(ad) && /Recharge offerte 20 €/.test(ad) && !/\$/.test(ad), ad.slice(0, 300));
     ok('admin : « Offrir un abonnement » (sans abonnement), « Offrir une recharge » et « Arrêter l\u2019offre » (offert)', !!$('#aboBody [data-id="a_2"] [data-adm-g="gift"]') && !!$('#aboBody [data-id="a_1"] [data-adm-g="topup"]') && !!$('#aboBody [data-id="a_1"] [data-adm-g="stop"]'));
     $('#aboBody [data-id="a_2"] [data-adm-g="gift"]').click(); await wait(40);
     const gf = $('#aboBody form');
@@ -10738,7 +10738,7 @@ async function runAboTests(){
     await aboShow('admin'); await wait(30);
     $('#aboBody [data-id="a_1"] [data-adm-g="topup"]').click(); await wait(40);
     const tf = $('#aboBody form');
-    ok('offrir une recharge : packs 10/25/50 € et montant libre', tf && ['r10','r25','r50',''].every(v => tf.querySelector(`[name=pack][value="${v}"]`)) && !/\$/.test(tf.textContent));
+    ok('offrir une recharge : packs 10/20/50 € et montant libre', tf && ['r10','r20','r50',''].every(v => tf.querySelector(`[name=pack][value="${v}"]`)) && ['10 €','20 €','50 €'].every(x => tf.textContent.includes(x)) && !tf.textContent.includes('25 €') && ['r10','r20','r50',''].every(v => tf.querySelector(`[name=pack][value="${v}"]`)) && !/\$/.test(tf.textContent));
     tf.querySelector('[name=pack][value=""]').checked = true; tf.eur.value = '12.5'; adm.length = 0; askAns = true; tf.requestSubmit(); await wait(60);
     const tpp = adm.find(c => /\/gift-topup$/.test(c.path));
     ok('offrir une recharge : montant libre en € confirmé', tpp && tpp.body.eur === 12.5 && tpp.body.confirm === true && !tpp.body.pack, JSON.stringify(tpp?.body));
