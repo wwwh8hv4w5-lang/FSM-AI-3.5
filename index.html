@@ -933,6 +933,36 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 .livewrap{display:flex;flex-direction:column;gap:0;transition:opacity .4s ease}
 .livewrap.closing{opacity:0}
 .livewrap .devcard{margin:0 0 10px}
+/* ===== Abonnements FSM AI (staging, derrière aboOn()) : mêmes couleurs, rayons et boutons que l'application ===== */
+.abo-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.abo-acts .btn{flex:1;min-width:0}
+.abo-onb{margin-top:10px}
+.abo-v{display:flex;flex-direction:column;gap:14px}
+.abo-v h3{margin:4px 0 0;font:600 17px var(--f-display);letter-spacing:-.01em}
+.abo-v .field input[type=email]{border:0;background:var(--raised);border-radius:12px;padding:11px 14px;outline:none;font-size:16px}
+.abo-err{color:var(--danger);font-size:13.5px;margin:0}
+.abo-ok{color:#8FD19E;font-size:13.5px;margin:0}
+.abo-link{border:0;background:transparent;color:var(--ink);font:600 13.5px var(--f-body);padding:4px 0;text-decoration:underline;text-underline-offset:3px;align-self:flex-start}
+.abo-plan{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.abo-plan.sel{border-color:var(--muted)}
+.abo-plan-t{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.abo-plan-t b{font:600 17px var(--f-display)}
+.abo-price{font:600 20px var(--f-display);letter-spacing:-.02em;white-space:nowrap}
+.abo-price small{font-size:13px;color:var(--muted);font-weight:500}
+.abo-vat{font-size:12.5px;color:var(--faint);margin:0}
+.abo-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(143,209,158,.12);color:#8FD19E;border-radius:99px;padding:4px 12px;font:600 13.5px var(--f-display);align-self:flex-start}
+.abo-badge.warn{background:var(--danger-soft);color:var(--danger)}
+.abo-code{display:flex;gap:8px;align-items:center;background:var(--raised);border-radius:14px;padding:10px 10px 10px 14px}
+.abo-code code{flex:1;min-width:0;font:600 15px var(--f-mono);letter-spacing:.02em;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
+.abo-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14.5px}
+.abo-kv span{color:var(--muted)}
+.abo-kv b{font-weight:600;text-align:right}
+.abo-sim{font:600 11.5px var(--f-mono);color:var(--faint);letter-spacing:.04em;text-transform:uppercase}
+.abo-tbl{display:flex;flex-direction:column;gap:8px}
+.abo-acc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+.abo-acc .row{display:flex;gap:6px;flex-wrap:wrap}
+.abo-acc .btn{padding:7px 12px;font-size:13px}
+.us-topup{width:100%;margin-top:4px}
 </style>
 </head>
 <body>
@@ -1009,6 +1039,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="code-card-in"><input id="srvCode" class="masked" type="text" name="fsm-code-client" inputmode="text" enterkeyhint="done" placeholder="FSM-XXXX-XXXX-XXXX-XXXX" aria-describedby="srvHint srvCodeMsg" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other"><button class="code-eye" id="btnSrvShow" type="button" aria-pressed="false" aria-controls="srvCode" aria-label="Afficher le code" title="Afficher le code"><svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
         <div class="code-card-acts"><button class="btn ghost" id="btnSrvPaste" type="button" hidden>Coller</button><button class="btn" id="btnSrvOk" type="button">Valider</button></div>
         <p class="code-card-st" id="srvCodeMsg" role="status" aria-live="polite" hidden></p>
+        <div id="aboEntry" hidden></div>
       </section>
       <div class="field lock-hide">
         <label for="apiKey">Clé API FSM AI</label>
@@ -1158,6 +1189,13 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="usTitle">
     <div class="sheet-h"><h2 id="usTitle">Limites d'utilisation</h2><div class="us-acts"><button class="icon-btn" id="usRefresh" aria-label="Actualiser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
     <div class="sheet-b" id="usBody"></div>
+  </div>
+</div>
+<!-- Abonnements (staging uniquement, derrière aboOn()) -->
+<div class="scrim" id="aboSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="aboTitle">
+    <div class="sheet-h"><h2 id="aboTitle">Mon compte</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="sheet-b" id="aboBody"></div>
   </div>
 </div>
 <!-- Projet -->
@@ -1852,7 +1890,7 @@ $('#btnWipeOk').addEventListener('click', async () => {
   S.index = []; LS.set('relais.index', []); S.conv = null; renderThread(); closeSheets(); toast('Conversations effacées.');
 });
 
-function closeSheets(){ ['#usageSheet','#modelSheet','#settingsSheet','#gallerySheet','#voiceSheet','#botSheet','#connSheet','#fsmSheet','#agentSheet','#projSheet','#drawer'].forEach(x => $(x).hidden = true); }
+function closeSheets(){ ['#usageSheet','#modelSheet','#settingsSheet','#gallerySheet','#voiceSheet','#botSheet','#connSheet','#fsmSheet','#agentSheet','#projSheet','#aboSheet','#drawer'].forEach(x => $(x).hidden = true); }
 document.querySelectorAll('.scrim').forEach(s => s.addEventListener('click', e => { if (e.target === s || e.target.closest('[data-close]')) closeSheets(); }));
 $('#drawer').addEventListener('click', e => { if (e.target.id === 'drawer') closeSheets(); });
 document.addEventListener('keydown', e => {
@@ -2081,7 +2119,7 @@ function srvHomeRefresh(){ try{ if (!S.conv?.messages?.length) renderThread(); }
 /* abonnement reconnu par le serveur : retiré quand le code est enlevé ou refusé, pour que l'accueil revienne */
 function srvPlanForget(){ if (S.set.planSrv){ S.set.plan = ''; S.set.planAuto = false; S.set.planSrv = false; saveSettings(); try{ renderPlan(); renderBalance(); }catch(e){} } }
 function srvAskCode(){ openSettings(false); setTimeout(() => { const i = $('#srvCode'); i?.scrollIntoView({ block: 'center', behavior: 'smooth' }); i?.focus(); }, 80); }
-function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button></div></div>`; }
+function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button></div></div>${typeof aboOnbHtml === 'function' ? aboOnbHtml() : ''}`; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
 function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
 /* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
@@ -3640,7 +3678,7 @@ async function send(){
   } else {
     const routed = autoRoute(text, cat);
     /* limite vidéo vérifiée APRÈS autoRoute : un montage vidéo ou un jeu demandé en mode vidéo n'est pas une génération de vidéo */
-    if (videoGate(routed, cat)){ if (!isFreePlan() && weekExhausted() && canUnlock().ok) toast(limitMsg(false), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(isFreePlan() ? FREE_NO_VIDEO : limitMsg(false)); return; }
+    if (videoGate(routed, cat)){ if (isFreePlan()) toast(FREE_NO_VIDEO); else toast(limitMsg(false), limitActs()); return; }
     /* contrôle de la limite APRÈS autoRoute : une demande de jeu peut passer en mode code, une retouche photo est bloquée sans changer de mode */
     if (routed === 'capped' || (mediaCapped() && (modeFor(S.set.model) === 'image' || ['image', 'photoedit'].includes(routed || cat)))){ imgLimitToast(); return; }
     if (routed){ cat = routed; }
@@ -5139,8 +5177,10 @@ function enterAnim(el, delay){
 
 function toast(t, act){
   const el = $('#toast'); el.replaceChildren(document.createTextNode(String(t || '')));
-  if (act && act.label){ const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-act'; b.textContent = act.label; b.addEventListener('click', () => { el.hidden = true; try{ act.run(); }catch(e){} }); el.append(b); }
-  el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, act ? 6500 : 3200);
+  /* une action { label, run } ou plusieurs (tableau) : ex. « Débloquer ma limite » + « Recharger » */
+  const acts = (Array.isArray(act) ? act : [act]).filter(a => a && a.label);
+  for (const a of acts){ const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-act'; b.textContent = a.label; b.addEventListener('click', () => { el.hidden = true; try{ a.run(); }catch(e){} }); el.append(b); }
+  el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, acts.length ? 6500 : 3200);
 }
 
 
@@ -8061,7 +8101,9 @@ function videoGate(routed, cat){ return freeOnly() && !['videoedit', 'code'].inc
 /* Abonnement payant à la limite (semaine ou mois) : la création et la retouche d'images sont bloquées comme la vidéo,
    sans repli sur un modèle payant. Le texte continue sur les modèles gratuits. « Débloquer ma limite » lève le blocage. */
 function mediaCapped(){ return !isFreePlan() && (keyExhausted() || weekExhausted()); }
-function imgLimitToast(){ if (weekExhausted() && canUnlock().ok) toast(imgLimitMsg(), { label:'Débloquer ma limite', run: () => confirmUnlock() }); else toast(imgLimitMsg()); }
+function imgLimitToast(){ toast(imgLimitMsg(), limitActs()); }
+/* actions proposées avec un message de limite : déblocage hebdomadaire et, avec un abonnement actif (staging), « Recharger » */
+function limitActs(){ const a = []; if (weekExhausted() && canUnlock().ok) a.push({ label:'Débloquer ma limite', run: () => confirmUnlock() }); if (typeof aboTopupActs === 'function') a.push(...aboTopupActs()); return a.length > 1 ? a : a[0]; }
 function imgLimitMsg(){ return limitMsg(false) + " La création d'images reviendra à ce moment-là."; }
 
 function resetShort(){
@@ -8120,7 +8162,7 @@ function renderUsage(){
     <div class="us-sec">Abonnement ${esc(p?.key || '')}</div>
     ${week}
     ${usCard('Ce mois-ci', mr, `${mr >= 1 ? 'Crédit du mois épuisé : le texte passe sur les modèles gratuits. Les images et la vidéo reprennent au renouvellement. ' : ''}Renouvellement le 1er ${mReset.toLocaleDateString('fr-FR', { month:'long', timeZone:'UTC' })}`)}
-    ${unlockBtnHtml()}
+    ${unlockBtnHtml()}${typeof aboUsageHtml === 'function' ? aboUsageHtml() : ''}
     ${S.set.plan !== 'elite' ? '<button class="btn us-up" data-usup>Passer à un abonnement supérieur</button>' : ''}`;
 }
 /* mise à jour à l'ouverture et au bouton : compteurs du serveur en mode serveur, sinon la clé */
@@ -8738,6 +8780,400 @@ async function craftZipBytes(name, payload, liedSize){
   end.setUint32(12, 46 + nm.length, true); end.setUint32(16, 30 + nm.length + comp.length, true);
   return new Uint8Array(await new Blob([new Uint8Array(lh.buffer), nm, comp, new Uint8Array(ch.buffer), nm, new Uint8Array(end.buffer)]).arrayBuffer());
 }
+/* ===== Abonnements FSM AI — STAGING UNIQUEMENT (drapeau aboOn) =====
+   Comptes, choix de l'offre (€), paiement (Stripe Checkout), page « Abonnement actif »,
+   « Mon abonnement », recharges et administration. Rien ne s'affiche en production :
+   aboOn() n'est vrai que sur staging.fsmai.app (ou en local avec ?abo=1). */
+const ABO_HOSTS = ['staging.fsmai.app'];
+const ABO_API = SRV_STAGING;
+const ABO = { acc:null, csrf:'', st:null, plans:null, view:'', after:null, reset:'' };
+function aboOn(host, search){
+  try{
+    const h = host ?? location.hostname, q = search ?? location.search;
+    if (ABO_HOSTS.includes(h)) return true;
+    if (/^(localhost|127\.0\.0\.1)$/.test(h)){
+      if (/[?&]abo=1\b/.test(q)) sessionStorage.setItem('fsm.abo', '1');
+      return sessionStorage.getItem('fsm.abo') === '1';
+    }
+  }catch(e){}
+  return false;
+}
+const ABO_ERR = {
+  pro_email_required:'Utilise ton adresse e-mail professionnelle (pas une messagerie grand public).',
+  bad_email:'Adresse e-mail invalide.',
+  weak_password:'Mot de passe trop faible : 12 caractères minimum.',
+  bad_siret:'Numéro SIRET invalide (14 chiffres).',
+  cgv_required:'Tu dois accepter les conditions générales de vente.',
+  account_exists:'Un compte existe déjà avec cette adresse. Connecte-toi.',
+  bad_credentials:'E-mail ou mot de passe incorrect.',
+  locked:'Trop de tentatives : compte bloqué temporairement. Réessaie plus tard.',
+  rate_limited:'Trop de tentatives. Patiente un moment puis réessaie.',
+  no_session:'Ta session a expiré. Reconnecte-toi.',
+  unauthorized:'Ta session a expiré. Reconnecte-toi.',
+  csrf:'Session expirée. Recharge la page puis réessaie.',
+  disabled:'Ce compte est désactivé. Contacte le support.',
+  no_subscription:'Une recharge nécessite un abonnement actif.',
+  subscription_required:'Une recharge nécessite un abonnement actif.',
+  already_subscribed:'Tu as déjà un abonnement actif : gère-le depuis « Mon abonnement ».',
+  bad_token:'Lien de réinitialisation invalide ou expiré.',
+  billing_disabled:'Les abonnements ne sont pas encore ouverts.'
+};
+function aboErrMsg(e){ return ABO_ERR[e?.code] || e?.message || 'Une erreur est survenue. Réessaie.'; }
+async function aboFetch(path, body, method){
+  const m = method || (body === undefined ? 'GET' : 'POST');
+  const h = {};
+  if (m !== 'GET'){ h['Content-Type'] = 'application/json'; if (ABO.csrf) h['X-FSM-CSRF'] = ABO.csrf; }
+  let r;
+  try{ r = await fetch(ABO_API + path, { method:m, credentials:'include', headers:h, body: m === 'GET' ? undefined : JSON.stringify(body || {}) }); }
+  catch(e){ const er = new Error('Connexion impossible au serveur. Vérifie ta connexion.'); er.code = 'network'; throw er; }
+  let j = null; try{ j = await r.json(); }catch(e){}
+  if (!r.ok){
+    const er = new Error(j?.error?.message || ('Erreur ' + r.status)); er.code = j?.error?.code || (r.status === 401 ? 'no_session' : 'http_' + r.status); er.status = r.status;
+    if (r.status === 401){ ABO.acc = null; ABO.csrf = ''; ABO.code = ''; }
+    throw er;
+  }
+  if (j && j.csrf) ABO.csrf = j.csrf;
+  if (j && 'account' in j) ABO.acc = j.account || null;
+  return j || {};
+}
+async function aboSession(){ try{ await aboFetch('/v1/account/session'); }catch(e){ ABO.acc = null; } return ABO.acc; }
+async function aboPlans(){ if (!ABO.plans) ABO.plans = await aboFetch('/v1/billing/plans'); return ABO.plans; }
+/* le code n'est révélé qu'une fois par le serveur : il est gardé en mémoire (jamais sur disque hors du champ de code) et enregistré aussitôt */
+async function aboStatus(){ const st = await aboFetch('/v1/billing/status'); if (st.code){ ABO.code = st.code; aboUseCode(st.code); } else if (ABO.code && st.hasCode) st.code = ABO.code; ABO.st = st; return st; }
+const aboEur = n => (Math.round(+n * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: Number.isInteger(+n) ? 0 : 2 }) + ' €';
+const aboDate = s => { if (!s) return '—'; const d = new Date(s); return isNaN(d) ? '—' : d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }); };
+const aboPct = r => Math.max(0, Math.min(100, Math.round((+r || 0) * 100))) + ' %';
+function aboVat(){ return `<p class="abo-vat">${esc(ABO.plans?.vat || 'TVA non applicable, art. 293 B du CGI')}</p>`; }
+function aboCanTopup(){ if (!aboOn()) return false; const l = typeof srvLim === 'function' ? srvLim() : null; return !!(l?.canTopup || ABO.st?.canTopup); }
+function aboTopupActs(){ return aboCanTopup() ? [{ label:'Recharger', run: () => aboOpen('topup') }] : []; }
+/* ---- Points d'entrée ---- */
+function aboEntryHtml(){
+  if (!aboOn()) return '';
+  return ABO.acc
+    ? `<div class="abo-acts"><button class="btn ghost" data-abo="mine">Mon abonnement</button></div>`
+    : `<div class="abo-acts"><button class="btn" data-abo="signup">Créer un compte</button><button class="btn ghost" data-abo="login">Se connecter</button></div>`;
+}
+function aboRenderEntry(){ const el = document.getElementById('aboEntry'); if (!el) return; const h = aboEntryHtml(); el.innerHTML = h; el.hidden = !h; }
+function aboOnbHtml(){ return aboOn() ? `<div class="abo-onb" id="aboOnb">${aboEntryHtml()}</div>` : ''; }
+document.addEventListener('click', e => { const b = e.target.closest('[data-abo]'); if (!b || !aboOn()) return; e.preventDefault(); aboOpen(b.dataset.abo, b.dataset.arg); });
+/* ---- Feuille ---- */
+function aboOpen(view, arg){
+  if (!aboOn()) return;
+  closeSheets();
+  $('#aboSheet').hidden = false;
+  aboShow(view, arg);
+}
+const ABO_TITLES = { signup:'Créer un compte', login:'Se connecter', forgot:'Mot de passe oublié', reset:'Nouveau mot de passe', plans:'Choisir mon offre', active:'Abonnement actif', mine:'Mon abonnement', topup:'Recharger', del:'Supprimer mon compte', admin:'Administration', cgv:'Conditions générales de vente' };
+async function aboShow(view, arg){
+  ABO.view = view;
+  $('#aboTitle').textContent = ABO_TITLES[view] || 'Mon compte';
+  const b = $('#aboBody');
+  const needAcc = ['plans','active','mine','topup','del','admin'].includes(view);
+  if (needAcc && !ABO.acc){
+    b.innerHTML = '<p class="note">Chargement…</p>';
+    await aboSession();
+    if (!ABO.acc){ ABO.after = { view, arg }; return aboShow('login'); }
+  }
+  try{ await (ABO_VIEWS[view] || ABO_VIEWS.login)(b, arg); }
+  catch(e){ b.innerHTML = `<div class="abo-v"><p class="abo-err" role="alert">${esc(aboErrMsg(e))}</p><button class="btn ghost" data-abo="${ABO.acc ? 'mine' : 'login'}">Retour</button></div>`; }
+}
+function aboForm(b, html, onSubmit){
+  b.innerHTML = `<form class="abo-v" novalidate>${html}<p class="abo-err" role="alert" hidden></p></form>`;
+  const f = b.querySelector('form'), err = f.querySelector('.abo-err');
+  f.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const btn = f.querySelector('button[type=submit]'); err.hidden = true;
+    if (btn){ if (btn.disabled) return; btn.disabled = true; }
+    try{ await onSubmit(f); }
+    catch(e){ err.textContent = aboErrMsg(e); err.hidden = false; }
+    finally{ if (btn) btn.disabled = false; }
+  });
+  const first = f.querySelector('input'); if (first) setTimeout(() => { try{ first.focus(); }catch(e){} }, 30);
+  return f;
+}
+async function aboAfterAuth(){
+  aboRenderEntry(); aboRefreshOnb();
+  const nx = ABO.after; ABO.after = null;
+  if (nx) return aboShow(nx.view, nx.arg);
+  try{ await aboStatus(); }catch(e){}
+  return aboShow(ABO.st?.subscription?.active ? 'mine' : 'plans');
+}
+function aboRefreshOnb(){ const o = document.getElementById('aboOnb'); if (o) o.innerHTML = aboEntryHtml(); }
+const ABO_VIEWS = {
+  signup(b){
+    const f = aboForm(b, `
+      <p class="note">Réservé aux professionnels (B2B). Ton compte te permet de souscrire et de gérer ton abonnement FSM AI.</p>
+      <div class="field"><label for="aboEmail">E-mail professionnel</label><input id="aboEmail" name="email" type="email" autocomplete="email" inputmode="email" required></div>
+      <div class="field"><label for="aboPwd">Mot de passe</label><input id="aboPwd" name="password" type="password" autocomplete="new-password" minlength="12" required><small>12 caractères minimum.</small></div>
+      <div class="field"><label for="aboSiret">SIRET</label><input id="aboSiret" name="siret" type="text" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="14 chiffres" required></div>
+      <label class="check"><input type="checkbox" name="cgv" id="aboCgv"> <span>J'accepte les <a href="/cgv" target="_blank" rel="noopener">conditions générales de vente</a>.</span></label>
+      <button class="btn" type="submit">Créer mon compte</button>
+      <button class="abo-link" type="button" data-abo="login">J'ai déjà un compte — Se connecter</button>`, async f => {
+        const siret = f.siret.value.replace(/[\s.\-\u00a0]/g, '');
+        if (!/^\d{14}$/.test(siret)) throw { code:'bad_siret' };
+        if (f.password.value.length < 12) throw { code:'weak_password' };
+        if (!f.cgv.checked) throw { code:'cgv_required' };
+        await aboFetch('/v1/account/signup', { email: f.email.value.trim(), password: f.password.value, siret, cgv: true });
+        f.password.value = '';
+        return aboAfterAuth();
+      });
+    return f;
+  },
+  login(b){
+    return aboForm(b, `
+      <div class="field"><label for="aboLEmail">E-mail professionnel</label><input id="aboLEmail" name="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="aboLPwd">Mot de passe</label><input id="aboLPwd" name="password" type="password" autocomplete="current-password" required></div>
+      <button class="btn" type="submit">Se connecter</button>
+      <button class="abo-link" type="button" data-abo="forgot">Mot de passe oublié ?</button>
+      <button class="abo-link" type="button" data-abo="signup">Pas encore de compte — Créer un compte</button>`, async f => {
+        await aboFetch('/v1/account/login', { email: f.email.value.trim(), password: f.password.value });
+        f.password.value = '';
+        return aboAfterAuth();
+      });
+  },
+  forgot(b){
+    return aboForm(b, `
+      <p class="note">Indique ton e-mail : si un compte existe, tu recevras un lien pour choisir un nouveau mot de passe.</p>
+      <div class="field"><label for="aboFEmail">E-mail professionnel</label><input id="aboFEmail" name="email" type="email" autocomplete="email" required></div>
+      <button class="btn" type="submit">Envoyer le lien</button>
+      <button class="abo-link" type="button" data-abo="login">Retour à la connexion</button>`, async f => {
+        await aboFetch('/v1/account/password-reset', { email: f.email.value.trim() });
+        f.querySelector('.abo-err').insertAdjacentHTML('beforebegin', '<p class="abo-ok" role="status">Si un compte existe pour cette adresse, un lien vient d\u2019être envoyé.</p>');
+        f.querySelector('button[type=submit]').remove();
+      });
+  },
+  reset(b){
+    return aboForm(b, `
+      <div class="field"><label for="aboRPwd">Nouveau mot de passe</label><input id="aboRPwd" name="password" type="password" autocomplete="new-password" minlength="12" required><small>12 caractères minimum.</small></div>
+      <button class="btn" type="submit">Enregistrer</button>`, async f => {
+        if (f.password.value.length < 12) throw { code:'weak_password' };
+        await aboFetch('/v1/account/password-reset/confirm', { token: ABO.reset, password: f.password.value });
+        ABO.reset = ''; f.password.value = '';
+        toast('Mot de passe modifié. Connecte-toi.');
+        return aboShow('login');
+      });
+  },
+  async plans(b){
+    const p = await aboPlans();
+    let st = null; try{ st = await aboStatus(); }catch(e){}
+    if (st?.subscription?.active) return aboShow('mine');
+    b.innerHTML = `<div class="abo-v">
+      <p class="note">Choisis ton offre FSM AI. Paiement mensuel sécurisé, sans engagement : tu peux résilier à tout moment depuis « Mon abonnement ».</p>
+      ${(p.plans || []).map(x => `<div class="abo-plan" data-plan="${esc(x.id)}">
+        <div class="abo-plan-t"><b>${esc(x.name || PLANS[x.id]?.name || x.id)}</b><span class="abo-price">${esc(aboEur(x.eur))}<small> / mois</small></span></div>
+        <p class="note" style="margin:0">${esc(PLAN_POL[x.id]?.label || '')}</p>
+        <button class="btn" data-abo-checkout="${esc(x.id)}">Choisir ${esc(PLANS[x.id]?.key || x.name || '')}</button>
+      </div>`).join('')}
+      ${aboVat()}
+      <p class="abo-err" role="alert" hidden></p>
+    </div>`;
+    b.querySelectorAll('[data-abo-checkout]').forEach(btn => btn.addEventListener('click', () => aboGo(btn, '/v1/billing/checkout', { plan: btn.dataset.aboCheckout })));
+  },
+  async active(b){
+    b.innerHTML = `<div class="abo-v"><p class="note" role="status">Confirmation du paiement en cours…</p></div>`;
+    let st = null;
+    for (let i = 0; i < 12; i++){
+      try{ st = await aboStatus(); }catch(e){ if (e.code === 'no_session') throw e; }
+      if (st?.subscription?.active && (st.code || st.hasCode)) break;
+      if (ABO.view !== 'active') return;
+      await new Promise(r => setTimeout(r, i < 4 ? 1000 : 2500));
+    }
+    if (ABO.view !== 'active') return;
+    if (!st?.subscription?.active){
+      b.innerHTML = `<div class="abo-v"><p class="note">Ton paiement est en cours de traitement. Cela peut prendre quelques instants.</p><button class="btn" data-abo="active">Vérifier à nouveau</button><button class="btn ghost" data-abo="mine">Mon abonnement</button></div>`;
+      return;
+    }
+    const s = st.subscription;
+    b.innerHTML = `<div class="abo-v">
+      <span class="abo-badge">✓ Abonnement actif</span>
+      <h3>${esc(s.name || PLANS[s.plan]?.name || 'FSM AI')} · ${esc(aboEur(s.eur))} / mois</h3>
+      ${st.code ? `<p class="note">Voici ton code FSM AI. Il a été <b>enregistré automatiquement</b> dans l'application. Conserve-le : il ne sera plus affiché.</p>
+      <div class="abo-code"><code id="aboCode">${esc(st.code)}</code><button class="btn ghost" id="aboCopy" type="button">Copier</button></div>`
+      : `<p class="note">Ton code FSM AI a déjà été affiché et enregistré. Si tu l'as perdu, génère-en un nouveau (l'ancien cessera de fonctionner).</p><button class="btn ghost" id="aboRotate" type="button">Générer un nouveau code</button>`}
+      <div class="abo-kv"><span>Prochain renouvellement</span><b>${esc(aboDate(s.renewsAt))}</b></div>
+      <button class="btn" data-close>Commencer</button>
+      <button class="btn ghost" data-abo="mine">Mon abonnement</button>
+    </div>`;
+    aboWireCode(b);
+  },
+  async mine(b){
+    const st = await aboStatus();
+    const s = st.subscription, u = st.usage || {}, t = u.topup || {};
+    if (!s){
+      b.innerHTML = `<div class="abo-v"><p class="note">Connecté en tant que <b>${esc(ABO.acc?.email || '')}</b>. Tu n'as pas encore d'abonnement.</p>
+        <button class="btn" data-abo="plans">Choisir mon offre</button>${aboAccountBtns()}</div>`;
+      return;
+    }
+    const stat = !s.active ? `<span class="abo-badge warn">Abonnement inactif</span>`
+      : s.status === 'past_due' ? `<span class="abo-badge warn">Paiement en échec — accès maintenu jusqu'au ${esc(aboDate(s.graceUntil))}</span>`
+      : s.cancelAtPeriodEnd ? `<span class="abo-badge warn">Résilié — actif jusqu'au ${esc(aboDate(s.renewsAt))}</span>`
+      : `<span class="abo-badge">✓ Abonnement actif</span>`;
+    b.innerHTML = `<div class="abo-v">
+      ${stat}${st.guest ? '<span class="abo-badge">Compte invité</span>' : ''}
+      <div class="abo-kv">
+        <span>Offre</span><b>${esc(s.name || PLANS[s.plan]?.name || s.plan)}</b>
+        <span>Prix</span><b>${esc(aboEur(s.eur))} / mois</b>
+        <span>${s.cancelAtPeriodEnd ? 'Fin de l\u2019abonnement' : 'Renouvellement'}</span><b>${esc(aboDate(s.renewsAt))}</b>
+        <span>Compte</span><b style="overflow-wrap:anywhere">${esc(ABO.acc?.email || '')}</b>
+      </div>
+      ${st.code ? `<p class="note">Ton code FSM AI (affiché une seule fois, déjà enregistré dans l'application) :</p><div class="abo-code"><code id="aboCode">${esc(st.code)}</code><button class="btn ghost" id="aboCopy" type="button">Copier</button></div>` : ''}
+      <div>
+        <div class="us-card"><div class="us-top"><b>Utilisation du mois</b><span>${aboPct(u.monthRatio)} utilisé</span></div>${aboBar(u.monthRatio)}<div class="us-sub">Réinitialisation le ${esc(aboDate(u.monthResetsAt || s.renewsAt))}</div></div>
+        <div class="us-card"><div class="us-top"><b>Limite hebdomadaire</b><span>${aboPct(u.weekRatio)} utilisé</span></div>${aboBar(u.weekRatio)}<div class="us-sub">Réinitialisation le ${esc(aboDate(u.weekResetsAt))}</div></div>
+        ${aboTopupCard(t, u.onTopup)}
+      </div>
+      ${st.canTopup ? '<button class="btn" data-abo="topup">Recharger</button>' : ''}
+      <button class="btn ghost" id="aboPortal" type="button">Gérer mon abonnement et mes factures</button>
+      ${aboVat()}
+      ${st.code ? '' : '<button class="btn ghost" id="aboRotate" type="button">Générer un nouveau code FSM AI</button>'}
+      ${aboAccountBtns()}
+      <p class="abo-err" role="alert" hidden></p>
+    </div>`;
+    const pb = b.querySelector('#aboPortal'); pb.addEventListener('click', () => aboGo(pb, '/v1/billing/portal', {}));
+    aboWireCode(b);
+  },
+  async topup(b){
+    const p = await aboPlans();
+    let st = null; try{ st = await aboStatus(); }catch(e){}
+    if (!st?.canTopup){
+      b.innerHTML = `<div class="abo-v"><p class="note">Les recharges sont réservées aux comptes avec un abonnement actif.</p><button class="btn" data-abo="plans">Choisir mon offre</button></div>`;
+      return;
+    }
+    b.innerHTML = `<div class="abo-v">
+      <p class="note">Une recharge ajoute du crédit utilisé <b>après</b> ton quota mensuel. Elle n'est pas soumise à la limite hebdomadaire, se reporte d'un mois sur l'autre et reste valable 12 mois. Paiement unique, non remboursable.</p>
+      ${(p.packs || []).map(x => `<div class="abo-plan"><div class="abo-plan-t"><b>Recharge ${esc(aboEur(x.eur))}</b><span class="abo-price">${esc(aboEur(x.eur))}</span></div>
+        <button class="btn" data-abo-pack="${esc(x.id)}">Recharger ${esc(aboEur(x.eur))}</button></div>`).join('')}
+      ${aboVat()}
+      <p class="abo-err" role="alert" hidden></p>
+    </div>`;
+    b.querySelectorAll('[data-abo-pack]').forEach(btn => btn.addEventListener('click', () => aboGo(btn, '/v1/billing/topup', { pack: btn.dataset.aboPack })));
+  },
+  del(b){
+    return aboForm(b, `
+      <p class="note">La suppression est définitive : ton abonnement est résilié, ton code FSM AI est désactivé et tes données personnelles sont effacées (les factures restent conservées par notre prestataire de paiement pour les obligations légales). Les recharges restantes sont perdues.</p>
+      <div class="field"><label for="aboDPwd">Confirme avec ton mot de passe</label><input id="aboDPwd" name="password" type="password" autocomplete="current-password" required></div>
+      <button class="btn danger" type="submit">Supprimer définitivement mon compte</button>
+      <button class="abo-link" type="button" data-abo="mine">Annuler</button>`, async f => {
+        await aboFetch('/v1/account/delete', { password: f.password.value });
+        ABO.acc = null; ABO.csrf = ''; ABO.st = null; ABO.code = '';
+        aboRenderEntry(); aboRefreshOnb(); closeSheets();
+        toast('Ton compte a été supprimé.');
+      });
+  },
+  async admin(b){
+    const j = await aboFetch('/v1/admin/accounts');
+    const list = j.accounts || [];
+    b.innerHTML = `<div class="abo-v"><p class="note">${list.length} compte(s). Réservé au propriétaire.</p><div class="abo-tbl">${list.map(a => `
+      <div class="abo-acc" data-id="${esc(a.id)}">
+        <b style="overflow-wrap:anywhere">${esc(a.email)}</b>
+        <span class="note" style="margin:0">${esc(a.plan ? (PLANS[a.plan]?.key || a.plan) : 'Sans abonnement')} · ${esc(a.subStatus || '')}${a.role === 'owner' ? ' · propriétaire' : ''}${a.status === 'disabled' ? ' · désactivé' : ''}${a.guest ? ' · invité' : ''}</span>
+        <div class="row">
+          <button class="btn ghost" data-adm="${a.status === 'disabled' ? 'enable' : 'disable'}">${a.status === 'disabled' ? 'Réactiver' : 'Désactiver'}</button>
+          <button class="btn ghost" data-adm="${a.guest ? 'unguest' : 'guest'}">${a.guest ? 'Retirer invité' : 'Marquer invité'}</button>
+        </div></div>`).join('')}</div><p class="abo-err" role="alert" hidden></p></div>`;
+    b.querySelectorAll('[data-adm]').forEach(btn => btn.addEventListener('click', async () => {
+      const id = btn.closest('[data-id]').dataset.id, action = btn.dataset.adm;
+      if (action === 'disable'){ const ok = await ask({ title:'Désactiver ce compte ?', body:'<p>Son code FSM AI cessera de fonctionner jusqu\u2019à sa réactivation.</p>', buttons:[{ label:'Annuler', ghost:true, value:false }, { label:'Désactiver', danger:true, value:true }] }); if (!ok) return; }
+      btn.disabled = true;
+      try{ await aboFetch('/v1/admin/accounts/' + encodeURIComponent(id), { action }); await aboShow('admin'); }
+      catch(e){ const er = b.querySelector('.abo-err'); er.textContent = aboErrMsg(e); er.hidden = false; btn.disabled = false; }
+    }));
+  },
+  cgv(b){
+    /* À REMPLACER au lancement par le texte définitif des CGV fourni par FSM AI (ou par un lien vers la page officielle). */
+    b.innerHTML = `<div class="abo-v"><p class="abo-sim">Version de test (staging)</p><p class="note">Le texte définitif des conditions générales de vente de FSM AI sera publié ici avant l’ouverture des abonnements.</p><p class="note">Points déjà prévus : offres mensuelles réservées aux professionnels, sans engagement, résiliables à tout moment depuis « Mon abonnement » ; recharges en paiement unique, valables 12 mois, non remboursables.</p>${aboVat()}<button class="btn ghost" data-close>Fermer</button></div>`;
+  }
+};
+function aboAccountBtns(){
+  return `${ABO.acc?.role === 'owner' ? '<button class="btn ghost" data-abo="admin">Administration</button>' : ''}
+    <button class="btn ghost" id="aboLogout" type="button">Se déconnecter</button>
+    <button class="abo-link" type="button" data-abo="del" style="color:var(--danger)">Supprimer mon compte</button>`;
+}
+function aboBar(r){ const p = Math.max(0, Math.min(100, Math.round((+r || 0) * 100))); return `<div class="us-bar${p >= 80 ? ' warn' : ''}"><i style="width:${p}%"></i></div>`; }
+function aboTopupCard(t, onTopup){
+  if (!t || !t.has) return '';
+  return `<div class="us-card" id="aboTopupCard"><div class="us-top"><b>Recharge</b><span>${aboPct(t.ratio)} restant</span></div>${aboBar(t.ratio)}<div class="us-sub">${onTopup ? 'En cours d\u2019utilisation (quota mensuel atteint) · ' : 'Utilisée après ton quota mensuel · '}Valable jusqu'au ${esc(aboDate(t.expiresAt))}</div></div>`;
+}
+/* Carte « Recharge » + bouton Recharger dans la feuille « Limites d'utilisation » (mode serveur). */
+function aboUsageHtml(){
+  if (!aboOn()) return '';
+  const l = typeof srvLim === 'function' ? srvLim() : null;
+  const t = l?.topup || l?.limits?.topup;
+  const card = t && t.has ? aboTopupCard(t, l.onTopup) : '';
+  const btn = aboCanTopup() ? '<button class="btn us-topup" data-abo="topup">Recharger</button>' : '';
+  return card + btn;
+}
+function aboWireCode(b){
+  const cp = b.querySelector('#aboCopy');
+  if (cp) cp.addEventListener('click', async () => {
+    const c = b.querySelector('#aboCode')?.textContent || '';
+    try{ await navigator.clipboard.writeText(c); cp.textContent = 'Copié ✓'; }
+    catch(e){ const r = document.createRange(); r.selectNodeContents(b.querySelector('#aboCode')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); cp.textContent = 'Sélectionné'; }
+    setTimeout(() => { cp.textContent = 'Copier'; }, 1800);
+  });
+  const rt = b.querySelector('#aboRotate');
+  if (rt) rt.addEventListener('click', async () => {
+    const ok = await ask({ title:'Générer un nouveau code ?', body:'<p>L\u2019ancien code cessera immédiatement de fonctionner sur tous tes appareils.</p>', buttons:[{ label:'Annuler', ghost:true, value:false }, { label:'Générer', value:true }] });
+    if (!ok) return;
+    rt.disabled = true;
+    try{ const j = await aboFetch('/v1/billing/code', {}); if (j.code){ ABO.code = j.code; aboUseCode(j.code); ABO.st = Object.assign({}, ABO.st, { code: j.code }); } await aboShow(ABO.view === 'active' ? 'active' : 'mine'); if (j.code) aboShowCode(j.code); }
+    catch(e){ rt.disabled = false; toast(aboErrMsg(e)); }
+  });
+  const lo = b.querySelector('#aboLogout');
+  if (lo) lo.addEventListener('click', async () => {
+    try{ await aboFetch('/v1/account/logout', {}); }catch(e){}
+    ABO.acc = null; ABO.csrf = ''; ABO.st = null; ABO.code = '';
+    aboRenderEntry(); aboRefreshOnb(); closeSheets(); toast('Tu es déconnecté.');
+  });
+}
+function aboShowCode(code){
+  const b = $('#aboBody'); if (b.querySelector('#aboCode')) return;
+  b.querySelector('.abo-v')?.insertAdjacentHTML('afterbegin', `<p class="note">Ton nouveau code FSM AI (enregistré automatiquement) :</p><div class="abo-code"><code id="aboCode">${esc(code)}</code><button class="btn ghost" id="aboCopy" type="button">Copier</button></div>`);
+  aboWireCode(b);
+}
+async function aboGo(btn, path, body){
+  const v = btn.closest('.abo-v'), er = v?.querySelector('.abo-err');
+  if (er) er.hidden = true;
+  btn.disabled = true;
+  try{
+    const j = await aboFetch(path, body);
+    if (!j.url || !/^https:\/\//.test(j.url)) throw new Error('Lien de paiement indisponible.');
+    (ABO._assign || (u => location.assign(u)))(j.url);
+  }catch(e){
+    btn.disabled = false;
+    if (e.code === 'no_session'){ ABO.after = { view: ABO.view }; return aboShow('login'); }
+    if (er){ er.textContent = aboErrMsg(e); er.hidden = false; } else toast(aboErrMsg(e));
+  }
+}
+/* Le code reçu est enregistré dans l'application comme si l'utilisateur l'avait saisi (mode serveur staging). */
+function aboUseCode(code){
+  if (!code || !/^FSM-/.test(code)) return false;
+  try{
+    if (typeof srvSetConf === 'function') srvSetConf({ base: ABO_API });
+    const ci = document.getElementById('srvCode');
+    if (ci && typeof srvCodeInput === 'function'){ ci.value = code; srvCodeInput(ci, true); return true; }
+  }catch(e){}
+  return false;
+}
+/* Retour de Stripe, lien de réinitialisation, page /cgv */
+async function aboBoot(){
+  if (!aboOn()) return;
+  document.documentElement.classList.add('abo-on');
+  const q = new URLSearchParams(location.search);
+  const ab = q.get('abonnement'), rc = q.get('recharge'), rs = q.get('reset');
+  if (ab || rc || rs){ ['abonnement','recharge','reset'].forEach(k => q.delete(k)); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); }
+  if (rs){ ABO.reset = rs; aboRenderEntry(); return aboOpen('reset'); }
+  await aboSession();
+  aboRenderEntry(); aboRefreshOnb();
+  if (ab === 'ok') return aboOpen('active');
+  if (ab === 'annule'){ toast('Paiement annulé : aucun montant n\u2019a été débité.'); return aboOpen('plans'); }
+  if (ab === 'retour') return aboOpen('mine');
+  if (rc === 'ok'){ toast('Recharge effectuée ✓'); try{ if (typeof srvLimits === 'function') srvLimits(true); }catch(e){} return aboOpen('mine'); }
+  if (rc === 'annule'){ toast('Recharge annulée : aucun montant n\u2019a été débité.'); return aboOpen('mine'); }
+  if (/^\/cgv\/?$/.test(location.pathname)) return aboOpen('cgv');
+}
+setTimeout(() => { aboBoot().catch(() => {}); }, 0);
+
 async function runSecurityTests0(){
   const results = [];
   const ok = (name, pass, detail) => results.push({ name, pass: !!pass, detail: detail || '' });
@@ -8838,8 +9274,7 @@ function unlockBtnHtml(){
 }
 function showLimit(fallback){
   const msg = limitMsg(fallback);
-  if (weekExhausted() && canUnlock().ok) toast(msg, { label:'Débloquer ma limite', run: () => confirmUnlock() });
-  else toast(msg);
+  toast(msg, limitActs());
   return msg;
 }
 async function confirmUnlock(){
@@ -10089,6 +10524,92 @@ async function productTestsBody(){
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
+
+/* ===== Tests « Abonnements » (staging) : window.runAboTests() — réseau simulé, aucun appel réel ===== */
+async function runAboTests(){
+  const results = []; const ok = (name, pass, info) => results.push({ name, pass: !!pass, info: pass ? undefined : info });
+  const snap = { srv: localStorage.getItem('fsm.srv'), code: localStorage.getItem('fsm.srvcode'), abo: sessionStorage.getItem('fsm.abo'), lim: S.srvLimits, fetch: window.fetch, abo2: JSON.stringify({ acc: ABO.acc, csrf: ABO.csrf }), assign: null };
+  const calls = []; let status = null;
+  const plans = { plans:[{ id:'entreprise', name:'FSM AI Entreprise', eur:25 }, { id:'competence', name:'FSM AI Compétence', eur:60 }, { id:'elite', name:'FSM AI Élite', eur:250 }], packs:[{ id:'r10', eur:10 }, { id:'r25', eur:25 }, { id:'r50', eur:50 }], vat:'TVA non applicable, art. 293 B du CGI' };
+  const J = (b, st = 200) => new Response(JSON.stringify(b), { status: st, headers: { 'Content-Type': 'application/json' } });
+  window.fetch = async (url, o = {}) => {
+    const u = String(url), path = u.replace(ABO_API, ''); calls.push({ u, path, o });
+    if (!u.startsWith(ABO_API)) return J({ error:{ code:'blocked' } }, 599);
+    if (path === '/v1/account/session') return J({ account: ABO._t_acc || null, csrf: ABO._t_acc ? 'csrf-t' : undefined });
+    if (path === '/v1/account/signup'){ const b = JSON.parse(o.body); if (!/@/.test(b.email) || /gmail\.com$/.test(b.email)) return J({ error:{ code:'pro_email_required', message:'x' } }, 400); ABO._t_acc = { id:'a1', email:b.email, role:'client' }; return J({ account: ABO._t_acc, csrf:'csrf-t' }); }
+    if (path === '/v1/account/login') return J({ error:{ code:'bad_credentials', message:'x' } }, 401);
+    if (path === '/v1/billing/plans') return J(plans);
+    if (path === '/v1/billing/status') return J(status || { subscription:null, code:null, hasCode:false, usage:null, canTopup:false, guest:false });
+    if (path === '/v1/billing/checkout' || path === '/v1/billing/topup') return J({ url:'https://checkout.stripe.com/test' });
+    if (path === '/v1/limits') return J({ limits: S.srvLimits || {} });
+    return J({});
+  };
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  try{
+    sessionStorage.setItem('fsm.abo', '1');
+    ok('drapeau : désactivé en production et sur GitHub Pages', !aboOn('app.fsmai.app', '') && !aboOn('fsmai.app', '') && !aboOn('wwwh8hv4w5-lang.github.io', ''));
+    ok('drapeau : activé sur staging.fsmai.app', aboOn('staging.fsmai.app', ''));
+    ok('API comptes : uniquement le serveur de staging', ABO_API === SRV_STAGING && ABO_API !== SRV_DEFAULT);
+    ok('feuille abonnement fermée par closeSheets()', (() => { $('#aboSheet').hidden = false; closeSheets(); return $('#aboSheet').hidden; })());
+    ABO.acc = null; ABO._t_acc = null; aboRenderEntry();
+    ok('réglages : « Créer un compte » et « Se connecter »', /Créer un compte/.test($('#aboEntry').textContent) && /Se connecter/.test($('#aboEntry').textContent) && !$('#aboEntry').hidden);
+    ok('accueil : boutons de compte hors du bloc code (bloc code inchangé)', /Créer un compte/.test(srvOnboardHtml()) && /data-act="srvcode"/.test(srvOnboardHtml()));
+    await aboOpen('signup'); await wait(20);
+    const f = $('#aboBody form');
+    ok('inscription : e-mail pro, mot de passe, SIRET, CGV avec lien /cgv', f && f.email && f.password && f.siret && f.cgv && !!f.querySelector('a[href="/cgv"]'));
+    f.email.value = 'jean@entreprise.fr'; f.password.value = 'motdepasse-solide-42'; f.siret.value = '732 829 320 00074'; f.cgv.checked = false;
+    f.requestSubmit(); await wait(30);
+    ok('inscription : CGV obligatoires (refus côté client, aucun appel)', /conditions générales/.test(f.querySelector('.abo-err').textContent) && !calls.some(c => c.path === '/v1/account/signup'));
+    f.cgv.checked = true; f.siret.value = '123'; f.requestSubmit(); await wait(30);
+    ok('inscription : SIRET à 14 chiffres exigé', /SIRET/.test(f.querySelector('.abo-err').textContent));
+    f.siret.value = '732 829 320 00074'; f.requestSubmit(); await wait(120);
+    const su = calls.find(c => c.path === '/v1/account/signup');
+    ok('inscription : envoi JSON avec cookie de session (credentials include)', su && su.o.credentials === 'include' && su.o.headers['Content-Type'] === 'application/json' && JSON.parse(su.o.body).siret === '73282932000074' && JSON.parse(su.o.body).cgv === true);
+    ok('inscription : mot de passe effacé du formulaire après envoi', !document.querySelector('#aboPwd') || document.querySelector('#aboPwd').value === '');
+    ok('après inscription : choix de l\u2019offre en € uniquement', /25 €/.test($('#aboBody').textContent) && /60 €/.test($('#aboBody').textContent) && /250 €/.test($('#aboBody').textContent) && !/\$/.test($('#aboBody').textContent), $('#aboBody').textContent.slice(0, 200));
+    ok('offres : mention TVA art. 293 B', /293 B du CGI/.test($('#aboBody').textContent));
+    const assigned = []; ABO._assign = u => assigned.push(u);
+    const cb = $('#aboBody [data-abo-checkout="competence"]'); cb.click(); await wait(60);
+    const co = calls.find(c => c.path === '/v1/billing/checkout');
+    ok('paiement : en-tête CSRF et offre envoyés', co && co.o.headers['X-FSM-CSRF'] === 'csrf-t' && JSON.parse(co.o.body).plan === 'competence');
+    ok('paiement : redirection vers Stripe Checkout', assigned[0] === 'https://checkout.stripe.com/test', JSON.stringify(assigned));
+    status = { subscription:{ plan:'competence', name:'FSM AI Compétence', eur:60, status:'active', active:true, renewsAt:'2026-11-25T00:00:00Z', cancelAtPeriodEnd:false, graceUntil:null }, code:'FSM-ABCD-EFGH-JKLM-NPQR', hasCode:true, usage:{ monthRatio:0.42, weekRatio:0.3, weekResetsAt:'2026-11-02T00:00:00Z', monthResetsAt:'2026-12-01T00:00:00Z', topup:{ has:true, ratio:0.8, active:false, expiresAt:'2027-10-26T00:00:00Z' }, onTopup:false }, canTopup:true, guest:false };
+    await aboShow('active'); await wait(50);
+    ok('retour paiement : « Abonnement actif » et code affiché', /Abonnement actif/.test($('#aboBody').textContent) && $('#aboCode')?.textContent === 'FSM-ABCD-EFGH-JKLM-NPQR');
+    ok('retour paiement : code enregistré automatiquement dans l\u2019application', srvCode() === 'FSM-ABCD-EFGH-JKLM-NPQR' && srvConf().base === SRV_STAGING, srvCode());
+    ok('retour paiement : bouton Copier', !!$('#aboCopy'));
+    await aboShow('mine'); await wait(50);
+    const mt = $('#aboBody').textContent;
+    ok('Mon abonnement : offre, prix €, renouvellement, utilisation %', /Compétence/.test(mt) && /60 € \/ mois/.test(mt) && /25 novembre 2026/.test(mt) && /42 % utilisé/.test(mt), mt.slice(0, 300));
+    ok('Mon abonnement : carte Recharge en % restant', /Recharge/.test($('#aboTopupCard')?.textContent || '') && /80 % restant/.test($('#aboTopupCard').textContent));
+    ok('Mon abonnement : Recharger, portail, déconnexion, suppression', !!$('#aboBody [data-abo="topup"]') && !!$('#aboPortal') && !!$('#aboLogout') && !!$('#aboBody [data-abo="del"]'));
+    ok('Mon abonnement : aucune somme en $', !/\$/.test(mt));
+    await aboShow('topup'); await wait(50);
+    ok('recharges : packs 10/25/50 € et conditions (après quota, 12 mois, non remboursable)', ['10 €','25 €','50 €'].every(x => $('#aboBody').textContent.includes(x)) && /12 mois/.test($('#aboBody').textContent) && /non remboursable/.test($('#aboBody').textContent) && !/\$/.test($('#aboBody').textContent));
+    $('#aboBody [data-abo-pack="r25"]').click(); await wait(60);
+    ok('recharge : paiement unique du pack choisi', JSON.parse(calls.filter(c => c.path === '/v1/billing/topup').pop()?.o.body || '{}').pack === 'r25' && assigned.length === 2);
+    status.canTopup = false; await aboShow('topup'); await wait(40);
+    ok('recharge refusée sans abonnement actif', !$('#aboBody [data-abo-pack]') && /abonnement actif/.test($('#aboBody').textContent));
+    S.srvLimits = { canTopup:true, topup:{ has:true, ratio:0.5, active:true, expiresAt:'2027-10-26T00:00:00Z' }, onTopup:true };
+    ok('limite atteinte : action « Recharger » proposée (si abonnement actif)', aboTopupActs().length === 1 && aboTopupActs()[0].label === 'Recharger');
+    toast('Limite atteinte', [{ label:'A', run(){} }, { label:'Recharger', run(){} }]);
+    ok('toast : plusieurs actions (compatible avec une seule)', $('#toast').querySelectorAll('.toast-act').length === 2 && (toast('x', { label:'B', run(){} }), $('#toast').querySelectorAll('.toast-act').length === 1));
+    $('#toast').hidden = true;
+    ok('erreurs serveur traduites en français', /professionnelle/.test(aboErrMsg({ code:'pro_email_required' })) && /bloqué/.test(aboErrMsg({ code:'locked' })));
+    ok('code de retour Stripe : seules les URL https sont suivies', await (async () => { const n = assigned.length; window.fetch = async () => J({ url:'javascript:alert(1)' }); const b = document.createElement('button'); const v = document.createElement('div'); v.className = 'abo-v'; v.innerHTML = '<p class="abo-err" hidden></p>'; v.append(b); await aboGo(b, '/v1/billing/portal', {}); return assigned.length === n && !v.querySelector('.abo-err').hidden; })());
+  }catch(e){ ok('exception : ' + (e?.message || e), false); }
+  finally{
+    window.fetch = snap.fetch; delete ABO._assign; delete ABO._t_acc;
+    const a = JSON.parse(snap.abo2); ABO.acc = a.acc; ABO.csrf = a.csrf; ABO.st = null; ABO.code = '';
+    if (snap.srv == null) localStorage.removeItem('fsm.srv'); else localStorage.setItem('fsm.srv', snap.srv);
+    if (snap.code == null) localStorage.removeItem('fsm.srvcode'); else localStorage.setItem('fsm.srvcode', snap.code);
+    if (snap.abo == null) sessionStorage.removeItem('fsm.abo'); else sessionStorage.setItem('fsm.abo', snap.abo);
+    S.srvLimits = snap.lim; closeSheets(); try{ srvKeySwitch(); srvRenderUI(); }catch(e){}
+  }
+  const pass = results.filter(r => r.pass).length;
+  return { pass, total: results.length, fail: results.filter(r => !r.pass) };
+}
+window.runAboTests = runAboTests;
 window.runSecurityTests = runSecurityTests;
 window.runProductTests = runProductTests;
 (function init(){
