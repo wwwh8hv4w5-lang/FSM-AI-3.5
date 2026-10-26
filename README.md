@@ -4,28 +4,30 @@ Application web de FERAL SYSTEM MEDIA : chat multi-modèles, mode vocal et FSM B
 
 👉 **Ouvrir l'application : https://wwwh8hv4w5-lang.github.io/FSM-AI-3.5/**
 
-## Clé API FSM AI : à obtenir auprès de FSM AI
+FSM AI passe sur son domaine définitif : **https://fsmai.app**
 
-L'application ne fonctionne qu'avec une **clé API FSM AI**. Cette clé **ne se crée pas soi-même** : elle est fournie uniquement par **FSM AI (FERAL SYSTEM MEDIA)**, avec ton abonnement FSM AI 5.0.
+## Abonnements FSM AI 5.0
 
-| Abonnement | Clé fournie | Prix |
+Plus de clé à coller : tu te connectes avec ton **compte abonné FSM AI**, et ton abonnement est géré directement par FSM AI (FERAL SYSTEM MEDIA).
+
+| Abonnement | Accès | Prix |
 |---|---|---|
-| FSM AI 5.0 Free | Clé Free | Gratuit (modèles gratuits uniquement) |
-| FSM AI 5.0 Entreprise | Clé Entreprise | 25 € TTC / mois |
-| FSM AI 5.0 Compétence | Clé Compétence | 60 € TTC / mois |
-| FSM AI 5.0 Élite | Clé Élite | 250 € TTC / mois |
+| FSM AI 5.0 Free | Modèles gratuits uniquement | Gratuit |
+| FSM AI 5.0 Entreprise | Tous les modèles | 25 € / mois |
+| FSM AI 5.0 Compétence | Tous les modèles | 60 € / mois |
+| FSM AI 5.0 Élite | Tous les modèles | 250 € / mois |
 
-Free est limité aux modèles gratuits. Les abonnements payants donnent accès à tous les modèles.
+TVA non applicable, art. 293 B du CGI.
 
-Pour obtenir ta clé ou un abonnement, contacte FERAL SYSTEM MEDIA : camillafsm.admin@gmail.com
+Pour t'abonner ou pour toute question, contacte FERAL SYSTEM MEDIA : camillafsm.admin@gmail.com
 
-## Activer ta clé
+## Se connecter
 
 1. Ouvre l'application.
-2. Va dans **Réglages et clé API**.
-3. Choisis ton abonnement dans la liste, puis colle ta clé dans le champ **Clé API FSM AI**.
+2. Connecte-toi avec ton compte abonné FSM AI.
+3. C'est tout : ton abonnement est reconnu automatiquement.
 
-Ta clé reste enregistrée sur ton appareil. Garde-la pour toi et ne la partage avec personne.
+Pendant la migration vers https://fsmai.app, les clés FSM AI existantes continuent de fonctionner.
 
 La clé xAI (modèles Grok en direct) est facultative.
 
