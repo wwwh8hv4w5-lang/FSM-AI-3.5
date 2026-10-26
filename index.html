@@ -1058,12 +1058,12 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       <div class="field" id="srvField">
         <label class="check"><input type="checkbox" id="srvOn"><span>Mode serveur <span class="note">(recommandé)</span></span></label>
         <div id="srvRows" hidden>
-          <p class="note" id="srvHint" hidden>Entre ici ton code FSM AI : il t'a été remis personnellement. Tu n'en as pas ? Décoche « Mode serveur » et utilise ta propre clé OpenRouter, en haut des réglages.</p>
+          <p class="note" id="srvHint" hidden>Entre ici ton code FSM AI : il t'a été remis personnellement.</p>
           <div class="row"><input id="srvCode" type="password" placeholder="Code client du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
           <div class="row"><input id="srvBase" type="url" placeholder="Adresse du serveur FSM AI" autocomplete="off" spellcheck="false"></div>
           <div class="row"><button class="btn ghost" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
         </div>
-        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, l'app utilise ta propre clé OpenRouter (mode direct). Ton choix est gardé sur cet appareil.</small>
+        <small>Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change. Ton choix est gardé sur cet appareil.</small>
       </div>
       <div class="danger-zone">
         <button class="btn ghost" id="btnReload">Recharger le catalogue</button>
@@ -2009,11 +2009,10 @@ function srvSetConf(p){ LS.set('fsm.srv', Object.assign(srvConf(), p)); }
 function srvCode(){ return String(LS.get('fsm.srvcode', '') || ''); }
 function srvBootOn(){ try{ const c = LS.get('fsm.srv', {}) || {}; return c.on === true && String(LS.get('fsm.srvcode', '') || '').length >= 16; }catch(e){ return false; } }
 function serverOn(){ return srvConf().on && srvCode().length >= 16; }
-/* mode serveur choisi mais code pas encore saisi : on guide vers le code, ou vers le mode direct */
+/* mode serveur choisi mais code pas encore saisi : on guide uniquement vers le code FSM AI */
 function srvNeedCode(){ return srvConf().on && srvCode().length < 16; }
 function srvAskCode(){ openSettings(false); setTimeout(() => { const i = $('#srvCode'); i?.scrollIntoView({ block: 'center', behavior: 'smooth' }); i?.focus(); }, 80); }
-function srvGoDirect(){ srvSetConf({ on: false }); srvKeySwitch(); srvRenderUI(); renderThread(); openSettings(true); toast('Mode direct : ajoute ta clé OpenRouter dans les réglages.'); }
-function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button><button class="keyline" data-act="srvdirect">Utiliser ma propre clé OpenRouter</button></div></div>`; }
+function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button></div></div>`; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
 function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
 /* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
@@ -3525,7 +3524,7 @@ async function send(){
   const text = $('#input').value.trim();
   if (S.busy && !text && !S.pending.length){ S.abort?.abort(); return; }
   if (!text && !S.pending.length) return;
-  if (!isXai(S.set.model) && !S.key && srvNeedCode()){ srvAskCode(); toast('Entre ton code FSM AI pour commencer, ou passe en mode direct avec ta propre clé OpenRouter.'); return; }
+  if (!isXai(S.set.model) && !S.key && srvNeedCode()){ srvAskCode(); toast('Entre ton code FSM AI pour commencer : il t\u2019a été remis personnellement.'); return; }
   if (isXai(S.set.model) ? !S.xaiKey : !(S.key || serverOn())){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   if (text && !S.pending.length && !S.conv?.bot && !S.voiceActive){
     const pend = pendingPlan(S.conv), pr = planReply(text);
@@ -4790,7 +4789,6 @@ $('#col').addEventListener('click', async e => {
   const act = b.dataset.act;
   if (act === 'key') return openSettings(true);
   if (act === 'srvcode') return srvAskCode();
-  if (act === 'srvdirect') return srvGoDirect();
   if (act === 'openproj') return openProject(S.conv?.project);
   if (act === 'fsmbot') return openBot();
   if (act === 'more') return openModelSheet(S.set.category);
@@ -9666,7 +9664,8 @@ async function productTestsBody(){
       S.key = ''; S.conv = null;
       const w = welcomeHtml(); renderThread();
       const onb = $('#srvOnb');
-      ok('nouvel utilisateur : message d\u2019accueil en français (code FSM AI ou clé OpenRouter)', /Entrer mon code FSM AI/.test(w) && /data-act="srvdirect"/.test(w) && /Utiliser ma propre clé OpenRouter/.test(w) && !/Connecter ma clé/.test(w) && !!onb && !!onb.querySelector('[data-act="srvcode"]'));
+      ok('nouvel utilisateur : message d\u2019accueil en français (code FSM AI uniquement)', /Entrer mon code FSM AI/.test(w) && !/Connecter ma clé/.test(w) && !!onb && !!onb.querySelector('[data-act="srvcode"]') && onb.querySelectorAll('button').length === 1);
+      ok('nouvel utilisateur : aucun bouton « Utiliser ma propre clé OpenRouter » ni renvoi vers le mode direct', !/srvdirect|propre clé|OpenRouter|mode direct/i.test(w) && !document.querySelector('[data-act="srvdirect"]') && typeof window.srvGoDirect === 'undefined' && !/propre clé|OpenRouter|mode direct|Décoche/i.test($('#srvHint').textContent));
       srvRenderUI();
       ok('nouvel utilisateur : aide affichée dans les réglages', $('#srvHint') && $('#srvHint').hidden === false && $('#srvOn').checked === true);
       /* choix explicite : décocher le mode serveur est gardé, et n'est jamais réactivé au démarrage suivant */
@@ -9678,10 +9677,13 @@ async function productTestsBody(){
       /* saisir sa propre clé pendant l'attente du code = choix du mode direct */
       $('#apiKey').value = KEY; $('#apiKey').dispatchEvent(new Event('input'));
       ok('clé OpenRouter saisie pendant l\u2019attente du code : mode direct choisi et clé gardée', srvConf().on === false && LS.get('relais.key', '') === KEY && S.key === KEY);
-      /* « Utiliser ma propre clé OpenRouter » */
-      clearApp(); srvBootDefault(); S.key = '';
-      srvGoDirect(); closeSheets();
-      ok('bouton mode direct : mode serveur désactivé et gardé', srvConf().on === false && LS.get('fsm.srv', {}).on === false && srvBootDefault() === false && !$('#srvOnb'));
+      /* envoi sans code : on guide vers le code, jamais vers le mode direct */
+      clearApp(); srvBootDefault(); S.key = ''; S.conv = null; renderThread();
+      const m0 = S.set.model, in0 = $('#input').value;
+      if (isXai(S.set.model)) S.set.model = 'openai/gpt-4o-mini';
+      $('#input').value = 'Bonjour'; await send();
+      const tt = $('#toast').textContent; closeSheets(); $('#input').value = in0; S.set.model = m0;
+      ok('envoi sans code : aide vers le code FSM AI uniquement, mode serveur gardé', /code FSM AI/.test(tt) && !/propre clé|OpenRouter|mode direct/i.test(tt) && srvConf().on === true && srvNeedCode(), tt);
       /* utilisateur existant avec une clé : mode direct et clé intacts */
       clearApp(); LS.set('relais.key', KEY);
       const b3 = srvBootDefault();
