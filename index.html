@@ -1543,6 +1543,7 @@ const FSMMove = (() => {
     const r = await receive({ win: window, opener: window.opener, store, from: FSM_MOVE.from, closeWait: 2500 });
     if (r.res === 'done'){
       screen({ title: 'Bienvenue sur ' + host(FSM_MOVE.to), paras: [{ cls: 'mv-ok', text: 'Tes données sont arrivées.' }], spin: true });
+      try{ fsmMigrationPing('migrated'); }catch(e){}
       try{ window.close(); }catch(e){}
       setTimeout(() => location.replace('/'), 600);
       return;
@@ -1567,7 +1568,43 @@ const FSMMove = (() => {
   const api = { receiving: false, store: null, LS_KEYS, hasData, buildPayload, validate, merge, send, receive, browserStore, gate };
   return api;
 })();
+
+/* Signal de transfert technique (app.fsmai.app → api.fsmai.app uniquement).
+   Empreinte SHA-256 d’un identifiant d’accès + type d’événement + horodatage.
+   Jamais la valeur de la clé, jamais d’IP/UA/e-mail/contenu. Ne touche pas à l’overlay github.io. */
+async function fsmMigrationPing(event){
+  try{
+    if (location.origin !== 'https://app.fsmai.app') return;
+    if (event !== 'migrated' && event !== 'first_load') return;
+    const flag = 'fsm.mig.' + event;
+    try{ if (localStorage.getItem(flag)) return; }catch(e){}
+    let id = '';
+    try{ const c = JSON.parse(localStorage.getItem('fsm.srvcode') || 'null'); if (typeof c === 'string' && c.length >= 16) id = c; }catch(e){}
+    if (!id){ try{ const k = JSON.parse(localStorage.getItem('relais.key') || 'null'); if (typeof k === 'string' && k.length >= 16) id = k; }catch(e){} }
+    if (!id) return;
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id));
+    const keyHash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    const body = JSON.stringify({ keyHash: keyHash, event: event, ts: Date.now() });
+    const url = 'https://api.fsmai.app/v1/migration-ping';
+    let sent = false;
+    try{
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function'){
+        sent = navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+      }
+    }catch(e){ sent = false; }
+    if (!sent){
+      try{ fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true, mode: 'cors', credentials: 'omit' }); }catch(e){}
+    }
+    try{ localStorage.setItem(flag, String(Date.now())); }catch(e){}
+  }catch(e){}
+}
 FSMMove.gate();
+try{
+  if (location.origin === 'https://app.fsmai.app' && location.pathname !== '/migrer'){
+    const moved = localStorage.getItem('fsm.move.in');
+    if (moved) fsmMigrationPing('first_load');
+  }
+}catch(e){}
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
