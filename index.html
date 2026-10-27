@@ -1600,7 +1600,7 @@ async function fsmMigrationPing(event){
     }
     try{ localStorage.setItem(flag, String(Date.now())); }catch(e){}
   }catch(e){}
-}}
+}
 FSMMove.gate();
 try{
   if (location.origin === 'https://app.fsmai.app' && location.pathname !== '/migrer'){
