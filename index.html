@@ -1543,7 +1543,7 @@ const FSMMove = (() => {
     const r = await receive({ win: window, opener: window.opener, store, from: FSM_MOVE.from, closeWait: 2500 });
     if (r.res === 'done'){
       screen({ title: 'Bienvenue sur ' + host(FSM_MOVE.to), paras: [{ cls: 'mv-ok', text: 'Tes données sont arrivées.' }], spin: true });
-      try{ fsmMigrationPing('migrated'); }catch(e){}
+      try{ await fsmMigrationPing('migrated'); }catch(e){}
       try{ window.close(); }catch(e){}
       setTimeout(() => location.replace('/'), 600);
       return;
@@ -1586,18 +1586,21 @@ async function fsmMigrationPing(event){
     const keyHash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
     const body = JSON.stringify({ keyHash: keyHash, event: event, ts: Date.now() });
     const url = 'https://api.fsmai.app/v1/migration-ping';
-    let sent = false;
+    let ok = false;
     try{
-      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function'){
-        sent = navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-      }
-    }catch(e){ sent = false; }
-    if (!sent){
-      try{ fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true, mode: 'cors', credentials: 'omit' }); }catch(e){}
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true, mode: 'cors', credentials: 'omit' });
+      ok = r.ok;
+    }catch(e){ ok = false; }
+    if (!ok){
+      try{
+        if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function'){
+          navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+        }
+      }catch(e){}
     }
     try{ localStorage.setItem(flag, String(Date.now())); }catch(e){}
   }catch(e){}
-}
+}}
 FSMMove.gate();
 try{
   if (location.origin === 'https://app.fsmai.app' && location.pathname !== '/migrer'){
