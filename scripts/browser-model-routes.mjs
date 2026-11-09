@@ -112,7 +112,12 @@ const routes = await ev(`(() => {
   } finally {
     S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo;
   }
-  return { catalog: S.models.length, rows: out };
+  const byOut = {};
+  for (const m of S.models){
+    const k = ((m.architecture && m.architecture.output_modalities) || ['text']).slice().sort().join('+');
+    byOut[k] = (byOut[k] || 0) + 1;
+  }
+  return { catalog: S.models.length, outputCounts: byOut, xaiOffered: (typeof XAI_MODELS === 'undefined' ? 0 : XAI_MODELS.length), rows: out };
 })()`);
 
 const tests = await ev(`(async () => {
@@ -120,12 +125,25 @@ const tests = await ev(`(async () => {
   return { pass: r.pass, total: r.total, fail: (r.fail || []).slice(0, 20).map(f => ({ name: f.name, detail: String(f.detail || '').slice(0, 180) })) };
 })()`, 180000);
 
-const report = { testedAt: new Date().toISOString(), productTests: tests, routes };
+const unique = [...new Set((routes.rows || []).filter(r => r.model && !r.blocked).map(r => r.model))];
+const textIds = [...new Set((routes.rows || []).filter(r => r.model && !r.blocked && ['chat','code','reason','search','vision','videoin','audio','agents'].includes(r.cat)).map(r => r.model))];
+const mediaIds = unique.filter(id => !textIds.includes(id));
+const coverage = {
+  dynamicCatalogLoaded: routes.catalog,
+  outputCounts: routes.outputCounts || null,
+  xaiDirectOffered: routes.xaiOffered,
+  sampledRoutes: (routes.rows || []).length,
+  uniqueRoutedIds: unique.length,
+  uniqueTextIds: textIds,
+  uniqueMediaIdsNotLiveTested: mediaIds,
+  note: 'Les routes échantillonnent le routeur. Elles ne couvrent pas chaque modèle du catalogue dynamique.'
+};
+const report = { testedAt: new Date().toISOString(), productTests: tests, coverage, routes };
 const out = process.argv[2] || '/opt/cursor/artifacts/routes-modeles-fsm.json';
 writeFileSync(out, JSON.stringify(report, null, 2));
 const bad = (routes.rows || []).filter(r => r.error || r.inCatalog === false);
 const testFail = tests.total !== tests.pass;
-console.log(JSON.stringify({ product: tests.pass + '/' + tests.total, fails: tests.fail, routes: routes.rows.length, unresolved: bad.length, catalog: routes.catalog }, null, 2));
+console.log(JSON.stringify({ product: tests.pass + '/' + tests.total, fails: tests.fail, routes: routes.rows.length, unresolved: bad.length, catalog: routes.catalog, uniqueRouted: unique.length, textIds, mediaIds }, null, 2));
 if (testFail || bad.length) process.exitCode = 1;
 } finally {
   try{ ws && ws.close(); }catch{}

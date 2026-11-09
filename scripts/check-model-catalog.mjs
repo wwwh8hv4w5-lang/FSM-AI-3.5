@@ -78,7 +78,8 @@ const report = {
   xaiRetiredMap: retiredRows,
   notes: [
     'Les identifiants cités seulement dans les jeux d\'essai de la page ne sont pas exigés ici.',
-    'Aucun appel facturé : lecture du catalogue public uniquement.'
+    'Aucun appel facturé : lecture du catalogue public uniquement.',
+    'Ce dépôt ne contient pas le source du worker. FREE_CHAT_MODEL n\'y est pas défini ; seul un réglage Cloudflare déployé peut le porter.'
   ]
 };
 
