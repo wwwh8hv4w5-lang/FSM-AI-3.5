@@ -2323,10 +2323,10 @@ let SRV_POLL_MS = 1000;
 function srvConf(){ const c = LS.get('fsm.srv', {}) || {}; let base = c.base; if (!srvBaseOk(base)){ if ('base' in c) srvBaseHeal(); base = SRV_DEFAULT; } return { on: c.on === true || srvLocked(), base }; }
 function srvSetConf(p){ const c = Object.assign(srvConf(), p); if (!srvBaseOk(c.base)) c.base = SRV_DEFAULT; if (srvLocked()) c.on = true; LS.set('fsm.srv', c); }
 /* code FSM AI : saisie adaptée à l'iPad (espaces retirés, majuscules, tirets typographiques remplacés) et format vérifié */
-const SRV_CODE_RE = /^FSM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-const SRV_CODE_MSG = 'Code FSM AI invalide : il doit avoir la forme FSM-XXXX-XXXX-XXXX-XXXX (lettres et chiffres, sans espace).';
-/* trouve le premier code FSM-XXXX-XXXX-XXXX-XXXX dans n'importe quel texte collé ou tapé (adresse, phrase, espaces, minuscules autour) */
-function srvCodeExtract(v){ const t = String(v ?? '').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); const m = /(?:^|[^A-Z0-9])FSM[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/.exec(t); return m ? 'FSM-' + m.slice(1, 5).join('-') : ''; }
+const SRV_CODE_RE = /^(?:FSM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}|FSMKEY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4})$/;
+const SRV_CODE_MSG = 'Code FSM AI invalide : il doit avoir la forme FSM-XXXX-XXXX-XXXX-XXXX ou FSMKEY-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (lettres et chiffres, sans espace).';
+/* trouve le premier code FSM AI (FSM-… 4 groupes ou FSMKEY-… 6 groupes) dans n'importe quel texte collé ou tapé (adresse, phrase, espaces, minuscules autour) */
+function srvCodeExtract(v){ const t = String(v ?? '').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); let m = /(?:^|[^A-Z0-9])FSMKEY[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/.exec(t); if (m) return 'FSMKEY-' + m.slice(1, 7).join('-'); m = /(?:^|[^A-Z0-9])FSM(?!KEY)[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/.exec(t); return m ? 'FSM-' + m.slice(1, 5).join('-') : ''; }
 function srvCodeNorm(v){ return srvCodeExtract(v) || String(v ?? '').normalize('NFKC').replace(/[\s\u200b-\u200d\ufeff]+/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); }
 /* un code FSM AI arrivé ailleurs dans les réglages (adresse, autre clé) est rangé dans le champ du code, jamais refusé comme adresse */
 function srvCodeRoute(el){ if (!el || el.id === 'srvCode' || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || el.type === 'file' || el.type === 'checkbox') return false; const code = srvCodeExtract(el.value); if (!code) return false; el.value = el.id === 'srvBase' ? srvConf().base : ''; const ci = $('#srvCode'); ci.value = code; srvCodeInput(ci, false); srvRenderUI(); toast('Code FSM AI reconnu : il a été enregistré dans le champ « Code FSM AI ».'); return true; }
@@ -2334,7 +2334,7 @@ function srvCodeValid(v){ return SRV_CODE_RE.test(String(v ?? '')); }
 function srvCodeInput(el, done){
   const v = srvCodeNorm(el.value); if (el.value !== v){ const at = el.selectionStart; el.value = v; try{ if (at != null) el.setSelectionRange(Math.min(v.length, at), Math.min(v.length, at)); }catch(e){} }
   const ok = srvCodeValid(v);
-  if (!v || ok) srvCodeStatus(''); else if (done || v.length >= 23) srvCodeStatus('err', SRV_CODE_MSG);
+  const need = /^FSMKEY/.test(v) ? 36 : 23; if (!v || ok) srvCodeStatus(''); else if (done || v.length >= need) srvCodeStatus('err', SRV_CODE_MSG);
   const prev = srvCode(), next = ok ? v : (v ? prev : ''); /* code incomplet ou invalide : l'ancien code enregistré n'est pas effacé */
   if (next !== prev){
     LS.set('fsm.srvcode', next); S.srvLimits = null; S.srvBad = '';
@@ -10298,7 +10298,7 @@ async function productTestsBody(){
         const G = 'FSM-AB12-CD34-EF56-GH78';
         const norm = [' fsm-ab12-cd34-ef56-gh78 ', 'fsm ab12 cd34 ef56 gh78', 'FSM\u2013AB12\u2014CD34\u2011EF56-GH78', 'fsmab12cd34ef56gh78', 'Fsm-Ab12-Cd34-Ef56-Gh78\u200b'].every(v => srvCodeNorm(v) === G && srvCodeValid(srvCodeNorm(v)));
         const bad = ['FSM-AB12-CD34', 'https://reki.example', 'FSM-AB12-CD34-EF56-GH7!', 'XSM-AB12-CD34-EF56-GH78', 'FSM-AB12-CD34-EF56-GH789', ''].every(v => !srvCodeValid(srvCodeNorm(v)));
-        ok('code FSM AI : espaces retirés, majuscules, format FSM-XXXX-XXXX-XXXX-XXXX vérifié', norm && bad && SRV_CODE_RE.test(G) && /FSM-XXXX-XXXX-XXXX-XXXX/.test(SRV_CODE_MSG));
+        ok('code FSM AI : espaces retirés, majuscules, formats FSM-XXXX… et FSMKEY-XXXX… vérifiés', norm && bad && SRV_CODE_RE.test(G) && SRV_CODE_RE.test('FSMKEY-AAAA-BBBB-CCCC-DDDD-EEEE-FFFF') && /FSM-XXXX-XXXX-XXXX-XXXX/.test(SRV_CODE_MSG) && /FSMKEY-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX/.test(SRV_CODE_MSG));
         LS.set('fsm.srv', { on: false, base: SRV_DEFAULT }); LS.set('fsm.srvcode', CODE); const msg = $('#srvCodeMsg');
         const fire = (v, t) => { ci.value = v; ci.dispatchEvent(new Event(t)); };
         fire('fsm-ab12-cd34-ef56-gh7', 'input'); const k1 = srvCode() === CODE && msg.hidden;
@@ -10307,9 +10307,13 @@ async function productTestsBody(){
         fire('', 'input'); const k4 = srvCode() === '';
         ok('code FSM AI : code invalide refusé avec message clair, ancien code gardé, code valide enregistré normalisé', k1 && k2 && k3 && k4);
         /* cas réel (iPad, écran d'accueil) : « //api.fsmai.app » suivi du code collé dans l'ancien champ d'adresse */
-        const ext = [['//api.fsmai.app FSM-AB12-CD34-EF56-GH78', G], ['//api.fsmai.app fsm-ab12-cd34-ef56-gh78 ', G], ['https://api.fsmai.app/ Mon code : fsm ab12 cd34 ef56 gh78. Merci', G], ['FSM-AB12-CD34-EF56-GH78 FSM-ZZZZ-ZZZZ-ZZZZ-ZZZZ', G], ['//api.fsmai.app', ''], ['https://api.fsmai.app/FSMAI-APP', ''], ['FSM-AB12-CD34-EF56-GH789', '']].every(([v, w]) => srvCodeExtract(v) === w);
+        const HK = 'FSMKEY-AAAA-BBBB-CCCC-DDDD-EEEE-FFFF'; const ext = [['//api.fsmai.app FSM-AB12-CD34-EF56-GH78', G], ['//api.fsmai.app fsm-ab12-cd34-ef56-gh78 ', G], ['https://api.fsmai.app/ Mon code : fsm ab12 cd34 ef56 gh78. Merci', G], ['FSM-AB12-CD34-EF56-GH78 FSM-ZZZZ-ZZZZ-ZZZZ-ZZZZ', G], ['//api.fsmai.app', ''], ['https://api.fsmai.app/FSMAI-APP', ''], ['FSM-AB12-CD34-EF56-GH789', ''], ['Mon code : fsmkey aaaa bbbb cccc dddd eeee ffff Merci', HK], ['FSMKEY-AAAA-BBBB-CCCC-DDDD-EEEE-FFFF', HK], ['fsmkey-aaaa-bbbb-cccc-dddd-eeee-ffff', HK], ['FSMKEY-AAAA-BBBB-CCCC-DDDD-EEEE-FFFF FSMKEY-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ', HK], ['FSMKEY-AAAA-BBBB-CCCC-DDDD-EEEE-FFF', ''], ['FSM-AB12-CD34-EF56-GH78X', '']].every(([v, w]) => srvCodeExtract(v) === w);
         fire('//api.fsmai.app ' + 'fsm-ab12-cd34-ef56-gh78 ', 'input'); const e1 = srvCode() === G && ci.value === G && msg.textContent !== SRV_CODE_MSG;
         ok('code FSM AI : premier code trouvé dans un texte collé (adresse, phrase, espaces, minuscules)', ext && e1 && !ci.hasAttribute('maxlength'));
+        fire(' fsmkey aaaa bbbb cccc dddd eeee ffff ', 'input'); const h1 = srvCode() === HK && ci.value === HK && SRV_CODE_RE.test(HK) && msg.textContent !== SRV_CODE_MSG && ci.getAttribute('aria-invalid') === 'false';
+        fire('fsmkey-aaaa-bbbb-cccc-dddd-eeee-fff', 'change'); const h2 = srvCode() === HK && !msg.hidden && msg.textContent === SRV_CODE_MSG;
+        fire('FSM-AB12-CD34-EF56-GH78', 'input'); const h3 = srvCode() === G && ci.value === G;
+        ok('code FSM AI : format Hub FSMKEY (6 groupes) accepté, ancien format FSM- conservé', h1 && h2 && h3);
         LS.set('fsm.srvcode', CODE); const rt = ['xaiKey', 'apiKey', 'ikPexels', 'bgDay'].map(id => { const el = $('#' + id); if (!el) return true; const k0 = LS.get('relais.key', null); el.value = 'https://api.fsmai.app ' + G; el.dispatchEvent(new Event('input', { bubbles: true })); const r = !srvCodeExtract(el.value) && srvCode() === G && LS.get('relais.key', null) === k0; LS.set('fsm.srvcode', CODE); return r; });
         LS.set('fsm.srv', { on: false, base: '//api.fsmai.app ' + G }); const hb = srvConf().base === SRV_DEFAULT && LS.get('fsm.srv', {}).base === SRV_DEFAULT && srvCode() === G;
         ok('code FSM AI : arrivé dans un autre champ des réglages ou dans l\u2019adresse, il est rangé comme code, sans erreur d\u2019adresse', rt.every(Boolean) && hb);
