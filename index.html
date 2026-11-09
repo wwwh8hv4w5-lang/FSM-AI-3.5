@@ -6187,13 +6187,26 @@ const XAI_MODELS = [
       ['grok-4.20-multi-agent-0309','Grok 4.20 Multi-Agent',1000000,1.25,2.5],['grok-build-0.1','Grok Build 0.1',256000,1,2]]
     .map(([id, n, ctx, pi, po], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i, context_length: ctx,
       pricing:{ prompt: String(pi / 1e6), completion: String(po / 1e6) }, architecture:{ input_modalities:['text','image'], output_modalities:['text'] }, supported_parameters:['tools','web_search_options'] })),
-  ...[['grok-imagine-image-quality','Grok Imagine Image Quality',0.05],['grok-imagine-image-2.0','Grok Imagine Image 2.0',0.04],['grok-imagine-image','Grok Imagine Image',0.02]]
+  ...[['grok-imagine-image-2.0','Grok Imagine Image 2.0',0.04],['grok-imagine-image','Grok Imagine Image',0.02]]
     .map(([id, n, p], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i,
       pricing:{ prompt:'0', completion:'0', image: String(p) }, architecture:{ input_modalities:['text'], output_modalities:['image'] }, supported_parameters:[] })),
   ...[['grok-imagine-video-1.5','Grok Imagine Video 1.5',0.08],['grok-imagine-video','Grok Imagine Video',0.05],['grok-imagine-video-1.5-lite','Grok Imagine Video 1.5 Lite',0.02]]
     .map(([id, n, p], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i,
       pricing:{ prompt:'0', completion:'0', per_second: String(p) }, architecture:{ input_modalities:['text','image'], output_modalities:['video'] }, supported_parameters:[] }))
 ];
+/* grok-imagine-image-quality retiré de l'API xAI le 2 novembre 2026.
+   La doc officielle le sert désormais comme grok-imagine-image-2.0 avec quality « low » (0,04 $ l'image 1K, 0,01 $ de moins que l'ancien tarif). */
+const XAI_RETIRED = Object.freeze({ 'grok-imagine-image-quality': 'grok-imagine-image-2.0' });
+function xaiCanonical(id){ const next = XAI_RETIRED[xid(id)]; return next ? 'xai:' + next : id; }
+/* Ne réécrit que le modèle choisi. L'historique et les autres réglages restent en place. */
+function migrateXaiModelSetting(){
+  if (!isXai(S.set.model) || !XAI_RETIRED[xid(S.set.model)]) return false;
+  const next = xaiCanonical(S.set.model);
+  if (next === S.set.model) return false;
+  S.set.model = next;
+  saveSettings();
+  return true;
+}
 function mergeXai(){
   S.models = S.models.filter(m => !isXai(m.id)).concat(S.xaiKey && !srvLocked() ? XAI_MODELS : []);
 }
@@ -6279,8 +6292,11 @@ async function runXaiSearch(asst, msgs, signal){
 }
 async function runXaiImage(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
+  const retired = !!XAI_RETIRED[xid(asst.model)];
+  if (retired) asst.model = xaiCanonical(asst.model);
   const m = modelInfo(asst.model);
   const body = { model: xid(asst.model), prompt: user.apiText || user.text || 'Une image', n: 1, response_format:'b64_json' };
+  if (retired) body.quality = 'low';
   if (S.set.imgAspect && S.set.imgAspect !== 'auto') body.aspect_ratio = S.set.imgAspect;
   if ((user.atts || []).some(a => kindOf(a) === 'image')) asst.text = "La retouche de photo n'est pas disponible ici avec l'API xAI : l'image jointe a été ignorée.";
   asst.status = 'Réflexion en cours…'; paint(asst);
@@ -9154,8 +9170,12 @@ function applyUnlock(){
   return true;
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-unlock]')){ e.preventDefault(); confirmUnlock(); } });
+/* Classement court des demandes floues (9 novembre 2026).
+   Payant : google/gemini-2.5-flash est toujours au catalogue OpenRouter, et moins cher que les Flash plus récents : inchangé.
+   Free : google/gemini-2.5-flash:free répond 404. Remplacement à prix nul, sans date de retrait, avec response_format : google/gemma-4-26b-a4b-it:free.
+   Ce dépôt ne contient pas le worker. FREE_CHAT_MODEL n'y est pas défini. */
 const PLAN_MODEL = 'google/gemini-2.5-flash';
-const PLAN_MODEL_FREE = 'google/gemini-2.5-flash:free';
+const PLAN_MODEL_FREE = 'google/gemma-4-26b-a4b-it:free';
 const PLAN_SYS = 'Tu classes une demande. Réponds uniquement par un JSON compact {"kind":"direct"|"explore","format":"texte"|"code"|"image"|"video","ask":false,"summary":"","options":[],"questions":[]}. direct = action claire. explore = idée floue, projet, jeu à concevoir, vidéo de marque ou demande en plusieurs étapes. format = modalité : code pour jeu, schéma, mermaid, graphique, tableau, SVG ou interface ; image ou video seulement si la demande le dit explicitement ; sinon texte. ask = true seulement en cas de vrai doute sur la modalité, l\'objectif ou un paramètre indispensable : une seule question, 2 ou 3 options, dans questions. Une demande claire a ask false. Pas de montant.';
 function planKind(text){
   const n = normIntent(text); if (!n) return null;
@@ -9205,12 +9225,16 @@ function planAskText(text, plan){
 function planExecText(text, plan){ return planAskText(text, plan) + '\n\nL\'utilisateur a validé. Exécute maintenant, en respectant le FORMAT ci-dessus. Pas d\'image ni de vidéo si le FORMAT ne le dit pas.'; }
 async function classifyRemote(text){
   if (!S.key) return null;
-  const model = (typeof freeOnly === 'function' && freeOnly()) ? PLAN_MODEL_FREE : PLAN_MODEL;
+  const free = typeof freeOnly === 'function' && freeOnly();
+  const model = free ? PLAN_MODEL_FREE : PLAN_MODEL;
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 3000);
   try{
-    const res = await fetch(API + '/chat/completions', { method:'POST', headers: hdr(), signal: ctl.signal, body: JSON.stringify({ model, temperature:0, max_tokens:350, messages:[{ role:'system', content: PLAN_SYS }, { role:'user', content: String(text || '').slice(0, 2000) }] }) });
+    const body = { model, temperature:0, max_tokens:350, messages:[{ role:'system', content: PLAN_SYS }, { role:'user', content: String(text || '').slice(0, 2000) }] };
+    if (free) body.response_format = { type:'json_object' };
+    const res = await fetch(API + '/chat/completions', { method:'POST', headers: hdr(), signal: ctl.signal, body: JSON.stringify(body) });
     if (!res.ok) return null;
-    const j = await res.json();
+    let j; try{ j = await res.json(); }catch(e){ return null; }
+    if (j && j.model && j.model !== model) return null;
     let usd = j.usage && j.usage.cost != null ? +j.usage.cost : 0;
     if (!(usd > 0)){ const est = estTokens(model, j.usage); if (est) usd = est; }
     if (usd > 0) accountOpenRouter(usd, 'chat');
@@ -10490,6 +10514,84 @@ async function productTestsBody(){
       ok('déménagement : page de réception n’écrit aucun réglage (seule la fusion écrit)', w === null);
     }
   }catch(e){ ok('déménagement : exception', false, e?.message || e); }
+  {
+    const prevFetch = window.fetch;
+    const keep = { key: S.key, plan: S.set.plan, keyInfo: S.keyInfo, cat: S.set.category, aspect: S.set.imgAspect };
+    const ask = 'je voudrais créer une application mobile';
+    const jsonPlan = '{"kind":"explore","format":"texte","ask":false,"summary":"application","options":["iOS"],"questions":[]}';
+    try{
+      S.key = 'sk-or-v1-testclassifieur000000000';
+      S.set.plan = 'free';
+      S.keyInfo = { limit: 0, used: 0, remaining: 0, weekly: 0, monthly: 0, t: Date.now() };
+      let freeBody = null;
+      window.fetch = async (url, opt) => {
+        freeBody = JSON.parse(opt.body);
+        return new Response(JSON.stringify({ model: freeBody.model, choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
+      };
+      const got = await classifyRemote(ask);
+      ok('classifieur Free : requête modèle et response_format', !!freeBody && freeBody.model === PLAN_MODEL_FREE && freeBody.response_format && freeBody.response_format.type === 'json_object' && freeBody.temperature === 0 && !/gemini-2\.5-flash:free/.test(JSON.stringify(freeBody)));
+      ok('classifieur Free : JSON parsé', !!got && got.kind === 'explore' && got.format === 'texte' && got.summary === 'application' && got.options[0] === 'iOS' && got.ask === false);
+      window.fetch = async () => new Response(JSON.stringify({ error:{ message:'introuvable' } }), { status: 404, headers:{ 'Content-Type':'application/json' } });
+      ok('classifieur Free : erreur HTTP sans classement', (await classifyRemote(ask)) === null);
+      window.fetch = async () => new Response('<<<', { status: 200, headers:{ 'Content-Type':'application/json' } });
+      ok('classifieur Free : corps illisible sans classement', (await classifyRemote(ask)) === null);
+      window.fetch = async () => new Response(JSON.stringify({ model:'openrouter/auto', choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
+      ok('classifieur Free : autre modèle résolu refusé', (await classifyRemote(ask)) === null);
+      S.set.plan = 'entreprise';
+      S.keyInfo = { limit: 18, used: 1, remaining: 17, weekly: 0.1, monthly: 1, t: Date.now() };
+      let paidBody = null;
+      window.fetch = async (url, opt) => {
+        paidBody = JSON.parse(opt.body);
+        return new Response(JSON.stringify({ model: paidBody.model, choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
+      };
+      const paid = await classifyRemote(ask);
+      ok('classifieur payant : Gemini 2.5 Flash inchangé', !!paidBody && paidBody.model === PLAN_MODEL && !paidBody.response_format && paid && paid.kind === 'explore');
+    }finally{
+      window.fetch = prevFetch; S.key = keep.key; S.set.plan = keep.plan; S.keyInfo = keep.keyInfo; S.set.category = keep.cat; S.set.imgAspect = keep.aspect;
+    }
+  }
+  {
+    const prevFetch = window.fetch;
+    const keep = { set: S.set, index: S.index, cat: S.set.category, aspect: S.set.imgAspect };
+    const snap = lsSnapshot(['relais.settings', 'relais.index']);
+    const calls = [];
+    window.fetch = async (url, opt) => {
+      calls.push({ url: String(url), body: opt && opt.body ? JSON.parse(opt.body) : null });
+      return new Response(JSON.stringify({ data:[{ b64_json:'YQ==' }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
+    };
+    try{
+      S.set.category = 'image'; S.set.imgAspect = 'auto';
+      const inherited = { id:'imgq', model:'xai:grok-imagine-image-quality', images:[], text:'' };
+      await runXaiImage(inherited, { text:'un phare', atts:[] }, new AbortController().signal);
+      const b0 = calls[0] && calls[0].body;
+      ok('image héritée : modèle canonique et quality low', !!b0 && /\/images\/generations$/.test(calls[0].url) && b0.model === 'grok-imagine-image-2.0' && b0.quality === 'low' && inherited.model === 'xai:grok-imagine-image-2.0');
+      calls.length = 0;
+      const current = { id:'img2', model:'xai:grok-imagine-image-2.0', images:[], text:'' };
+      await runXaiImage(current, { text:'un phare', atts:[] }, new AbortController().signal);
+      ok('choix Imagine 2.0 non modifié', calls[0] && calls[0].body.model === 'grok-imagine-image-2.0' && !('quality' in calls[0].body) && current.model === 'xai:grok-imagine-image-2.0');
+      calls.length = 0;
+      const v1 = { id:'img1', model:'xai:grok-imagine-image', images:[], text:'' };
+      await runXaiImage(v1, { text:'un phare', atts:[] }, new AbortController().signal);
+      ok('choix Imagine 1.0 non modifié', calls[0] && calls[0].body.model === 'grok-imagine-image' && !('quality' in calls[0].body) && v1.model === 'xai:grok-imagine-image');
+      const hist = [{ id:'h1', title:'Discussion gardée', t: 9 }];
+      const settings = { model:'xai:grok-imagine-image-quality', system:'garde-moi', web:true, variant:'corser55', category:'chat', fileHints:true, reasoning:false };
+      LS.set('relais.index', hist);
+      S.index = hist.slice();
+      S.set = Object.assign({}, S.set, settings);
+      ok('migration réglages : seul le modèle change', migrateXaiModelSetting() === true);
+      const saved = LS.get('relais.settings', {});
+      ok('migration : autres réglages et historique intacts', saved.model === 'xai:grok-imagine-image-2.0' && saved.system === 'garde-moi' && saved.web === true && saved.variant === 'corser55' && saved.category === 'chat' && saved.fileHints === true && saved.reasoning === false && JSON.stringify(LS.get('relais.index', [])) === JSON.stringify(hist) && JSON.stringify(S.index) === JSON.stringify(hist));
+      S.set.model = 'xai:grok-imagine-image-2.0'; S.set.system = 'encore';
+      ok('migration : choix actuel laissé tel quel', migrateXaiModelSetting() === false && S.set.model === 'xai:grok-imagine-image-2.0' && S.set.system === 'encore');
+      S.set.model = 'xai:grok-4.7';
+      ok('migration : modèle texte non concerné', migrateXaiModelSetting() === false && S.set.model === 'xai:grok-4.7');
+    }finally{
+      window.fetch = prevFetch;
+      keep.set.category = keep.cat; keep.set.imgAspect = keep.aspect;
+      S.set = keep.set; S.index = keep.index;
+      lsRestore(snap);
+    }
+  }
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
@@ -10498,7 +10600,9 @@ window.runProductTests = runProductTests;
 (function init(){
   if (FSMMove.receiving) return; /* page de réception du déménagement : l'app ne démarre pas, la fusion s'en charge */
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
-  mergeXai(); srvLockSanitize(); renderSpend();
+  mergeXai();
+  migrateXaiModelSetting();
+  srvLockSanitize(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
   try{ enforceClientMode(); }catch(e){} renderBalance(); fetchKeyInfo(true); refreshKeyFp();
