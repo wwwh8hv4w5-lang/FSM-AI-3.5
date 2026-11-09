@@ -6187,13 +6187,17 @@ const XAI_MODELS = [
       ['grok-4.20-multi-agent-0309','Grok 4.20 Multi-Agent',1000000,1.25,2.5],['grok-build-0.1','Grok Build 0.1',256000,1,2]]
     .map(([id, n, ctx, pi, po], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i, context_length: ctx,
       pricing:{ prompt: String(pi / 1e6), completion: String(po / 1e6) }, architecture:{ input_modalities:['text','image'], output_modalities:['text'] }, supported_parameters:['tools','web_search_options'] })),
-  ...[['grok-imagine-image-quality','Grok Imagine Image Quality',0.05],['grok-imagine-image-2.0','Grok Imagine Image 2.0',0.04],['grok-imagine-image','Grok Imagine Image',0.02]]
+  ...[['grok-imagine-image-2.0','Grok Imagine Image 2.0',0.04],['grok-imagine-image','Grok Imagine Image',0.02]]
     .map(([id, n, p], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i,
       pricing:{ prompt:'0', completion:'0', image: String(p) }, architecture:{ input_modalities:['text'], output_modalities:['image'] }, supported_parameters:[] })),
   ...[['grok-imagine-video-1.5','Grok Imagine Video 1.5',0.08],['grok-imagine-video','Grok Imagine Video',0.05],['grok-imagine-video-1.5-lite','Grok Imagine Video 1.5 Lite',0.02]]
     .map(([id, n, p], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i,
       pricing:{ prompt:'0', completion:'0', per_second: String(p) }, architecture:{ input_modalities:['text','image'], output_modalities:['video'] }, supported_parameters:[] }))
 ];
+/* grok-imagine-image-quality retiré de l'API xAI le 2 novembre 2026.
+   La doc officielle le sert désormais comme grok-imagine-image-2.0 avec quality « low » (0,04 $ l'image 1K, 0,01 $ de moins que l'ancien tarif). */
+const XAI_RETIRED = Object.freeze({ 'grok-imagine-image-quality': 'grok-imagine-image-2.0' });
+function xaiCanonical(id){ const next = XAI_RETIRED[xid(id)]; return next ? 'xai:' + next : id; }
 function mergeXai(){
   S.models = S.models.filter(m => !isXai(m.id)).concat(S.xaiKey && !srvLocked() ? XAI_MODELS : []);
 }
@@ -6279,8 +6283,11 @@ async function runXaiSearch(asst, msgs, signal){
 }
 async function runXaiImage(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
+  const retired = !!XAI_RETIRED[xid(asst.model)];
+  if (retired) asst.model = xaiCanonical(asst.model);
   const m = modelInfo(asst.model);
   const body = { model: xid(asst.model), prompt: user.apiText || user.text || 'Une image', n: 1, response_format:'b64_json' };
+  if (retired) body.quality = 'low';
   if (S.set.imgAspect && S.set.imgAspect !== 'auto') body.aspect_ratio = S.set.imgAspect;
   if ((user.atts || []).some(a => kindOf(a) === 'image')) asst.text = "La retouche de photo n'est pas disponible ici avec l'API xAI : l'image jointe a été ignorée.";
   asst.status = 'Réflexion en cours…'; paint(asst);
@@ -9154,8 +9161,12 @@ function applyUnlock(){
   return true;
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-unlock]')){ e.preventDefault(); confirmUnlock(); } });
+/* Classement court des demandes floues (9 novembre 2026).
+   Payant : google/gemini-2.5-flash est toujours au catalogue OpenRouter, et moins cher que les Flash plus récents : inchangé.
+   Free : google/gemini-2.5-flash:free répond 404. Remplacement à prix nul, sans date de retrait, avec response_format : google/gemma-4-26b-a4b-it:free (3,8 milliards de paramètres actifs, doc OpenRouter).
+   Le réglage Cloudflare FREE_CHAT_MODEL du worker fsm-ai-api vaut encore l'ancien identifiant : non modifié ici, aucun déploiement. */
 const PLAN_MODEL = 'google/gemini-2.5-flash';
-const PLAN_MODEL_FREE = 'google/gemini-2.5-flash:free';
+const PLAN_MODEL_FREE = 'google/gemma-4-26b-a4b-it:free';
 const PLAN_SYS = 'Tu classes une demande. Réponds uniquement par un JSON compact {"kind":"direct"|"explore","format":"texte"|"code"|"image"|"video","ask":false,"summary":"","options":[],"questions":[]}. direct = action claire. explore = idée floue, projet, jeu à concevoir, vidéo de marque ou demande en plusieurs étapes. format = modalité : code pour jeu, schéma, mermaid, graphique, tableau, SVG ou interface ; image ou video seulement si la demande le dit explicitement ; sinon texte. ask = true seulement en cas de vrai doute sur la modalité, l\'objectif ou un paramètre indispensable : une seule question, 2 ou 3 options, dans questions. Une demande claire a ask false. Pas de montant.';
 function planKind(text){
   const n = normIntent(text); if (!n) return null;
@@ -10490,6 +10501,8 @@ async function productTestsBody(){
       ok('déménagement : page de réception n’écrit aucun réglage (seule la fusion écrit)', w === null);
     }
   }catch(e){ ok('déménagement : exception', false, e?.message || e); }
+  ok('classement Free : identifiant gratuit actuel, Gemini 2.5 Flash payant inchangé', PLAN_MODEL === 'google/gemini-2.5-flash' && PLAN_MODEL_FREE === 'google/gemma-4-26b-a4b-it:free' && PLAN_MODEL_FREE.endsWith(':free') && PLAN_MODEL_FREE !== 'google/gemini-2.5-flash:free');
+  ok('xAI : image quality retiré, ancienne sélection vers Imagine 2.0', !XAI_MODELS.some(m => /imagine-image-quality/.test(m.id)) && xaiCanonical('xai:grok-imagine-image-quality') === 'xai:grok-imagine-image-2.0' && xaiCanonical('xai:grok-4.7') === 'xai:grok-4.7' && XAI_MODELS.some(m => m.id === 'xai:grok-imagine-image-2.0') && XAI_MODELS.some(m => m.id === 'xai:grok-imagine-image'));
   const pass = results.filter(r => r.pass).length;
   return { pass, total: results.length, intent: hit + '/' + cases.length, intentMisses: misses, plans: ph + '/' + plans.length, fail: results.filter(r => !r.pass) };
 }
@@ -10498,7 +10511,9 @@ window.runProductTests = runProductTests;
 (function init(){
   if (FSMMove.receiving) return; /* page de réception du déménagement : l'app ne démarre pas, la fusion s'en charge */
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
-  mergeXai(); srvLockSanitize(); renderSpend();
+  mergeXai();
+  if (isXai(S.set.model) && XAI_RETIRED[xid(S.set.model)]){ S.set.model = xaiCanonical(S.set.model); saveSettings(); }
+  srvLockSanitize(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
   try{ enforceClientMode(); }catch(e){} renderBalance(); fetchKeyInfo(true); refreshKeyFp();
