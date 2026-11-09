@@ -7296,6 +7296,32 @@ function capable(m, nd){
     && (!nd.image || ins(m, 'image')) && (!nd.video || ins(m, 'video')) && (!nd.audio || ins(m, 'audio'))
     && (!nd.file || ins(m, 'file') || ins(m, 'image')) && (!nd.tools || hasParam(m, 'tools'));
 }
+/* OMEGA MAX 9.0 : le modèle le plus cher (GPT-5.5 Pro) reste réservé aux demandes vraiment exigeantes.
+   Une question simple de discussion part sur l'Opus le plus récent, s'il coûte moins cher.
+   Au moindre doute (longueur, mot-clé exigeant, code, calcul, pièce jointe, plusieurs étapes, longue discussion,
+   suite d'une réponse du modèle le plus puissant, demande explicite du max) : le modèle le plus puissant, comme avant.
+   En reprise après échec (altModel), pas de raccourci Opus : le repli va au modèle le plus puissant. */
+const OMEGA_OPUS_RE = /^anthropic\/claude-opus-\d/;
+const OMEGA_MAX_ASK_RE = /(?:^|[^\p{L}])(?:max(?:imum|imal|imale)?|le plus puissant|plus puissant|meilleur modèle|gpt[\s-]*5(?:\.\d)?[\s-]*pro|à fond|en profondeur|approfondi[e]?s?|raisonnement (?:poussé|avancé|complet)|réfléchis(?:-y)? (?:bien|longuement)|prends ton temps|précision maximale|sans erreur)(?![\p{L}])/iu;
+const OMEGA_STEPS_RE = /(?:^|[^\p{L}])(?:étapes?|d'abord|ensuite|puis(?!-)|enfin|premièrement|deuxièmement|plusieurs|compar(?:e|er|aison)|avantages et inconvénients|pour et contre|plan|liste détaillée|en détail|détaillée?s?|explique pourquoi|justifie)(?![\p{L}])/iu;
+let routeRetry = false;
+function omegaMaxSimple(text, atts, conv, cat, d0, topId){
+  if (cat !== 'chat') return false;
+  if ((atts || []).length) return false;
+  const t = String(text || '').trim();
+  if (!t || t.length > 280) return false;
+  if (t.split(/\s+/).filter(Boolean).length > 45) return false;
+  if (t.split(/\n/).filter(x => x.trim()).length > 3) return false;
+  if ((t.match(/\?/g) || []).length > 2) return false;
+  if (!d0 || (d0.sc || 0) > 0) return false;
+  if (OMEGA_MAX_ASK_RE.test(t) || OMEGA_STEPS_RE.test(t)) return false;
+  const msgs = conv?.messages || [];
+  if (msgs.length > 14) return false;
+  if (msgs.reduce((n, m) => n + String(m.text || '').length, 0) > 6000) return false;
+  const prev = [...msgs].reverse().find(m => m.role === 'assistant' && !m.error && m.model);
+  if (prev && (prev.model === topId || prev.route?.omegaTop)) return false;
+  return true;
+}
 function routeModel(text, atts, conv, cat, forceTier){
   if (typeof freeOnly === 'function' && freeOnly()) return freeRoute(text, atts, conv, cat, forceTier);
   const d0 = forceTier ? { tier: forceTier, why: 'à ta demande' } : difficulty(text, atts, conv, cat);
@@ -7310,7 +7336,12 @@ function routeModel(text, atts, conv, cat, forceTier){
   if (d.tier === 'max' && !forceTier && typeof planPolicy === 'function' && planPolicy().top){
     const all = prefs.max.flatMap(re => S.models.filter(x => re.test(x.id) && capable(x, nd) && pok(x)));
     const best = all.sort((a, b) => priceScore(b, 'chat') - priceScore(a, 'chat'))[0];
-    if (best) return { model: best.id, tier: 'max', why: d.why };
+    if (best && !routeRetry && omegaMaxSimple(text, atts, conv, cat, d0, best.id)){
+      const opus = S.models.filter(x => OMEGA_OPUS_RE.test(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+      if (opus && opus.id !== best.id && priceScore(opus, 'chat') > 0 && priceScore(opus, 'chat') < priceScore(best, 'chat'))
+        return { model: opus.id, tier: 'max', why: (d.why ? d.why + ' · ' : '') + 'OMEGA MAX · question simple' };
+    }
+    if (best) return { model: best.id, tier: 'max', why: d.why, omegaTop: true };
   }
   for (const tier of order) for (const re of prefs[tier]){
     const m = S.models.filter(x => re.test(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
@@ -8511,7 +8542,7 @@ function closestAspect(w, h, allowed){
 }
 /* Décide si le message prolonge la dernière image ; si oui, la joint comme référence */
 /* « Et un masque à gaz », « avec des lunettes », « un chapeau rouge » juste après une image : c'est une retouche de cette image */
-var NP_EDIT_RE = /^\s*(?:et|puis|plus|aussi|maintenant|ok|super|parfait)?[\s,]*(?:avec\s+|ajoute\s+|rajoute\s+)?(?:un|une|des|du|de la|de l['’]|le|la|les|ses|son|sa|leur|leurs)\s+[^?!.\n]{2,60}[?!.\s]*$/iu;
+var NP_EDIT_RE = /^\s*(?:et|puis(?!-)|plus|aussi|maintenant|ok|super|parfait)?[\s,]*(?:avec\s+|ajoute\s+|rajoute\s+)?(?:un|une|des|du|de la|de l['’]|le|la|les|ses|son|sa|leur|leurs)\s+[^?!.\n]{2,60}[?!.\s]*$/iu;
 var NP_ASK_RE = /(?:^|[^\p{L}])(prix|co[uû]t|combien|pourquoi|quel|quelle|quels|quelles|qui|comment|signifie|veut dire|c'est quoi|définition|histoire|origine|météo|heure|date|recette)(?![\p{L}])/iu;
 async function autoVisualRef(text, cat, force){
   if (S.pending.some(a => ['image', 'video'].includes(kindOf(a)))) return null;
@@ -8859,6 +8890,7 @@ function canFallback(e, asst, attempt){
 function altModel(asst, user, conv, exclude){
   const saved = S.models;
   S.models = saved.filter(m => !exclude.includes(m.id));
+  const retry0 = routeRetry; routeRetry = true;
   try{
     const cat = asst.cat || 'chat';
     if (['image', 'photoedit', 'video'].includes(cat)){
@@ -8869,7 +8901,7 @@ function altModel(asst, user, conv, exclude){
     const r = routeModel(user.apiText || user.text || '', user.atts || [], conv, cat) || routeModel(user.text || '', user.atts || [], conv, 'chat');
     return r ? r.model : null;
   }catch(e){ return null; }
-  finally{ S.models = saved; }
+  finally{ S.models = saved; routeRetry = retry0; }
 }
 /* ----- Suite d'une vidéo générée : la dernière image sert de point de départ ----- */
 var CONT_RE = /(?:^|[^\p{L}])(suite|continue[rz]?|prolonge[rz]?|enchaîne[rz]?|enchaine[rz]?|rallonge[rz]?|allonge[rz]?|séquence suivante|plan suivant|scène suivante|après ça|et ensuite|et après|la fin de (?:la|cette) vidéo|deuxième partie|partie 2)(?![\p{L}])/iu;
@@ -9691,6 +9723,49 @@ async function productTestsBody(){
       ok('NEURAL inchangé', go(complexe).model === OPUS && go(exigeant).model === OPUS && go('écris une fonction qui additionne deux nombres').model === OPUS);
       S.set.plan = 'elite'; S.set.variant = 'omega90';
       ok('OMEGA inchangé', go('quelle heure est-il ?').model === OPUS && go(complexe).model === OPUS);
+      {
+        /* OMEGA MAX 9.0 : question simple → Opus le plus récent ; demande exigeante, doute ou échec d'Opus → GPT-5.5 Pro. Catalogue simulé, aucun appel réseau. */
+        const GPTPRO = 'openai/gpt-5.5-pro', OPUS55 = 'anthropic/claude-opus-5.5', OPUS5 = 'anthropic/claude-opus-5';
+        const priced = (id, created, pin, pout) => ({ ...row(id, created, pout), pricing:{ prompt:pin, completion:pout } });
+        const omCat = catalog.concat([priced(OPUS55, 240, 0.000004, 0.00002), priced(OPUS5, 230, 0.000005, 0.000025), priced(GPTPRO, 225, 0.00003, 0.00018), priced('openai/gpt-5.5', 224, 0.000005, 0.00003)]);
+        S.models = omCat; S.set.plan = 'elite'; S.set.variant = 'omega90';
+        const om = (text, atts, conv) => { const cat = detectIntent(text, atts || []); const r = routeModel(text, atts || [], conv || { messages:[] }, cat); return r ? r.model : null; };
+        const simples = ['quelle heure est-il ?', "quelle est la capitale de l'Australie ?", 'qui a écrit Les Misérables ?', "puis-je mettre du sel dans mon café ?"];
+        const badS = simples.filter(t => om(t) !== OPUS55);
+        ok('OMEGA MAX : question simple → Opus 5.5', badS.length === 0, badS.map(t => t + ' → ' + om(t)).join(' | '));
+        ok('OMEGA MAX : Opus le plus récent, pas un ancien', om('quelle heure est-il ?') === OPUS55 && om('quelle heure est-il ?') !== OPUS5);
+        const longQ = 'Peux-tu me dire ce que tu penses de cette idée ? ' + 'Je voudrais vraiment comprendre ce que tu en penses avec beaucoup de nuances et de contexte. '.repeat(4);
+        const hard = { exigeant, complexe, texte, preuve:"démontre que la somme des angles d'un triangle vaut 180", petiteFonction:'écris une fonction qui additionne deux nombres', calcul:'calcule 1234 * 5678', max:'réponds avec le modèle le plus puissant : quelle heure est-il ?', gpt:'utilise GPT-5.5 Pro pour me dire bonjour', profondeur:'explique en profondeur pourquoi le ciel est bleu', etapes:"explique les étapes pour changer un pneu", comparer:'compare Paris et Lyon', long:longQ, plusieursQ:'qui ? quoi ? où ? quand ?' };
+        const badH = Object.entries(hard).filter(([, t]) => om(t) !== GPTPRO);
+        ok('OMEGA MAX : demande exigeante → GPT-5.5 Pro', badH.length === 0, badH.map(([k, t]) => k + ' → ' + om(t)).join(' | '));
+        ok('OMEGA MAX : pièce jointe → GPT-5.5 Pro', om('quelle heure est-il ?', [{ name:'a.pdf', type:'application/pdf' }]) === GPTPRO && om("qu'est-ce que c'est ?", [{ name:'p.png', type:'image/png' }]) === GPTPRO);
+        const many = { messages: Array.from({ length:16 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', text:'ok', model: i % 2 ? OPUS55 : undefined })) };
+        const heavy = { messages:[{ role:'user', text:'x'.repeat(7000) }, { role:'assistant', text:'ok', model:OPUS55 }] };
+        const afterPro = { messages:[{ role:'user', text:exigeant }, { role:'assistant', text:'rapport…', model:GPTPRO, route:{ tier:'max' } }] };
+        const afterOpus = { messages:[{ role:'user', text:'quelle heure est-il ?' }, { role:'assistant', text:'Il est midi.', model:OPUS55, route:{ tier:'max' } }] };
+        const chatQ = (t, conv) => routeModel(t, [], conv, 'chat')?.model;
+        ok('OMEGA MAX : historique long ou lourd → GPT-5.5 Pro', chatQ('et en Belgique ?', many) === GPTPRO && chatQ('et en Belgique ?', heavy) === GPTPRO && chatQ('et en Belgique ?', { messages:[] }) === OPUS55);
+        ok('OMEGA MAX : suite d\'une réponse GPT-5.5 Pro → GPT-5.5 Pro', om('et pour la Belgique ?', [], afterPro) === GPTPRO);
+        ok('OMEGA MAX : suite simple d\'une réponse Opus → Opus', om('et à Tokyo ?', [], afterOpus) === OPUS55);
+        const alt = altModel({ cat:'chat', model:OPUS55 }, { text:'quelle heure est-il ?', atts:[] }, { messages:[] }, [OPUS55]);
+        ok('OMEGA MAX : échec d\'Opus → repli GPT-5.5 Pro', alt === GPTPRO && routeRetry === false, alt);
+        ok('OMEGA MAX : après le repli, routage normal rétabli', om('quelle heure est-il ?') === OPUS55);
+        S.models = omCat.filter(m => !OMEGA_OPUS_RE.test(m.id));
+        ok('OMEGA MAX : sans Opus → GPT-5.5 Pro', om('quelle heure est-il ?') === GPTPRO);
+        S.models = omCat.filter(m => m.id !== OPUS55 && m.id !== OPUS5).concat([priced('anthropic/claude-opus-9', 250, 0.00004, 0.0002)]);
+        ok('OMEGA MAX : Opus plus cher que le top → pas de raccourci', om('quelle heure est-il ?') === 'anthropic/claude-opus-9' && routeModel('quelle heure est-il ?', [], { messages:[] }, 'chat').omegaTop === true);
+        S.models = omCat;
+        ok('OMEGA MAX : bouton plus puissant inchangé', routeModel('quelle heure est-il ?', [], { messages:[] }, 'chat', 'max').model === routeModel('quelle heure est-il ?', [], { messages:[] }, 'chat', 'max').model && omegaMaxSimple('quelle heure est-il ?', [], { messages:[] }, 'search', { sc:0 }, GPTPRO) === false);
+        const others = [];
+        for (const [plan, v] of [['entreprise', 'corser50'], ['entreprise', 'corser55'], ['entreprise', 'corser60'], ['competence', 'neural55'], ['competence', 'neural58'], ['competence', 'neural60'], ['elite', 'omega80'], ['elite', 'omega85']]){
+          S.set.plan = plan; S.set.variant = v;
+          for (const t of simples.concat([exigeant, complexe])){ const c = detectIntent(t, []); const r = routeModel(t, [], { messages:[] }, c); if (r && /OMEGA MAX/.test(r.why || '')) others.push(v + ' : ' + t); }
+        }
+        ok('OMEGA MAX : autres modes non touchés par la règle', others.length === 0, others.join(' | '));
+        S.set.plan = 'elite'; S.set.variant = 'omega85';
+        ok('OMEGA PRO 8.5 : question simple non redirigée', om('quelle heure est-il ?') !== OPUS55 || !/OMEGA MAX/.test(routeModel('quelle heure est-il ?', [], { messages:[] }, 'chat')?.why || ''));
+        S.models = catalog; S.set.plan = 'elite'; S.set.variant = 'omega90';
+      }
       {
         const modeKeep = { web: S.set.web, reasoning: S.set.reasoning, quiet: S.set.corser50Quiet, plan: S.set.plan, variant: S.set.variant, keyInfo: S.keyInfo };
         const prix = "quel est le prix du bitcoin aujourd'hui";
