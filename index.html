@@ -1,8 +1,6 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<link rel="preconnect" href="https://openrouter.ai" crossorigin>
-<link rel="dns-prefetch" href="https://openrouter.ai">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>FSM AI</title>
@@ -1030,8 +1028,8 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="plan-info" id="planInfo" hidden></div>
       </div>
       <div class="field lock-hide">
-        <label for="xaiKey">Clé API directe (modèles en direct)</label>
-        <input id="xaiKey" type="password" placeholder="Clé API directe" autocomplete="off" spellcheck="false">
+        <label for="directKey">Clé API directe (modèles en direct)</label>
+        <input id="directKey" type="password" placeholder="Clé API directe" autocomplete="off" spellcheck="false">
         <small>Facultative. Ajoute la catégorie « FSM Direct » avec recherche web et X intégrée. Envoyée uniquement au service direct.</small>
       </div>
       <div class="field">
@@ -1093,12 +1091,12 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       <div class="field"><label for="fbAgent">Agent vocal</label><select class="sel" id="fbAgent"></select><small>Le cerveau, la voix et l'écoute du mode vocal. « Automatique » choisit le plus performant disponible.</small></div>
       <div class="seg" id="fbTabs" role="tablist"><button data-tab="watch" role="tab">Veilles</button><button data-tab="tasks" role="tab">Tâches</button><button data-tab="mem" role="tab">Mémoire</button><button data-tab="svc" role="tab">Services</button></div>
       <div id="fbPane"></div>
-      <button class="btn ghost" id="fbGrok" type="button">Bot externe</button>
+      <button class="btn ghost" id="fbExternal" type="button">Bot externe</button>
     </div>
   </div>
 </div>
 
-<!-- Grok Bot -->
+<!-- Bot externe -->
 <div class="scrim" id="botSheet" hidden>
   <div class="sheet fit" role="dialog" aria-modal="true" aria-labelledby="botTitle">
     <div class="sheet-h"><h2 id="botTitle">Bot externe</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
@@ -1108,10 +1106,9 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       <div class="botacts">
         <a class="btn" id="botX" href="https://x.com/intent/post" target="_blank" rel="noopener">Envoyer à @bot sur X</a>
         <button class="btn ghost" id="botCopy" type="button">Copier la tâche</button>
-        <a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir le bot</a>
-      </div>
+              </div>
       <p class="note">Ce bot n'a pas d'API publique : les tâches passent par son application (iPhone, Mac, Windows) ou par une mention @bot sur X (compte X relié, pas encore disponible partout). Un abonnement est nécessaire.</p>
-      <button class="btn ghost lock-hide" id="botGrokApi" type="button">Utiliser les modèles directs via l'API directe</button>
+      <button class="btn ghost lock-hide" id="botDirectApi" type="button">Utiliser les modèles directs via l'API directe</button>
     </div>
   </div>
 </div>
@@ -1347,9 +1344,9 @@ const FSMMove = (() => {
     const srv = parse(store.lsGet('fsm.srv')), code = parse(store.lsGet('fsm.srvcode'));
     const srvOn = isObj(srv) && srv.on === true && typeof code === 'string' && code.length >= 16;
     const orKey = parse(store.lsGet('relais.key')), xai = parse(store.lsGet('relais.xaikey'));
-    const locked = parse(store.lsGet('fsm.onboard')) === 'serveur';   /* utilisateur marqué (PR #20) : aucune clé OpenRouter ni xAI */
-    if (!srvOn && !locked && typeof orKey === 'string' && OR_RE.test(orKey)) secrets.orKey = orKey;   /* mode serveur : la clé OpenRouter ne part jamais (règle PR #19) */
-    if (!locked && typeof xai === 'string' && XAI_RE.test(xai)) secrets.xaiKey = xai;
+    const locked = parse(store.lsGet('fsm.onboard')) === 'serveur';   /* utilisateur marqué (PR #20) : aucune clé API tierce */
+    if (!srvOn && !locked && typeof orKey === 'string' && OR_RE.test(orKey)) secrets.orKey = orKey;   /* mode serveur : la clé API ne part jamais (règle PR #19) */
+    if (!locked && typeof xai === 'string' && XAI_RE.test(xai)) secrets.directKey = xai;
     if (typeof code === 'string' && CODE_RE.test(code)) secrets.srvCode = code;
     return { fsmMove: 'data', v: V, ls, kv, secrets };
   }
@@ -1370,10 +1367,10 @@ const FSMMove = (() => {
     }
     const s = isObj(p.secrets) ? p.secrets : {};
     if (typeof s.orKey === 'string' && OR_RE.test(s.orKey)) out.secrets.orKey = s.orKey;
-    if (typeof s.xaiKey === 'string' && XAI_RE.test(s.xaiKey)) out.secrets.xaiKey = s.xaiKey;
+    if (typeof s.xaiKey === 'string' && XAI_RE.test(s.xaiKey)) out.secrets.directKey = s.xaiKey;
     if (typeof s.srvCode === 'string' && CODE_RE.test(s.srvCode)) out.secrets.srvCode = s.srvCode;
     if (isObj(out.ls['fsm.srv']) && out.ls['fsm.srv'].on === true && out.secrets.srvCode) delete out.secrets.orKey;
-    if (out.ls['fsm.onboard'] === 'serveur'){ delete out.secrets.orKey; delete out.secrets.xaiKey; }
+    if (out.ls['fsm.onboard'] === 'serveur'){ delete out.secrets.orKey; delete out.secrets.directKey; }
     return out;
   }
   /* fusion : ce qui existe déjà côté nouveau gagne ; les listes à id sont réunies ; les conversations les plus récentes gagnent */
@@ -1413,7 +1410,7 @@ const FSMMove = (() => {
     const put = (k, v) => { if (v && !parse(store.lsGet(k))){ store.lsSet(k, JSON.stringify(v)); r.secrets++; } };
     put('fsm.srvcode', d.secrets.srvCode);
     const srv = parse(store.lsGet('fsm.srv')), code = parse(store.lsGet('fsm.srvcode')), locked = parse(store.lsGet('fsm.onboard')) === 'serveur';
-    if (!locked) put('relais.xaikey', d.secrets.xaiKey);   /* le marqueur « serveur » n'est jamais retiré ; marqué = aucune clé écrite */
+    if (!locked) put('relais.xaikey', d.secrets.directKey);   /* le marqueur « serveur » n'est jamais retiré ; marqué = aucune clé écrite */
     if (!locked && !(isObj(srv) && srv.on === true && typeof code === 'string' && code.length >= 16)) put('relais.key', d.secrets.orKey);
     store.lsSet('fsm.move.in', JSON.stringify({ t: Date.now(), n: d.kv.length }));
     return r;
@@ -1573,7 +1570,11 @@ FSMMove.gate();
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.17/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
 <script>
 "use strict";
-const API = 'https://openrouter.ai/api/v1';
+function fsmApiBase(){ try{ if (typeof srvConf === 'function'){ const b = srvConf().base; if (b) return b; } }catch(e){} return 'https://api.fsmai.app'; }
+function apiUrl(){ return fsmApiBase() + '/v1/gateway'; }
+function directUrl(){ return fsmApiBase() + '/v1/direct'; }
+const API = { toString(){ return apiUrl(); }, valueOf(){ return apiUrl(); } };
+const DIRECT = { toString(){ return directUrl(); }, valueOf(){ return directUrl(); } };
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -1585,18 +1586,18 @@ const LS = {
   set(k, v){ if (FSMMove.receiving) return; /* page de réception : seule la fusion écrit, sinon les réglages par défaut de cette page écraseraient ceux transférés */ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 /* Nouvel utilisateur = aucune donnée FSM AI sur cet appareil : aucune entrée localStorage « relais.* » ni « fsm.* »
-   (clé OpenRouter, clé xAI, réglages, conversations, choix du mode serveur…). Vérifié en tout premier, avant toute écriture.
+   (clés API, réglages, conversations, choix du mode serveur…). Vérifié en tout premier, avant toute écriture.
    Seul un nouvel utilisateur reçoit le mode serveur activé par défaut (en attente de son code). Un utilisateur existant
    garde exactement son mode : rien n'est écrit, et sa clé n'est jamais effacée automatiquement. */
 function fsmFirstRun(){ try{ for (let i = 0; i < localStorage.length; i++){ if (/^(relais|fsm)\./.test(localStorage.key(i) || '')) return false; } return true; }catch(e){ return false; } }
 /* app.fsmai.app : un appareil qui n'a que des restes techniques (ex. « relais.settings » écrit par un ancien déploiement sur /migrer)
    mais aucune clé, aucune conversation, aucun code ni choix de mode est traité comme nouveau. Ailleurs, la règle stricte ci-dessus s'applique. */
-const FSM_USER_DATA = ['relais.key', 'relais.xaikey', 'relais.index', 'fsm.srv', 'fsm.srvcode', 'fsm.onboard', 'fsm.mgmtkey', 'fsm.gtok', 'fsm.imgkeys', 'fsm.projects', 'fsm.bot', 'fsm.bottask', 'fsm.conn', 'fsm.ledger', 'fsm.spend', 'fsm.usage', 'fsm.keyinfo', 'fsm.lastBackup'];
+const FSM_USER_DATA = ['relais.key', 'relais.xaikey', 'relais.directkey', 'relais.index', 'fsm.srv', 'fsm.srvcode', 'fsm.onboard', 'fsm.mgmtkey', 'fsm.gtok', 'fsm.imgkeys', 'fsm.projects', 'fsm.bot', 'fsm.bottask', 'fsm.conn', 'fsm.ledger', 'fsm.spend', 'fsm.usage', 'fsm.keyinfo', 'fsm.lastBackup'];
 function fsmStrayNew(host){ try{ if ((host ?? location.hostname) !== 'app.fsmai.app') return false; return FSM_USER_DATA.every(k => { const r = localStorage.getItem(k); if (r == null) return true; let v; try{ v = JSON.parse(r); }catch(e){ v = r; } return v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length); }); }catch(e){ return false; } }
 function srvBootDefault(host){ if (FSMMove.receiving) return false; /* page de réception du déménagement : l'origine est vide mais l'utilisateur n'est pas nouveau */ if (!fsmFirstRun() && !fsmStrayNew(host)) return false; LS.set('fsm.onboard', 'serveur'); LS.set('fsm.srv', { on: true, auto: true }); return true; }
 /* Marqueur permanent « fsm.onboard = serveur » : posé une seule fois, au premier démarrage d'un nouvel utilisateur.
    Il est stocké à part (jamais réécrit par les réglages ni par une restauration) et n'a pas de chemin de retour public.
-   Utilisateur marqué : mode serveur imposé, aucune clé OpenRouter ou xAI lue ni enregistrée, aucun modèle xAI direct.
+   Utilisateur marqué : mode serveur imposé, aucune clé API tierce lue ni enregistrée, aucun modèle direct.
    Utilisateur non marqué (existant) : tout reste exactement comme avant. */
 function srvLocked(){ try{ return LS.get('fsm.onboard', '') === 'serveur'; }catch(e){ return false; } }
 const FSM_FIRST_RUN = srvBootDefault();
@@ -1631,7 +1632,7 @@ const DB = (() => {
 })();
 
 /* ---------- État ---------- */
-const DEFAULTS = { model:'openrouter/auto', category:'chat', system:'', web:false, reasoning:false, fileHints:true, illus:true,
+const DEFAULTS = { model:'fsm_auto', category:'chat', system:'', web:false, reasoning:false, fileHints:true, illus:true,
   imgAspect:'1:1', vidDuration:'5', vidRes:'720p', vidAspect:'16:9' };
 function forgetTemperature(obj){
   if (!obj || !Object.prototype.hasOwnProperty.call(obj, 'temperature')) return false;
@@ -1644,7 +1645,7 @@ const S = {
   key: srvLocked() ? '' : srvBootOn() ? srvWipeKey() : LS.get('relais.key', ''),
   set: Object.assign({}, DEFAULTS, savedSet),
   models: LS.get('relais.models', []),
-  xaiKey: srvLocked() ? '' : LS.get('relais.xaikey', ''),
+  directKey: srvLocked() ? '' : (LS.get('relais.directkey', '') || LS.get('relais.xaikey', '')),
   index: LS.get('relais.index', []),
   conv: null, pending: [], busy: false, abort: null, sheetCat: null, adultOk: LS.get('relais.adult18', false)
 };
@@ -1678,12 +1679,7 @@ function imgUnit(m){
   return null;
 }
 const hasMediaPrice = m => vidPerSec(m) > 0 || vidPerClip(m) > 0 || +m.imgPrice > 0 || +m.pricing?.image_output > 0 || +m.pricing?.per_second > 0;
-const isFree = m => {
-  if (/:free$/.test(m.id)) return true;
-  if (hasMediaPrice(m) || outs(m, 'video') || (outs(m, 'image') && !outs(m, 'text'))) return false;
-  const p = m.pricing; if (!p) return false;
-  return +p.prompt === 0 && +p.completion === 0 && !(+p.request > 0) && !(+p.image > 0) && !(+p.image_output > 0) && !(+p.per_second > 0);
-};
+const isFree = m => !!m.free;
 const textOnlyOut = m => outs(m, 'text') && !outs(m, 'image') && !outs(m, 'video');
 
 const FILE_HINT = "Quand tu produis un fichier (code, texte, CSV, JSON, HTML, SVG…), place-le dans un bloc de code dont la ligne d'ouverture contient le langage suivi du nom du fichier, par exemple ```python analyse.py. Un bloc par fichier, contenu complet. Pour un jeu, une animation ou une page interactive, livre un seul fichier ```html index.html autonome (CSS et JavaScript inclus, aucune ressource externe locale) : il s'affiche en aperçu jouable dans la conversation. Prévois des commandes tactiles si c'est un jeu. Quand tu livres plusieurs fichiers (projet, site, application, jeu en plusieurs fichiers, documents), donne un nom à chaque bloc, avec des dossiers si utile (```css css/style.css, ```javascript js/app.js) : l'application les regroupe automatiquement dans une archive ZIP téléchargeable en un geste. Écris aussi sur une ligne seule [[zip: nom-du-projet]] pour nommer l'archive. Ne dis jamais que tu ne peux pas créer de fichier ZIP.";
@@ -1704,69 +1700,49 @@ const ICONS = {
   videoedit:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
   folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   free:'<path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
-  xai:'<path d="M4 4l16 16M20 4 4 20"/>',
+  direct:'<path d="M4 4l16 16M20 4 4 20"/>',
   all:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'
 };
 const svgI = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ''}</svg>`;
 
-const ADULT_RE = /uncensored|dolphin|venice|hermes|sao10k|thedrummer|anthracite|magnum|noromaid|lumimaid|mythomax|mythalion|euryale|rocinante|unslopnemo|cydonia|skyfall|valkyrie|anubis|gryphe|undi95|nothingiisreal|alpindale|goliath|infermatic|neversleep|mancer|weaver|abliterated|midnight-rose|l3-|l3\.|stheno|lunaris|celeste|mn-|inflatebot|steelskull/i;
+
 const CATS = [
   { id:'chat', short:'Discussion', label:'Discussion', hue:'#6C8CFF', desc:"Conversation générale, rédaction, traduction, résumés.",
-    filter: m => textOnlyOut(m), preset:{ web:true, reasoning:true },
-    prefer:[/^anthropic\/claude-(sonnet|opus)/, /^openai\/gpt-\d(?![\w.-]*(codex|image|mini|nano|audio|search|oss))/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^x-ai\/grok-\d(?![\w.-]*code)/, /^mistralai\/mistral-(large|medium)/, /^deepseek\/deepseek-(chat|v\d)/] },
+    filter: m => !!(m.cats && m.cats.chat), preset:{ web:true, reasoning:true } },
   { id:'reason', short:'Réflexion', label:'Raisonnement', hue:'#A88BFF', desc:"Maths, logique, analyses longues : le modèle réfléchit avant de répondre. Raisonnement activé.",
-    filter: m => textOnlyOut(m) && (hasParam(m, 'reasoning') || hasParam(m, 'include_reasoning')),
-    prefer:[/^anthropic\/claude-opus/, /^openai\/(gpt-\d(?![\w.-]*(mini|nano|codex|image|oss))|o\d)/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^deepseek\/deepseek-(r\d|v[\d.]+-pro)/, /^qwen\/[\w.-]*(thinking|qwq)/],
-    preset:{ reasoning:true, web:false } },
+    filter: m => !!(m.cats && m.cats.reason), preset:{ reasoning:true, web:false } },
   { id:'code', short:'Code', label:'Code', hue:'#4FD8C4', desc:"Écrire, corriger, expliquer du code. Chaque fichier est téléchargeable, et les jeux et pages web s'affichent en aperçu jouable.",
-    filter: m => textOnlyOut(m) && /cod(e|er|ex|estral)|devstral|claude|gpt-\d|kimi|glm|deepseek|qwen3|grok|minimax/i.test(m.id),
-    prefer:[/^anthropic\/claude-(sonnet|opus)/, /^openai\/gpt-[\w.-]*codex/, /^mistralai\/(devstral|codestral)/, /^qwen\/qwen\d?[\w.-]*coder/, /^moonshotai\/kimi/, /^z-ai\/glm/],
-    preset:{ fileHints:true, web:false, reasoning:false },
+    filter: m => !!(m.cats && m.cats.code), preset:{ fileHints:true, web:false, reasoning:false },
     sys:"Tu es un développeur senior. Donne du code complet et prêt à l'emploi, puis explique brièvement les choix importants." },
-  { id:'agents', short:'Agents', label:'Agents', hue:'#5EE0FF', desc:"Modèles conçus pour les agents autonomes : appel d'outils, tâches longues en plusieurs étapes. Les plus utilisés avec OpenClaw.",
-    filter: m => textOnlyOut(m) && hasParam(m, 'tools'),
-    prefer:[/^anthropic\/claude-opus/, /^anthropic\/claude-sonnet/, /^openai\/gpt-\d(?![\w.-]*(mini|nano|image|audio|oss))/, /^moonshotai\/kimi/, /^z-ai\/glm/, /^deepseek\/deepseek-v[\d.]+/, /^minimax\/minimax-m/, /^stepfun\/step/],
-    preset:{ fileHints:true, web:false, reasoning:true },
+  { id:'agents', short:'Agents', label:'Agents', hue:'#5EE0FF', desc:"Modèles conçus pour les agents autonomes : appel d'outils, tâches longues en plusieurs étapes.",
+    filter: m => !!(m.cats && m.cats.agents), preset:{ fileHints:true, web:false, reasoning:true },
     sys:"Tu travailles comme un agent autonome. Décompose la demande en étapes, annonce ton plan, réalise chaque étape, vérifie ton résultat et livre un résultat final complet." },
   { id:'search', short:'Recherche', label:'Recherche', hue:'#60B8FF', desc:"Réponses à jour appuyées sur le web, avec les sources citées. Recherche web activée.",
-    filter: m => textOnlyOut(m) && (/sonar|search|online|perplexity|research/i.test(m.id) || hasParam(m, 'web_search_options')),
-    prefer:[/^perplexity\/sonar-pro(?!-search)/, /^perplexity\/sonar-reasoning-pro/, /^perplexity\/sonar-deep-research/, /^perplexity\/sonar$/, /^openai\/[\w.-]*search/],
-    preset:{ web:true, reasoning:false },
+    filter: m => !!(m.cats && m.cats.search), preset:{ web:true, reasoning:false },
     sys:"Appuie-toi sur les résultats de recherche web. Cite les sources avec leurs liens et précise les dates quand elles comptent." },
   { id:'vision', short:'Vision', label:'Vision', hue:'#FF8FB8', desc:"Analyser des photos, captures d'écran et documents PDF.",
-    filter: m => ins(m, 'image') && textOnlyOut(m),
-    prefer:[/^google\/gemini-[\d.]+-(pro|flash)(?![\w.-]*image)/, /^anthropic\/claude-(sonnet|opus)/, /^openai\/gpt-\d(?![\w.-]*(image|codex|nano|oss))/, /^qwen\/qwen[\w.-]*vl/] },
+    filter: m => !!(m.cats && m.cats.vision) },
   { id:'videoin', short:'Analyse vidéo', label:'Analyse vidéo', hue:'#FFA36B', desc:"Envoyer une vidéo et poser des questions sur son contenu.",
-    filter: m => ins(m, 'video') && textOnlyOut(m),
-    prefer:[/^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^google\/gemini-[\d.]+-flash(?![\w.-]*image)/] },
+    filter: m => !!(m.cats && m.cats.videoin) },
   { id:'audio', short:'Audio', label:'Audio', hue:'#FFCB5C', desc:"Transcrire, traduire ou résumer un enregistrement audio.",
-    filter: m => ins(m, 'audio') && textOnlyOut(m),
-    prefer:[/^google\/gemini-[\d.]+-(flash|pro)(?![\w.-]*image)/, /^openai\/gpt-[\w.-]*audio/, /voxtral/] },
+    filter: m => !!(m.cats && m.cats.audio) },
   { id:'image', short:'Images', label:'Images', hue:'#E58CFF', desc:"Créer ou retoucher des images. Joins une photo pour la modifier.",
-    filter: m => outs(m, 'image'),
-    prefer:[/^google\/gemini-[\w.-]*image|nano-banana/, /^openai\/gpt-[\w.-]*image/, /^black-forest-labs\/flux/, /^bytedance[\w-]*\/seedream/, /recraft/, /^x-ai\/grok-imagine-image/] },
+    filter: m => !!(m.cats && m.cats.image) },
   { id:'photoedit', short:'Retouche photo', label:'Retouche Photos', hue:'#F0ABFC', desc:"Joins une photo et décris la retouche : détourage, fond, objet à retirer, lumière, portrait, colorisation… Chaque demande suivante repart de la dernière image.",
-    filter: m => outs(m, 'image') && ins(m, 'image'),
-    prefer:[/nano-banana|gemini[\w.-]*image/, /^openai\/gpt-[\w.-]*image/, /flux[\w.-]*kontext/, /seedream/, /qwen[\w.-]*image[\w.-]*edit/, /^black-forest-labs\/flux/],
-    preset:{ web:false, reasoning:false, imgAspect:'auto' },
+    filter: m => !!(m.cats && m.cats.photoedit), preset:{ web:false, reasoning:false, imgAspect:'auto' },
     quick:["Détoure le sujet sur fond blanc", "Améliore la qualité et la netteté", "Remplace l'arrière-plan par une plage au coucher du soleil", "Retire les personnes en arrière-plan", "Retouche portrait naturelle : peau, lumière, sans changer les traits", "Colorise cette photo de façon réaliste", "Donne un rendu film argentique"] },
   { id:'videoedit', short:'Retouche vidéo', label:'Retouche Vidéos', hue:'#FDA4AF', desc:"Joins une vidéo et dis ce que tu veux : couper, garder les meilleurs moments, format 9:16, vitesse, filtre, sous-titres, titre. Le modèle analyse la vidéo et le montage se fait sur ton appareil.",
-    filter: m => ins(m, 'video') && textOnlyOut(m),
-    prefer:[/^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/, /^qwen\/[\w.-]*(vl|omni)/],
-    preset:{ web:false, reasoning:false },
+    filter: m => !!(m.cats && m.cats.videoedit), preset:{ web:false, reasoning:false },
     quick:["Passe au format TikTok 9:16", "Garde seulement les meilleurs moments, 30 secondes maximum", "Ajoute des sous-titres avec les paroles", "Coupe les silences et les temps morts", "Noir et blanc cinéma, contraste élevé", "Accélère ×1,5 et coupe le son", "Ajoute un titre d'intro accrocheur"] },
   { id:'video', short:'Vidéos', label:'Vidéos', hue:'#FF6B8E', desc:"Générer des clips vidéo. Joins une image pour l'animer.",
-    filter: m => outs(m, 'video'),
-    prefer:[/^bytedance[\w-]*\/seedance-2\.5-mini/, /^bytedance[\w-]*\/seedance-2(\.\d)?-mini/, /^bytedance[\w-]*\/seedance-2\.5/, /^google\/veo/, /^openai\/sora/, /kling/, /^bytedance[\w-]*\/seedance/, /^alibaba\/wan/, /^minimax\/(hailuo|video)/, /^x-ai\/grok-imagine-video/] },
+    filter: m => !!(m.cats && m.cats.video) },
   { id:'adult', short:'Adulte 18+', label:'Adulte · Non censuré', hue:'#FF5C7A', adult:true, desc:"Modèles sans filtre de contenu (texte, et image ou vidéo dès que FSM AI en propose), pour adultes uniquement. Création à partir de photos désactivée pour protéger les personnes réelles.",
-    filter: m => (textOnlyOut(m) && ADULT_RE.test(m.id)) || ((outs(m, 'image') || outs(m, 'video')) && /uncensored|nsfw|venice|lustify|pony|unstable|hidream-uncensored/i.test(m.id + ' ' + (m.name || ''))),
-    prefer:[/^venice\/uncensored/, /dolphin/, /^nousresearch\/hermes/, /^thedrummer\//, /^sao10k\//, /^anthracite-org\/magnum/],
-    preset:{ web:false, reasoning:false, fileHints:false } },
-  { id:'xai', short:'Direct', label:'FSM Direct', hue:'#9AA3B2', notile:true, desc:"Modèles appelés directement avec ta clé API directe : texte, images, vidéos. Avec « Web », la recherche couvre le web et X.",
-    filter: m => m.provider === 'xai', prefer:[/grok-4\.7/, /imagine-image-2/, /imagine-video-1\.5$/] },
+    filter: m => !!(m.adult || (m.cats && m.cats.adult)), preset:{ web:false, reasoning:false, fileHints:false } },
+  { id:'direct', short:'Direct', label:'FSM Direct', hue:'#9AA3B2', notile:true, desc:"Modèles appelés directement avec ta clé API directe : texte, images, vidéos. Avec « Web », la recherche couvre le web et X.",
+    filter: m => !!(m.direct || (m.cats && m.cats.direct)) },
   { id:'free', short:'Gratuits', label:'Gratuits', hue:'#6EE7A8', desc:"Modèles sans coût par token, avec des limites de débit plus strictes.",
-    filter: m => isFree(m), prefer:[/:free$/] },
-  { id:'all', short:'Tous', label:'Tous', hue:'#9AA3B2', desc:"Le catalogue complet FSM AI.", filter: () => true, prefer:[] }
+    filter: m => !!m.free },
+  { id:'all', short:'Tous', label:'Tous', hue:'#9AA3B2', desc:"Le catalogue complet FSM AI.", filter: () => true }
 ];
 const catById = id => CATS.find(c => c.id === id) || CATS[0];
 
@@ -1779,32 +1755,21 @@ function priceScore(m, catId){
   if (['prompt', 'completion', 'request', 'image'].some(k => v(k) < 0)) return -1;
   const tok = (v('prompt') + v('completion')) * 1e6;
   if (catId === 'image' || catId === 'photoedit'){ const u = imgUnit(m); return u ? u.usd : v('request'); }
-  if (catId === 'xai') return outs(m, 'video') ? v('per_second') : outs(m, 'image') ? 1e3 + v('image') : 1e6 + tok;
+  if (catId === 'direct') return outs(m, 'video') ? v('per_second') : outs(m, 'image') ? 1e3 + v('image') : 1e6 + tok;
   if (catId === 'video' && (vidPerSec(m) || vidPerClip(m))) return vidPerSec(m) ? vidPerSec(m) * 8 : vidPerClip(m);
   if (catId === 'video') return v('per_second') > 0 ? v('per_second') * 8 : v('request') > 0 ? v('request') : tok;
   if (tok > 0) return tok;
   return Math.max(v('request'), v('image')) * 1000;
 }
 function prefOrder(cat, list){
-  const score = m => { for (let i = 0; i < cat.prefer.length; i++) if (cat.prefer[i].test(m.id)) return i; return 99; };
+  const score = m => m.cats?.[cat.id]?.pref ?? 99;
   return list.map(m => ({ m, s: score(m) })).sort((a, b) => a.s - b.s || (b.m.created || 0) - (a.m.created || 0));
 }
-const isVariant = (m, cat) => m.id.includes(':') && cat.id !== 'free' && !(cat.adult && /:free$/.test(m.id));
+const isVariant = (m, cat) => !!(m.variant && cat.id !== 'free' && !(cat.adult && m.free));
 const TOP_N = 30;
-const MAJOR = /^(anthropic|openai|google|x-ai|meta-llama|meta|mistralai|deepseek|qwen|moonshotai|z-ai|minimax|perplexity|cohere|nvidia|amazon|microsoft|bytedance[\w-]*|black-forest-labs|alibaba|stepfun|xiaomi|tencent|baidu|kwaivgi|kling[\w-]*|runway[\w-]*|ideogram[\w-]*|recraft[\w-]*|luma[\w-]*|nousresearch|cognitivecomputations|thedrummer|sao10k|anthracite-org|venice|liquid|inception|ai21|xai)\//;
-const SKIP_VARIANT = /:(batch|floor|nitro|extended|online|thinking)$/;
-function relevance(m, cat){
-  let sc = 0;
-  for (let i = 0; i < cat.prefer.length; i++) if (cat.prefer[i].test(m.id)){ sc += 1000 - i * 40; break; }
-  if (MAJOR.test(m.id) || isXai(m.id)) sc += 220;
-  sc += Math.max(0, Math.min(160, ((m.created || 0) - 1.6e9) / 1e6));
-  if (/:free$/.test(m.id) && cat.id !== 'free') sc -= 400;
-  if (/(preview|beta|exp|alpha)/i.test(m.id)) sc -= 25;
-  if (m.pricing && +m.pricing.prompt < 0) sc -= 300;
-  return sc;
-}
+function relevance(m, cat){ return m.cats?.[cat.id]?.rel ?? 0; }
 function catPool(cat){
-  return S.models.filter(m => cat.filter(m) && !SKIP_VARIANT.test(m.id) && (cat.id === 'all' || !(m.pricing && +m.pricing.prompt < 0)));
+  return S.models.filter(m => cat.filter(m) && !m.skip && (cat.id === 'all' || !(m.pricing && +m.pricing.prompt < 0)));
 }
 function ranked(cat, q){
   let list = catPool(cat);
@@ -1828,79 +1793,103 @@ const slim = m => ({ id:m.id, name:m.name, created:m.created, context_length:m.c
   pricing: m.pricing ? Object.fromEntries(Object.entries(m.pricing).filter(([k, v]) => typeof v !== 'object')) : null,
   vidSkus: m.vidSkus, durations: m.durations, resolutions: m.resolutions, aspects: m.aspects, imgPrice: m.imgPrice,
   architecture: { input_modalities: m.architecture?.input_modalities, output_modalities: m.architecture?.output_modalities },
-  supported_parameters: m.supported_parameters });
+  supported_parameters: m.supported_parameters, voices: m.voices || m.supported_voices,
+  free:!!m.free, variant:!!m.variant, skip:!!m.skip, major:!!m.major, direct:!!m.direct, adult:!!m.adult, ttsOpen:!!m.ttsOpen,
+  cats: m.cats || {}, roles: m.roles || [] });
+function isFsmId(id){ const s = String(id || ''); return s === 'fsm_auto' || /^fsm_[0-9a-f]{12}$/.test(s); }
+function needsTranslate(id){ const s = String(id || ''); if (!s || ['auto','device','browser','native','current','fsm_auto'].includes(s)) return false; return !isFsmId(s); }
 
-async function loadModels(force){
-  if (S.models.length && !force){ refreshModelUI(); }
-  const urls = [API + '/models?output_modalities=all', API + '/models'];
-  let all = null;
-  for (const u of urls){
-    try{
-      const r = await fetch(u); if (!r.ok) continue;
-      const j = await r.json(); if (Array.isArray(j.data) && j.data.length){ all = j.data; break; }
-    }catch(e){}
-  }
-  if (all){
-    // Ajoute les modèles d'images et de vidéos s'ils ne sont pas dans la liste principale
-    for (const mod of ['image', 'video']){
-      if (all.some(m => (m.architecture?.output_modalities || []).includes(mod))) continue;
-      try{ const r = await fetch(API + '/models?output_modalities=' + mod); if (r.ok){ const j = await r.json(); for (const m of j.data || []) if (!all.some(x => x.id === m.id)) all.push(m); } }catch(e){}
-    }
-    S.models = all.filter(m => !(m.architecture?.output_modalities || []).some(o => o === 'speech' || o === 'transcription')).map(slim);
-    try{ harvestVoice(all); }catch(e){}
-    mergeXai();
-    LS.set('relais.models', S.models);
-    if (force) toast(S.models.length + ' modèles chargés.');
-  } else if (!S.models.length){
-    toast("Catalogue indisponible. Vérifie ta connexion, ou saisis un identifiant de modèle à la main.");
-  }
-  if (!S.set.model || S.set.model === 'openrouter/auto'){
-    const p = topPick(catById('chat')); if (p && !LS.get('relais.settings', null)){ S.set.model = p.id; saveSettings(); }
-  }
-  refreshModelUI();
-  loadVoiceModels();
-  loadMediaModels();
-}
-async function loadMediaModels(){
-  let changed = false;
-  const upsert = (e, out) => {
-    let m = S.models.find(x => x.id === e.id);
-    if (!m){ m = { id:e.id, name:e.name || e.id, created:e.created || 0, pricing:null, architecture:{ input_modalities: e.architecture?.input_modalities || ['text'], output_modalities: e.architecture?.output_modalities || [out] }, supported_parameters:[] }; S.models.push(m); }
-    changed = true; return m;
-  };
+async function fetchAliases(ids){
+  const need = [...new Set((ids || []).filter(needsTranslate))];
+  const map = {};
+  if (!need.length) return map;
   try{
-    const r = await fetch(API + '/videos/models');
+    const r = await fetch(fsmApiBase() + '/v1/aliases', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ids: need }) });
+    if (!r.ok) return map;
+    const j = await r.json();
+    need.forEach((id, i) => { if (j.aliases && j.aliases[i]) map[id] = j.aliases[i]; });
+  }catch(e){}
+  return map;
+}
+function collectModelIds(obj, out){
+  if (!obj) return;
+  if (typeof obj === 'string'){ if (needsTranslate(obj)) out.push(obj); return; }
+  if (Array.isArray(obj)){ obj.forEach(x => collectModelIds(x, out)); return; }
+  if (typeof obj !== 'object') return;
+  for (const [k, v] of Object.entries(obj)){
+    if (k === 'model' || k === 'voiceBrain' || k === 'voiceTts' || k === 'voiceStt' || k === 'brain' || k === 'tts' || k === 'stt'){
+      if (typeof v === 'string' && needsTranslate(v)) out.push(v);
+    }
+    collectModelIds(v, out);
+  }
+}
+function applyAliasMap(obj, map){
+  if (!obj || !map) return obj;
+  if (Array.isArray(obj)) return obj.map(x => applyAliasMap(x, map));
+  if (typeof obj !== 'object') return obj;
+  for (const k of Object.keys(obj)){
+    if (['model','voiceBrain','voiceTts','voiceStt','brain','tts','stt'].includes(k) && typeof obj[k] === 'string' && map[obj[k]]) obj[k] = map[obj[k]];
+    else if (obj[k] && typeof obj[k] === 'object') obj[k] = applyAliasMap(obj[k], map);
+  }
+  return obj;
+}
+async function migrateStoredIds(){
+  if (S.set.category === 'xai'){ S.set.category = 'direct'; saveSettings(); }
+  const ids = [];
+  if (needsTranslate(S.set.model)) ids.push(S.set.model);
+  for (const k of ['voiceBrain','voiceTts','voiceStt']) if (needsTranslate(S.set[k])) ids.push(S.set[k]);
+  if (S.bot && needsTranslate(S.bot.model)) ids.push(S.bot.model);
+  if ((S.models || []).some(m => needsTranslate(m.id))) { S.models = []; LS.set('relais.models', []); }
+  if ((S.tts || []).some(m => needsTranslate(m.id))) { S.tts = []; LS.set('relais.tts', []); }
+  if ((S.stt || []).some(m => needsTranslate(m.id))) { S.stt = []; LS.set('relais.stt', []); }
+  const map = await fetchAliases(ids);
+  if (map[S.set.model]){ S.set.model = map[S.set.model]; saveSettings(); }
+  for (const k of ['voiceBrain','voiceTts','voiceStt']) if (map[S.set[k]]){ S.set[k] = map[S.set[k]]; saveSettings(); }
+  if (S.bot && map[S.bot.model]){ S.bot.model = map[S.bot.model]; try{ saveBot(); }catch(e){} }
+  /* conversations : identifiants déjà enregistrés */
+  try{
+    const idx = S.index || LS.get('relais.index', []) || [];
+    for (const it of idx){
+      const c = S.conv && S.conv.id === it.id ? S.conv : null;
+      /* la réécriture complète a lieu à l'export / à l'ouverture */
+    }
+  }catch(e){}
+}
+
+
+async function applyCatalog(j){
+  S.roles = j.roles || {};
+  S.directModels = (j.direct || []).map(slim);
+  S.models = (j.models || []).map(slim);
+  if (Array.isArray(j.tts) && j.tts.length) S.tts = j.tts.map(slim);
+  if (Array.isArray(j.stt) && j.stt.length) S.stt = j.stt.map(slim);
+  mergeDirect();
+  LS.set('relais.models', S.models.filter(m => !isDirect(m.id)).map(slim));
+  LS.set('relais.tts', S.tts);
+  LS.set('relais.stt', S.stt);
+}
+async function loadModels(force){
+  if (S.models.length && !force && !S.models.some(m => needsTranslate(m.id))){ refreshModelUI(); }
+  try{
+    const r = await fetch(fsmApiBase() + '/v1/catalog' + (force ? '?fresh=1' : ''));
     if (r.ok){
       const j = await r.json();
-      for (const e of j.data || []){
-        const m = upsert(e, 'video');
-        if (!(m.architecture.output_modalities || []).includes('video')) m.architecture.output_modalities = ['video'];
-        m.vidSkus = e.pricing_skus || null;
-        if (Array.isArray(e.supported_durations) && e.supported_durations.length) m.durations = e.supported_durations.map(String);
-        if (Array.isArray(e.supported_resolutions) && e.supported_resolutions.length) m.resolutions = e.supported_resolutions.map(String);
-        if (Array.isArray(e.supported_aspect_ratios) && e.supported_aspect_ratios.length) m.aspects = e.supported_aspect_ratios.map(String);
+      if (j && Array.isArray(j.models)){
+        await applyCatalog(j);
+        try{ await migrateStoredIds(); }catch(e){}
+        if (force) toast(S.models.length + ' modèles chargés.');
       }
     }
   }catch(e){}
-  try{
-    const r = await fetch(API + '/images/models');
-    if (r.ok){
-      const j = await r.json();
-      const list = (j.data || []).map(e => upsert(e, 'image'));
-      await Promise.all(list.map(async m => {
-        try{
-          const rr = await fetch(API + '/images/models/' + m.id + '/endpoints'); if (!rr.ok) return;
-          const jj = await rr.json();
-          const eps = Array.isArray(jj.data) ? jj.data : Array.isArray(jj.data?.endpoints) ? jj.data.endpoints : Array.isArray(jj.endpoints) ? jj.endpoints : [jj.data || jj];
-          const prices = [];
-          for (const ep of eps) for (const line of (ep?.pricing || [])) if (/image/i.test(line.billable || '') && line.unit === 'image' && +line.cost_usd > 0) prices.push(+line.cost_usd);
-          if (prices.length) m.imgPrice = Math.min(...prices);
-        }catch(e){}
-      }));
-    }
-  }catch(e){}
-  if (changed){ LS.set('relais.models', S.models.filter(m => !isXai(m.id)).map(slim)); refreshModelUI(); if (!$('#modelSheet').hidden) renderModelList(); }
+  if (!S.models.length) toast("Catalogue indisponible. Vérifie ta connexion.");
+  if (!S.set.model || S.set.model === 'fsm_auto'){
+    const p = topPick(catById('chat')); if (p && !LS.get('relais.settings', null)){ S.set.model = p.id; saveSettings(); }
+  }
+  refreshModelUI();
+  try{ ensureVoiceDefaults(); }catch(e){}
 }
+async function loadMediaModels(){ /* inclus dans le catalogue */ }
+async function loadVoiceModels(){ try{ ensureVoiceDefaults(); }catch(e){} }
 const modelInfo = id => S.models.find(m => m.id === id);
 function modeFor(id){
   const m = modelInfo(id);
@@ -1940,19 +1929,14 @@ function modTags(m){
 /* ---------- Anonymat des modèles (16/11/2026, demande du chef) ----------
    Aucun nom de modèle, de fournisseur ou d'identifiant de catalogue n'est affiché à l'utilisateur.
    Les identifiants restent en mémoire pour le routage ; l'écran n'en montre que des noms FSM. */
-const FSM_VENDORS = 'openai|anthropic|google|x-ai|xai|meta-llama|meta|mistralai|mistral|deepseek|qwen|moonshotai|moonshot|z-ai|minimax|perplexity|cohere|nvidia|amazon|microsoft|bytedance[\\w-]*|black-forest-labs|alibaba|stepfun|xiaomi|tencent|baidu|kwaivgi|kling[\\w-]*|runway[\\w-]*|ideogram[\\w-]*|recraft[\\w-]*|venice|nousresearch|thedrummer|sao10k|anthracite-org|openrouter|deepgram|inception|liquid|ai21|cognitivecomputations|arcee-ai|inflection|writer|switchpoint|tngtech|morph|elevenlabs|sourceful|openai-compatible';
-const FSM_SLUG_RE = new RegExp('\\b(?:' + FSM_VENDORS + ')\\/[\\w.:~-]+', 'gi');
-const FSM_WORD_RE = /open\s?router|anthropic|claude|chat\s?gpt|openai|\bgpt[-\s]?(?:[a-z]+[-\s]?)?\d[\w.-]*|\bgpt[-\s]oss\b|gemini|gemma|google\s+ai\s+studio|vertex(?:\s+ai)?|\bx-?ai\b|\bgrok\b|mistral(?:ai)?|deepseek|\bqwen[\w.-]*|\bllama[\w.-]*|moonshot(?:ai)?|\bkimi\b|minimax|perplexity|\bcohere\b|nvidia|bedrock|fireworks|together\s?ai|deepinfra|seedance|seedream|\bsora\b|\bveo[\w.-]*|\bkling\b|nano.?banana|voxtral|hailuo|\bflux[.-]?\d[\w.-]*/gi;
-/* texte venant d'un fournisseur (message d'erreur, étape, notification) : plus aucun nom de modèle ni de fournisseur */
+const FSM_SLUG_RE = /\b[a-z0-9._-]{2,40}\/[A-Za-z0-9._:~-]{2,80}\b/g;
 function fsmClean(t){
   const s0 = String(t == null ? '' : t); if (!s0) return s0;
-  /* marqueur \u0001 : le nom, puis les mots de version qui le suivent (« Claude Opus 5.5 », « Gemini 3 Pro ») partent ensemble */
-  return s0.replace(FSM_SLUG_RE, '\u0001').replace(FSM_WORD_RE, '\u0001')
-    .replace(/\u0001(?:[\s.:\/-]+(?:[\w.-]*\d[\w.-]*|pro|flash|ultra|max|mini|nano|lite|opus|sonnet|haiku|fable|preview|image|thinking|instant|omni|turbo|free)(?![\w]))+/gi, '\u0001')
+  return s0.replace(FSM_SLUG_RE, '\u0001')
+    .replace(/\u0001(?:[\s.:\/-]+(?:[\w.-]*\d[\w.-]*|pro|flash|ultra|max|mini|nano|lite|preview|image|thinking|instant|omni|turbo|free)(?![\w]))+/gi, '\u0001')
     .replace(/\u0001(?:\s*[:·,\/-]?\s*\u0001)*/g, 'FSM AI');
 }
-/* message technique d'un fournisseur : gardé seulement s'il est propre et court, sinon remplacé par la phrase de repli */
-const FSM_UPSTREAM_RE = /upstream|rate.?limit|provider|your own key|byok|openrouter|integration|quota|credits?\b|api key|model[_ ]?(?:id|not)|endpoint|\bpayload\b|stack|\{|\[\{/i;
+const FSM_UPSTREAM_RE = /upstream|rate.?limit|provider|your own key|byok|integration|quota|credits?\b|api key|model[_ ]?(?:id|not)|endpoint|\bpayload\b|stack|\{|\[\{/i;
 function fsmErrText(t, fallback){
   const s0 = String(t == null ? '' : t).trim();
   if (!s0) return fallback || '';
@@ -1979,7 +1963,7 @@ function modelAlias(x){
 function shortName(id){ return id ? modelAlias(id) : 'Aucun modèle'; }
 const bare = n => modelAlias(n);
 function refreshModelUI(){
-  { const auto = routerOn(S.set.category) && !isXai(S.set.model), h = $('#hdrModel');
+  { const auto = routerOn(S.set.category) && !isDirect(S.set.model), h = $('#hdrModel');
     if (auto){ const b = brand(); h.innerHTML = `<span class="brand"><b>${esc(b.top)}</b><small>${esc(b.sub)}</small></span>`; h.setAttribute('aria-label', b.name); }
     else { h.textContent = bare(shortName(S.set.model)); h.removeAttribute('aria-label'); } }
   if (typeof VC !== 'undefined' && VC.on) updateVcModel();
@@ -2068,8 +2052,8 @@ function openModelSheet(catId){
   renderCats(); renderModelList();
 }
 function renderCats(){
-  if (srvLocked() && S.sheetCat === 'xai') S.sheetCat = 'chat';
-  $('#cats').innerHTML = CATS.filter(c => !(c.id === 'xai' && srvLocked())).map(c => {
+  if (srvLocked() && S.sheetCat === 'direct') S.sheetCat = 'chat';
+  $('#cats').innerHTML = CATS.filter(c => !(c.id === 'direct' && srvLocked())).map(c => {
     const n = Math.min(TOP_N, catPool(c).length);
     return `<button class="chip" style="--h:${c.hue}" data-cat="${c.id}" aria-pressed="${c.id === S.sheetCat}">${svgI(c.id)}${esc(c.label)}${S.models.length ? ` <span class="mono" style="opacity:.7">${n}</span>` : ''}</button>`;
   }).join('');
@@ -2081,8 +2065,8 @@ function renderModelList(){
   if (!isOwner()){ $('#mList').innerHTML = brandRowHtml(); return; }
   const c = catById(S.sheetCat), q = $('#mSearch').value.trim();
   const items = ranked(c, q);
-  if (c.id === 'xai' && (!S.xaiKey || srvLocked())){
-    $('#mList').innerHTML = `<div class="gate"><b>Clé xAI requise</b><p>Ajoute ta clé API directe dans les réglages pour utiliser ces modèles en direct. Sans clé, ils restent disponibles via les autres catégories.</p><button class="btn" data-xai-key>Ajouter ma clé directe</button></div>`;
+  if (c.id === 'direct' && (!S.directKey || srvLocked())){
+    $('#mList').innerHTML = `<div class="gate"><b>Clé API directe requise</b><p>Ajoute ta clé API directe dans les réglages pour utiliser ces modèles en direct. Sans clé, ils restent disponibles via les autres catégories.</p><button class="btn" data-direct-key>Ajouter ma clé directe</button></div>`;
     return;
   }
   if (c.adult && !S.adultOk){
@@ -2102,7 +2086,7 @@ $('#cats').addEventListener('click', e => { const b = e.target.closest('[data-ca
 $('#mSearch').addEventListener('input', renderModelList);
 $('#mList').addEventListener('click', e => {
   if (e.target.closest('[data-auto]')){ S.set.router = true; applyPreset(catById(S.sheetCat)); closeSheets(); refreshModelUI(); toast('Routeur automatique activé'); return; }
-  if (e.target.closest('[data-xai-key]')){ closeSheets(); openSettings(true, 'xai'); return; }
+  if (e.target.closest('[data-direct-key]')){ closeSheets(); openSettings(true, 'direct'); return; }
   if (e.target.closest('[data-adult-ok]')){ S.adultOk = true; LS.set('relais.adult18', true); renderModelList(); return; }
   const b = e.target.closest('[data-model]'); if (b) chooseModel(b.dataset.model);
 });
@@ -2113,19 +2097,19 @@ $('#customId').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.prev
 function openSettings(focusKey, which){
   $('#planSel').value = S.set.plan || ''; renderPlan();
   renderKeyStat(); fetchKeyInfo(true).then(() => { $('#planSel').value = S.set.plan || ''; renderPlan(); renderKeyStat(); });
-  $('#apiKey').value = S.key; $('#xaiKey').value = S.xaiKey; srvRenderUI(); $('#sysPrompt').value = S.set.system;
+  $('#apiKey').value = S.key; $('#directKey').value = S.directKey; srvRenderUI(); $('#sysPrompt').value = S.set.system;
   $('#fileHints').checked = !!S.set.fileHints;
   $('#illus').checked = S.set.illus !== false;
   { const k = LS.get('fsm.imgkeys', {}) || {}; $('#ikPexels').value = k.pexels || ''; $('#ikUnsplash').value = k.unsplash || ''; }
   $('#btnWipeOk').hidden = true;
   $('#settingsSheet').hidden = false;
-  if (focusKey) setTimeout(() => { if (srvLocked()){ const i = $('#srvCode'); i?.scrollIntoView({ block: 'center' }); i?.focus(); return; } $(which === 'xai' ? '#xaiKey' : '#apiKey').focus(); }, 50);
+  if (focusKey) setTimeout(() => { if (srvLocked()){ const i = $('#srvCode'); i?.scrollIntoView({ block: 'center' }); i?.focus(); return; } $(which === 'direct' ? '#directKey' : '#apiKey').focus(); }, 50);
   $('#stRouter').checked = S.set.router !== false; $('#stPython').checked = S.set.python !== false; $('#stMemory').checked = S.set.memory !== false;
   $('#bgDay').value = usdToPctInput(S.set.budgetDay); $('#bgMonth').value = usdToPctInput(S.set.budgetMonth); $('#bgConfirm').value = S.set.confirmAbove == null ? '0,50' : String(S.set.confirmAbove).replace('.', ',');
   renderBackupInfo();
   if (which === 'budget' || which === 'backup') setTimeout(() => $('#' + which + 'Sec')?.scrollIntoView({ block:'start', behavior:'smooth' }), 80);
 }
-$('#xaiKey').addEventListener('input', e => { if (srvLocked()){ e.target.value = ''; S.xaiKey = ''; return; } S.xaiKey = e.target.value.trim(); LS.set('relais.xaikey', S.xaiKey); mergeXai(); refreshModelUI(); });
+$('#directKey').addEventListener('input', e => { if (srvLocked()){ e.target.value = ''; S.directKey = ''; return; } S.directKey = e.target.value.trim(); LS.set('relais.directkey', S.directKey); try{ if (S.directKey) localStorage.removeItem('relais.xaikey'); }catch(e){} mergeDirect(); refreshModelUI(); });
 const PLANS = {
   free:{ name:'FSM AI Free', key:'Free', limit:0 },
   entreprise:{ name:'FSM AI Entreprise', key:'Entreprise', limit:18, price:'25 €' },
@@ -2193,8 +2177,8 @@ $('#btnGallery').addEventListener('click', () => { closeSheets(); openGallery();
 function newConv(){
   if (S.editing) endEdit(false);
   S.conv = { id: uid(), title: 'Nouvelle conversation', messages: [], t: Date.now(), plan: S.set.plan || '' };
-  if (!S.set.routerOff && (S.set.category !== 'chat' || S.set.router === false || isXai(S.set.model))){
-    S.set.category = 'chat'; S.set.router = true; if (isXai(S.set.model) || modeFor(S.set.model) !== 'chat') S.set.model = DEFAULTS.model;
+  if (!S.set.routerOff && (S.set.category !== 'chat' || S.set.router === false || isDirect(S.set.model))){
+    S.set.category = 'chat'; S.set.router = true; if (isDirect(S.set.model) || modeFor(S.set.model) !== 'chat') S.set.model = DEFAULTS.model;
     applyPreset(catById('chat')); try{ refreshModelUI(); }catch(e){}
   }
   renderThread();
@@ -2330,12 +2314,12 @@ async function resumeJob(m, c){
   if (m._resuming) return;
   Object.defineProperty(m, '_resuming', { value: true, writable: true, configurable: true });
   const i = c.messages.indexOf(m), user = c.messages.slice(0, i).reverse().find(x => x.role === 'user') || { atts: [] };
-  Object.defineProperty(m, '_job', { value: { url: m.job.url, xai: m.job.xai, t0: m.job.t0 || Date.now() }, writable: true, configurable: true });
+  Object.defineProperty(m, '_job', { value: { url: m.job.url, direct: m.job.direct, t0: m.job.t0 || Date.now() }, writable: true, configurable: true });
   Object.defineProperty(m, '_live', { value: true, writable: true, configurable: true });
   Object.defineProperty(m, '_conv', { value: c, configurable: true });
   m.mode = 'video'; m.status = 'Reprise de la génération…'; m.videos = m.videos || [];
   paint(m); wakeHold(); const unlock = genLock(c.id);
-  try{ await (m.job.xai ? runXaiVideo : runVideo)(m, user, new AbortController().signal); }
+  try{ await (m.job.direct ? runDirectVideo : runVideo)(m, user, new AbortController().signal); }
   catch(e){ m.error = fsmClean(e?.message || String(e)); }
   finally{
     wakeRelease(); unlock();
@@ -2347,7 +2331,7 @@ async function resumeJob(m, c){
 /* ===== Mode serveur (essai) : les générations passent par le serveur de tâches FSM AI =====
    Désactivé par défaut : le mode direct actuel ne change pas. Activé (avec un code client), les réponses, images et vidéos
    sont créées par le serveur : elles continuent l'application fermée et sont reprises à la réouverture.
-   La clé OpenRouter n'est ni lue ni envoyée depuis le navigateur dans ce mode. Le serveur fait foi pour les limites. */
+   La clé API n'est ni lue ni envoyée depuis le navigateur dans ce mode. Le serveur fait foi pour les limites. */
 const SRV_DEFAULT = 'https://api.fsmai.app';
 const SRV_STAGING = 'https://api-staging.fsmai.app';
 /* ?api=staging (serveur d'essai) ou ?api=prod : change seulement l'adresse, n'active jamais le mode serveur */
@@ -2361,7 +2345,7 @@ function srvConf(){ const c = LS.get('fsm.srv', {}) || {}; let base = c.base; if
 function srvSetConf(p){ const c = Object.assign(srvConf(), p); if (!srvBaseOk(c.base)) c.base = SRV_DEFAULT; if (srvLocked()) c.on = true; LS.set('fsm.srv', c); }
 /* code FSM AI : saisie adaptée à l'iPad (espaces retirés, majuscules, tirets typographiques remplacés) et format vérifié */
 const SRV_CODE_RE = /^(?:FSM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}|FSMKEY-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4})$/;
-const SRV_CODE_MSG = 'Code FSM AI invalide : il doit avoir la forme FSM-XXXX-XXXX-XXXX-XXXX ou FSMKEY-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (lettres et chiffres, sans espace).';
+const SRV_CODE_MSG = 'Code FSM AI invalide : il doit avoir la forme FSM- suivi de 4 groupes de 4, ou FSMKEY- suivi de 6 groupes de 4 (lettres et chiffres, sans espace).';
 /* trouve le premier code FSM AI (FSM-… 4 groupes ou FSMKEY-… 6 groupes) dans n'importe quel texte collé ou tapé (adresse, phrase, espaces, minuscules autour) */
 function srvCodeExtract(v){ const t = String(v ?? '').normalize('NFKC').replace(/[\u200b-\u200d\ufeff]/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); let m = /(?:^|[^A-Z0-9])FSMKEY[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/.exec(t); if (m) return 'FSMKEY-' + m.slice(1, 7).join('-'); m = /(?:^|[^A-Z0-9])FSM(?!KEY)[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})[\s-]*([A-Z0-9]{4})(?![A-Z0-9])/.exec(t); return m ? 'FSM-' + m.slice(1, 5).join('-') : ''; }
 function srvCodeNorm(v){ return srvCodeExtract(v) || String(v ?? '').normalize('NFKC').replace(/[\s\u200b-\u200d\ufeff]+/g, '').replace(/[\u2010-\u2015\u2212_]/g, '-').toUpperCase(); }
@@ -2408,10 +2392,10 @@ function srvPlanForget(){ if (S.set.planSrv){ S.set.plan = ''; S.set.planAuto = 
 function srvAskCode(){ openSettings(false); setTimeout(() => { const i = $('#srvCode'); i?.scrollIntoView({ block: 'center', behavior: 'smooth' }); i?.focus(); }, 80); }
 function srvOnboardHtml(){ return `<div class="srv-onb" id="srvOnb"><p class="note"><b>Bienvenue sur FSM AI.</b> Pour commencer, entre ton code FSM AI : il t'a été remis personnellement.</p><div class="greet-acts"><button class="keyline" data-act="srvcode">Entrer mon code FSM AI</button></div></div>`; }
 function srvLim(){ return serverOn() && S.srvLimits && typeof S.srvLimits === 'object' ? S.srvLimits : null; }
-function srvUse(asst, cat, conv){ return serverOn() && !isXai(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
+function srvUse(asst, cat, conv){ return serverOn() && !isDirect(asst.model) && cat !== 'videoedit' && !conv?.bot && !S.voiceActive && ['chat', 'image', 'video', 'chat+image'].includes(asst.mode); }
 /* type de tâche serveur : un modèle « texte + image » part en image si la catégorie demande une image, sinon en texte */
 function srvKind(asst, cat){ const md = asst.mode; if (md === 'chat+image') return ['image', 'photoedit'].includes(cat || asst.cat) ? 'image' : 'chat'; return md; }
-/* clé OpenRouter : en mode serveur elle est effacée de la mémoire ET de l'appareil (localStorage), et n'est jamais réutilisée.
+/* clé API : en mode serveur elle est effacée de la mémoire ET de l'appareil (localStorage), et n'est jamais réutilisée.
    En repassant en mode direct, il faut la ressaisir dans les réglages. */
 function srvWipeKey(){ try{ localStorage.removeItem('relais.key'); }catch(e){} return ''; }
 function srvKeySwitch(){
@@ -2427,18 +2411,18 @@ function srvRenderUI(){
     $('#srvHint').hidden = false; /* zone du code toujours visible, pour tout le monde */
     $('#apiKey').disabled = serverOn() || srvLocked();
     const lk = srvLocked(); document.documentElement.classList.toggle('srv-lock', lk);
-    if (lk){ $('#srvOn').checked = true; $('#srvRows').hidden = false; $('#apiKey').value = ''; $('#xaiKey').value = ''; }
+    if (lk){ $('#srvOn').checked = true; $('#srvRows').hidden = false; $('#apiKey').value = ''; $('#directKey').value = ''; }
   }catch(e){}
 }
-/* utilisateur marqué : retire tout ce qui demanderait le mode direct (clé xAI, modèles xAI choisis) */
+/* utilisateur marqué : retire tout ce qui demanderait le mode direct (clé directe, modèles directs choisis) */
 function srvLockSanitize(){
   if (!srvLocked()) return false;
   let ch = false;
-  if (S.key || S.xaiKey){ S.key = ''; S.xaiKey = ''; ch = true; }
-  if (isXai(S.set.model)){ S.set.model = DEFAULTS.model; if (S.set.category === 'xai') S.set.category = 'chat'; saveSettings(); ch = true; }
-  if (isXai(S.bot?.model)){ S.bot.model = 'auto'; saveBot(); ch = true; }
-  if (S.sheetCat === 'xai') S.sheetCat = 'chat';
-  mergeXai();
+  if (S.key || S.directKey){ S.key = ''; S.directKey = ''; ch = true; }
+  if (isDirect(S.set.model)){ S.set.model = DEFAULTS.model; if (S.set.category === 'direct') S.set.category = 'chat'; saveSettings(); ch = true; }
+  if (isDirect(S.bot?.model)){ S.bot.model = 'auto'; saveBot(); ch = true; }
+  if (S.sheetCat === 'direct') S.sheetCat = 'chat';
+  mergeDirect();
   return ch;
 }
 async function srvFetch(path, opt = {}){
@@ -2616,7 +2600,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 window.addEventListener('pagehide', () => { for (const c of S.live.values()) if (c._busy) saveConv(c).catch(() => {}); });
-/* Au démarrage : les vidéos lancées avant la fermeture de l'application reprennent en arrière-plan (OpenRouter et Grok),
+/* Au démarrage : les vidéos lancées avant la fermeture de l'application reprennent en arrière-plan (API et mode direct),
    les autres réponses coupées sont signalées (sans relance automatique) */
 setTimeout(async () => {
   const cut = [];
@@ -3214,8 +3198,8 @@ function renderPending(){
 }
 
 /* ---------- Suggestions selon les fichiers joints ---------- */
-const DOCS_CAT = { id:'docs', filter: m => ins(m, 'file') && textOnlyOut(m), prefer:[/^anthropic\/claude-(sonnet|opus)/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^openai\/gpt-\d(?![\w.-]*(mini|nano|image|codex|oss))/] };
-const LONG_CAT = { id:'folder', filter: m => textOnlyOut(m) && (m.context_length || 0) >= 900000 && (ins(m, 'file') || ins(m, 'image')), prefer:[/^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^anthropic\/claude-(sonnet|opus)/, /^openai\/gpt-\d/] };
+const DOCS_CAT = { id:'docs', filter: m => ins(m, 'file') && textOnlyOut(m) };
+const LONG_CAT = { id:'folder', filter: m => textOnlyOut(m) && (m.context_length || 0) >= 900000 && (ins(m, 'file') || ins(m, 'image')) };
 const CODE_EXT = /\.(js|mjs|cjs|ts|tsx|jsx|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|bash|zsh|ps1|sql|html?|css|scss|vue|svelte|dart|lua|r)$/i;
 const DATA_EXT = /\.(csv|tsv|json|jsonl|xml|ya?ml|xlsx?|ods|numbers)$/i;
 function suggestionsFor(atts){
@@ -3351,7 +3335,7 @@ function coreSystem(conv){
   const date = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const time = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const n = (conv?.messages || []).filter(m => m.role === 'user').length;
-  return `Tu es ${name}, l'assistant IA de l'application FSM AI${plan ? ' (abonnement ' + plan + ')' : ''}. ${IDENT_HINT} Nous sommes le ${date}, il est ${time}.${n > 1 ? ` La conversation en est à son ${n}e message de l'utilisateur.` : ''}
+  return `Tu es ${name}, l'assistant IA de l'application FSM AI${plan ? ' (abonnement ' + plan + ')' : ''}. Nous sommes le ${date}, il est ${time}.${n > 1 ? ` La conversation en est à son ${n}e message de l'utilisateur.` : ''}
 
 INTENTION
 - Réponds dans la langue de l'utilisateur, de façon brève et claire.
@@ -3455,7 +3439,6 @@ function assistantHistText(m){
   if (v) t += `${t ? '\n\n' : ''}[FSM AI a bien créé et affiché ici ${v > 1 ? v + ' vidéos' : 'une vidéo'} pour l'utilisateur${m.cat === 'videoedit' ? ' (le montage demandé)' : ''}.]`;
   return t || '(réponse)';
 }
-const IDENT_HINT = "IDENTITÉ : tu es uniquement FSM AI. Ne cite jamais le nom du modèle ni de l'entreprise qui te fait fonctionner (ni Claude, GPT, Gemini, Grok, Anthropic, OpenAI, Google, xAI, OpenRouter, ni aucun autre nom de modèle ou de fournisseur). Si on te demande qui ou quoi tu es, réponds simplement que tu es FSM AI, l'assistant de l'application, sans détail technique.";
 const EDIT_HINT = "FSM AI (l'application) retouche automatiquement les photos, crée des images et des vidéos, monte et prolonge les vidéos : il suffit que l'utilisateur le demande dans la discussion, l'application choisit seule le bon outil. Ne lui dis jamais d'utiliser une catégorie, un menu ou un autre modèle. Les images et vidéos indiquées dans l'historique comme produites par FSM AI ont réellement été créées et affichées à l'utilisateur : ne dis jamais le contraire, ne t'excuse pas pour elles et ne prétends pas ne pas les avoir produites. Quand l'utilisateur te remercie ou te complimente, réponds simplement et chaleureusement en une ou deux phrases, sans image.";
 const ILLUS_HINT = "IMAGES DANS TES RÉPONSES (activé par défaut) : l'application affiche de vraies images à partir d'un simple marqueur. Dès que ta réponse parle d'un sujet concret et identifiable (personne réelle, personnage de fiction, jeu vidéo, film, série, manga, œuvre d'art, livre, lieu, ville, monument, pays, animal, plante, objet, produit, véhicule, plat, marque, événement historique), illustre-la SYSTÉMATIQUEMENT avec 2 à 5 images, comme un article illustré. Pour chaque image écris, seule sur sa ligne : [[image: nom exact du sujet | légende courte]]. Place la première juste sous le titre principal (ou après la première phrase), puis une en tête de chaque grande section qui parle d'un autre sujet identifiable. La requête est le nom propre précis, avec le contexte entre parenthèses si le nom est ambigu : [[image: Llednar Twem (Final Fantasy Tactics Advance) | Llednar, le chevalier noir]], [[image: Tour Eiffel | La tour Eiffel vue du Trocadéro]], [[image: Panthera tigris | Un tigre du Bengale]]. Pour un personnage ou un univers de fiction (jeu, manga, animé, série, film), ajoute en 3e champ le wiki Fandom de la franchise, que tu connais : [[image: Llednar Twem | Llednar | finalfantasy.fandom.com]]. Si la recherche web t'a donné l'URL directe d'une vraie image (.jpg, .png, .webp), tu peux la mettre à la place du nom. N'invente jamais d'URL, n'utilise pas la syntaxe ![]() et n'écris pas « voici une image » : le marqueur suffit. N'ajoute pas d'image pour du code, des calculs, une traduction ou une simple conversation. HISTOIRES ET FICTION : pour une histoire, un conte, un poème ou un récit inventé, n'utilise jamais de photo actuelle d'un lieu ou d'une personne réelle (une photo moderne de Paris n'a rien à faire dans une histoire de chevalier en l'an 300). Choisis uniquement de vraies images d'archives fidèles à l'époque et à l'univers du récit : œuvres d'art, enluminures, mosaïques, gravures, objets ou reconstitutions historiques (ex. [[image: mosaïque cavalier romain IVe siècle | Un cavalier de l'Antiquité tardive]], [[image: Lutèce gallo-romaine maquette | Lutèce vers l'an 300]]). Si rien ne correspond vraiment, ne mets aucune image. Tu ne crées jamais d'image toi-même pour illustrer une réponse. COHÉRENCE : chaque image réelle doit correspondre exactement au contexte de la demande (sujet, époque, lieu). Pour un sujet historique, choisis une œuvre ou un document de l'époque plutôt qu'une photo actuelle (ex. [[image: Lutèce | Lutèce à l'époque gallo-romaine]] plutôt que [[image: Paris]] pour Paris au IVe siècle). Si aucune vraie image ne correspond parfaitement, n'en mets pas. SYNTHÈSE EN CHIFFRES : quand la demande porte sur un sujet chiffrable (faits, histoire, science, économie, sport, voyage, technologie, comparaison, budget, statistiques), place juste sous le titre, avant les images, une synthèse de 2 à 4 chiffres clés sur une ligne seule : [[chiffres: 330 m | Hauteur ; 1889 | Inauguration ; 7 M | Visiteurs par an]]. Valeur courte (nombre et unité), libellé de 1 à 4 mots. Uniquement des chiffres exacts et vérifiés, jamais inventés. Pas de chiffres pour une histoire inventée, du code ou une simple conversation. BANQUES D'IMAGES : les images viennent de grandes banques d'images publiques. Tu peux indiquer la banque la plus adaptée en 3e champ : « met » ou « aic » (musées : œuvres d'art, objets et scènes historiques, Antiquité, Moyen Âge), « nasa » (espace, astronomie), « commons » (Wikimedia Commons, tous sujets réels), « openverse » (photos sous licence libre), « unsplash » ou « pexels » (belles photos : paysages, nourriture, ambiances), ou le wiki Fandom d'une franchise. Pour les musées et la NASA, écris la requête en anglais. Exemples : [[image: medieval knight armor | Armure de chevalier du XVe siècle | met]], [[image: Saturn rings | Les anneaux de Saturne | nasa]], [[image: lavender field Provence | Champs de lavande en Provence | unsplash]]. N'ajoute jamais d'image ni de chiffres à un remerciement, un compliment, une remarque sur l'application ou une réponse sur tes propres résultats.";
 const hdr = () => ({ 'Authorization': 'Bearer ' + S.key, 'Content-Type': 'application/json' });
@@ -3464,7 +3447,7 @@ async function apiError(res){
   try{ const j = await res.json(); msg = j.error?.message || j.message || ''; const raw = j.error?.metadata?.raw; if (raw) msg += '\n' + String(typeof raw === 'string' ? raw : JSON.stringify(raw)).slice(0, 300); }
   catch(e){ try{ msg = (await res.text()).slice(0, 300); }catch(_){} }
   const map = { 400:'Requête refusée par le modèle.', 401:'Clé API refusée. Vérifie-la dans les réglages.', 402:'Crédits insuffisants pour ce service.', 403:'Accès refusé (modération ou modèle restreint).', 404:'Modèle ou service introuvable. Vérifie que ce modèle gère ce type de demande.', 408:'Délai dépassé.', 413:'Fichier trop lourd pour ce modèle.', 429:'Trop de requêtes : patiente un peu ou change de modèle.', 502:'Le fournisseur du modèle ne répond pas. Réessaie ou change de modèle.', 503:'Aucun fournisseur disponible pour ce modèle avec ces fichiers.' };
-    if (/openrouter\.ai/.test(res.url || '') && (res.status === 403 || res.status === 402) && /key limit|limit exceeded|budget|spend limit|credit limit/i.test(msg)){
+    if (orAuthOk(res.url || '') && (res.status === 403 || res.status === 402) && /key limit|limit exceeded|budget|spend limit|credit limit/i.test(msg)){
     if (S.keyInfo){ S.keyInfo.remaining = 0; S.keyInfo.used = S.keyInfo.limit || S.keyInfo.used; }
     fetchKeyInfo(true);
     const le = new Error(limitMsg(true) + ' Renvoie ton message pour continuer.');
@@ -3508,7 +3491,7 @@ async function runChat(asst, signal, conv){
   const mode = asst.mode, msgs = [];
   const info = modelInfo(asst.model);
   const tools = (mode === 'chat' && (!info || hasParam(info, 'tools'))) ? activeTools(conv) : [];
-  const sys = [conv?.bot ? IDENT_HINT + '\n\n' + botSystem() + (S.voiceActive ? '\n\n' + VOICE_SYS_FN() : illusOn('agents') ? '\n\n' + ILLUS_HINT : '') : buildSystem(conv, asst.cat), tools.length ? connSystem(tools) : '', tools.some(t => t.name === 'run_python') ? PY_HINT : '', tools.some(t => t.name === 'run_js') ? JS_HINT : '', tools.some(t => t.name === 'run_sql') ? SQL_HINT : ''].filter(Boolean).join('\n\n');
+  const sys = [conv?.bot ? botSystem() + (S.voiceActive ? '\n\n' + VOICE_SYS_FN() : illusOn('agents') ? '\n\n' + ILLUS_HINT : '') : buildSystem(conv, asst.cat), tools.length ? connSystem(tools) : '', tools.some(t => t.name === 'run_python') ? PY_HINT : '', tools.some(t => t.name === 'run_js') ? JS_HINT : '', tools.some(t => t.name === 'run_sql') ? SQL_HINT : ''].filter(Boolean).join('\n\n');
   if (sys) msgs.push({ role:'system', content: sys });
   { const hist = conv.messages.slice(0, Math.max(0, conv.messages.indexOf(asst)));
     const users = hist.filter(m => m.role === 'user');
@@ -3529,7 +3512,7 @@ async function runChat(asst, signal, conv){
   let conts = 0, cont = false;
   for (let round = 0; round < 8; round++){
     const body = { model: asst.model, messages: msgs, stream: true, usage:{ include: true } };
-    const voiceWeb = S.voiceActive && S.set.voiceWeb !== false && !isXai(asst.model);
+    const voiceWeb = S.voiceActive && S.set.voiceWeb !== false && !isDirect(asst.model);
     const serverWeb = voiceWeb && (!info || hasParam(info, 'tools'));
     /* Recherche web : activée par défaut, mais lancée seulement quand la demande en a besoin (actualité, prix, faits récents, sources…),
        et une seule fois par réponse : sinon chaque message attendrait une recherche inutile de plusieurs secondes */
@@ -3544,8 +3527,8 @@ async function runChat(asst, signal, conv){
     if (mode === 'chat+image' && !noImg){ body.modalities = ['image', 'text']; const asp = asst.imgAspect || S.set.imgAspect; if (asp && asp !== 'auto') body.image_config = { aspect_ratio: asp }; }
     if (tools.length) body.tools = tools.map(toolSpec);
     if (serverWeb) body.tools = (body.tools || []).concat([
-      { type:'openrouter:web_search', parameters:{ engine:'auto', max_results:5, search_context_size:'low' } },
-      { type:'openrouter:datetime', parameters:{ timezone: tz } }
+      { type:'fsm:web_search', parameters:{ engine:'auto', max_results:5, search_context_size:'low' } },
+      { type:'fsm:datetime', parameters:{ timezone: tz } }
     ]);
     /* Veille de connexion : si plus rien n'arrive (réseau coupé, appli mise en arrière-plan), on coupe et on se reconnecte
        au lieu de rester bloqué sur « Connexion… » */
@@ -3657,9 +3640,14 @@ async function runImage(asst, user, signal){
   if (j.usage?.cost != null) asst.cost = j.usage.cost;
   if (!asst.images.length) throw new Error("Le modèle n'a renvoyé aucune image.");
 }
-/* La clé OpenRouter n'est jamais envoyée ailleurs qu'aux serveurs d'OpenRouter, même si une réponse fournit une autre adresse */
+/* La clé API n'est jamais envoyée ailleurs qu'au serveur FSM AI, même si une réponse fournit une autre adresse */
 function orAuthOk(url){
-  try{ const u = new URL(url, 'https://openrouter.ai'); return u.protocol === 'https:' && (u.hostname === 'openrouter.ai' || u.hostname.endsWith('.openrouter.ai')); }catch(e){ return false; }
+  try{
+    const u = new URL(url, fsmApiBase());
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname;
+    return host === 'api.fsmai.app' || host === 'api-staging.fsmai.app' || host.endsWith('.fsmai.app');
+  }catch(e){ return false; }
 }
 async function runVideo(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
@@ -3678,7 +3666,7 @@ async function runVideo(asst, user, signal){
     const res = await fetchT(API + '/videos', { method:'POST', headers: hdr(), body: JSON.stringify(body), signal }, 90000);
     if (!res.ok) throw await apiError(res);
     job = await res.json();
-    pollUrl = job.polling_url ? (job.polling_url.startsWith('http') ? job.polling_url : 'https://openrouter.ai' + job.polling_url) : API + '/videos/' + job.id;
+    pollUrl = job.polling_url ? (job.polling_url.startsWith('http') ? job.polling_url : (apiUrl() + (job.polling_url.startsWith('/') ? job.polling_url.replace(/^\/api\/v1/, '') : '/' + job.polling_url))) : API + '/videos/' + job.id;
     t0 = Date.now();
     Object.defineProperty(asst, '_job', { value: { url: pollUrl, t0 }, writable: true, enumerable: false, configurable: true });
     /* gardé dans la conversation : si l'application est fermée, la vidéo reprend toute seule à la réouverture */
@@ -3942,8 +3930,8 @@ async function send(){
   const text = $('#input').value.trim();
   if (S.busy && !text && !S.pending.length){ S.abort?.abort(); return; }
   if (!text && !S.pending.length) return;
-  if (!isXai(S.set.model) && !S.key && srvNeedCode()){ srvAskCode(); toast('Entre ton code FSM AI pour commencer : il t\u2019a été remis personnellement.'); return; }
-  if (isXai(S.set.model) ? !S.xaiKey : !(S.key || serverOn())){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API directe dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
+  if (!isDirect(S.set.model) && !S.key && srvNeedCode()){ srvAskCode(); toast('Entre ton code FSM AI pour commencer : il t\u2019a été remis personnellement.'); return; }
+  if (isDirect(S.set.model) ? !S.directKey : !(S.key || serverOn())){ openSettings(true, isDirect(S.set.model) ? 'direct' : ''); toast(isDirect(S.set.model) ? 'Ajoute ta clé API directe dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   if (text && !S.pending.length && !S.conv?.bot && !S.voiceActive){
     const pend = pendingPlan(S.conv), pr = planReply(text);
     if (pend && pr === 'ok'){ $('#input').value = ''; autosize(); renderSend(); try{ localStorage.removeItem('relais.draft'); }catch(e){} return acceptPlan(pend); }
@@ -3992,7 +3980,7 @@ async function send(){
     item.apiText = planAskText(text, planExplore);
     item.planPayload = planExplore;
   } else if (uni){ item.model = uni.model; item.route = uni.route; }
-  else if (routerOn(cat) && !isXai(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
+  else if (routerOn(cat) && !isDirect(S.set.model)){ const r = routeModel(text, item.atts, S.conv, cat); if (r){ item.model = r.model; item.route = { ...r, cat }; } }
   else if (freeOnly() && !S.conv?.bot){
     const mi = modelInfo(item.model), md = modeFor(item.model);
     if (md === 'chat+image' && mediaCapped()){ const r = freeRoute(text, item.atts, S.conv, cat); if (!r){ toast(imgLimitMsg()); return; } item.model = r.model; item.route = { ...r, cat:'chat' }; }
@@ -4105,13 +4093,13 @@ async function run(user, conv, model, cat, route){
       if (wait.length && cat !== 'videoedit'){ asst.status = wait.some(a => a._framesP) ? 'Préparation de la vidéo…' : 'Lecture du document…'; paint(asst); await Promise.race([Promise.all(wait.map(a => a._framesP || a._extractP)), sleep(20000)]); } }
     for (;;){
       try{
-        const x = isXai(asst.model);
+        const x = isDirect(asst.model);
         if (srvUse(asst, cat, conv)) await runServerJob(asst, user, ctrl.signal, conv, cat);
-        else if (serverOn()) throw new Error("Cette fonction n'est pas encore disponible en mode serveur (assistant vocal, FSM BOT, montage vidéo ou modèles xAI). Désactive le mode serveur dans les réglages pour l'utiliser avec ta clé.");
+        else if (serverOn()) throw new Error("Cette fonction n'est pas encore disponible en mode serveur (assistant vocal, FSM BOT, montage vidéo ou modèles directs). Désactive le mode serveur dans les réglages pour l'utiliser avec ta clé.");
         else if (cat === 'videoedit' && asst.mode === 'chat' && (user.atts || []).some(a => kindOf(a) === 'video')) await runVideoEdit(asst, user, ctrl.signal, conv);
-        else if (asst.mode === 'video') await (x ? runXaiVideo : runVideo)(asst, user, ctrl.signal);
-        else if (asst.mode === 'image') await (x ? runXaiImage : runImage)(asst, user, ctrl.signal);
-        else await (x ? runXaiChat : runChat)(asst, ctrl.signal, conv);
+        else if (asst.mode === 'video') await (x ? runDirectVideo : runVideo)(asst, user, ctrl.signal);
+        else if (asst.mode === 'image') await (x ? runDirectImage : runImage)(asst, user, ctrl.signal);
+        else await (x ? runDirectChat : runChat)(asst, ctrl.signal, conv);
         if (!asst.text.trim() && !asst.images.length && !asst.videos.length) throw Object.assign(new Error('Réponse vide. Réessaie dans un instant.'), { empty: true });
         if (!fixed && !serverOn() && asst.mode === 'chat' && !asst.images.length && !asst.videos.length){
           const fx = await mediaFix(user, conv, asst).catch(() => null);
@@ -4163,10 +4151,10 @@ async function run(user, conv, model, cat, route){
     { const seen = new Set(); asst.images = asst.images.filter(im => { const k = String(im.url).length + ':' + String(im.url).slice(-200); if (seen.has(k)) return false; seen.add(k); return true; }); }
     const hadMedia = asst.images.length || asst.videos.length;
     asst._live = false; if (hadMedia){ asst._fresh = true; setTimeout(() => { asst._fresh = false; }, 1600); }
-    if (+asst.cost > 0){ addSpend(asst.cost, isXai(asst.model) ? 'xai' : 'openrouter', asst.estimated); usageAdd(+asst.cost, asst.cat); }
+    if (+asst.cost > 0){ addSpend(asst.cost, isDirect(asst.model) ? 'direct' : 'fsm', asst.estimated); usageAdd(+asst.cost, asst.cat); }
     scrubMsg(asst); paint(asst); await saveConv(conv);
     if (!asst.error && !asst.stopped && !S.voiceActive && !serverOn()) autoIllustrate(asst, user);
-    if (!isXai(asst.model)) setTimeout(() => fetchKeyInfo(asst.error ? true : false), 1500);
+    if (!isDirect(asst.model)) setTimeout(() => fetchKeyInfo(asst.error ? true : false), 1500);
     if (conv === S.conv) scrollEnd();
     else if (!asst.stopped){ conv._unread = true; toast(`« ${conv.title} » : ${asst.error ? 'erreur' : 'réponse prête'}`); }
     updateBusyUI();
@@ -5030,7 +5018,7 @@ function genCardHtml(m, kind){
     <div class="gc-core"><div class="gc-emblem"><div class="gc-halo"></div><div class="gc-ring"></div><div class="gc-ring r2"></div><div class="gc-logo"></div><div class="gc-build"></div><div class="gc-shine"></div></div><div class="gc-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <div class="gc-foot"><div class="gc-row"><span class="gc-title">${esc(title)}</span>${GEN_MARK}</div>
       <div class="gc-bar${pc != null ? ' det' : ''}"${pc != null ? ` style="--p:${pc}%"` : ''}><i></i></div>
-      ${kind === 'image' ? `<div class="gc-sub"><span class="gc-msg">${GEN_IMAGE_MSG}</span></div>` : kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Réflexion en cours|Création de l'image|Création de l'image avec Grok|Création de ton image|Création de ta vidéo|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
+      ${kind === 'image' ? `<div class="gc-sub"><span class="gc-msg">${GEN_IMAGE_MSG}</span></div>` : kind === 'video' ? `<div class="gc-sub gc-later">${esc(sub === NET_MSG.replace(/…$/, '') ? NET_MSG : VIDEO_LATER)}</div>` : `<div class="gc-sub"><span class="gc-stage"></span><span class="gc-msg">${sub && !/^(Réflexion en cours|Création de l'image|Création de l'image|Création de ton image|Création de ta vidéo|Le modèle répond|Connexion|Génération|Génération en cours|Montage \d+ %)$/.test(sub) ? ' · ' + esc(sub) : ''}</span></div>`}</div></div>`;
 }
 const VIDEO_LATER = 'Revenez plus tard, votre vidéo est en cours de préparation.';
 let genTick = 0;
@@ -5476,10 +5464,6 @@ function toast(t, act){
 const VOICE_SYS_BASE = "Conversation vocale : réponds comme à l'oral, en phrases courtes et naturelles. Pas de markdown, pas de listes, pas d'emojis, pas de liens lus à voix haute. Va à l'essentiel.";
 const VOICE_WEB = " Tu as accès à Internet : pour toute question d'actualité, de prix, de météo, d'horaires, de résultats sportifs ou de faits récents, fais une recherche web avant de répondre, puis donne la réponse en citant brièvement la source à l'oral.";
 const VOICE_SYS_FN = () => VOICE_SYS_BASE + (S.set.voiceWeb !== false ? VOICE_WEB : '');
-const VOICE_DEFAULTS = {
-  openai:['alloy','ash','ballad','coral','echo','fable','nova','onyx','sage','shimmer','verse'],
-  google:['Kore','Puck','Charon','Fenrir','Aoede','Leda','Orus','Zephyr']
-};
 const LANGS = [['fr','Français','fr-FR'],['en','Anglais','en-US'],['es','Espagnol','es-ES'],['de','Allemand','de-DE'],['it','Italien','it-IT'],['pt','Portugais','pt-PT'],['ar','Arabe','ar-SA'],['auto','Détection auto','']];
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 S.tts = LS.get('relais.tts', []); S.stt = LS.get('relais.stt', []);
@@ -5528,8 +5512,7 @@ async function loadVoiceModels(){
 function voicesFor(id){
   const m = S.tts.find(x => x.id === id);
   if (m && Array.isArray(m.voices) && m.voices.length) return m.voices.map(v => typeof v === 'string' ? v : (v.id || v.voice_id || v.name)).filter(Boolean);
-  const prov = (id || '').split('/')[0];
-  return VOICE_DEFAULTS[prov] || [];
+  return [];
 }
 function ensureVoiceDefaults(){
   const s = S.set;
@@ -5540,15 +5523,15 @@ function ensureVoiceDefaults(){
   if (!s.voiceBrain) s.voiceBrain = 'auto';
   if (!s.voiceAgent) s.voiceAgent = 'auto';
   if (!s.voiceTts || (s.voiceTts !== 'device' && S.tts.length && !S.tts.some(m => m.id === s.voiceTts))){
-    const pref = [/google\/gemini[\w.-]*tts/, /voxtral[\w.-]*tts/, /openai\/gpt-[\w.-]*tts/];
-    let m = null; for (const re of pref){ m = S.tts.find(x => re.test(x.id)); if (m) break; }
+    const pref = (S.roles && S.roles.voice_tts_pref) || [];
+    let m = null; for (const id of pref){ m = S.tts.find(x => x.id === id); if (m) break; }
     s.voiceTts = (m || S.tts[0])?.id || 'device';
   }
   const vs = voicesFor(s.voiceTts);
   if (s.voiceTts !== 'device' && vs.length && !vs.includes(s.voiceName)) s.voiceName = vs[0];
   if (!s.voiceStt || (!['browser', 'native'].includes(s.voiceStt) && S.stt.length && !S.stt.some(m => m.id === s.voiceStt))){
-    const pref = [/gpt-[\w.-]*transcribe/, /whisper/, /voxtral[\w.-]*transcribe/, /chirp/];
-    let m = null; for (const re of pref){ m = S.stt.find(x => re.test(x.id)); if (m) break; }
+    const pref = (S.roles && S.roles.voice_stt_pref) || [];
+    let m = null; for (const id of pref){ m = S.stt.find(x => x.id === id); if (m) break; }
     s.voiceStt = (m || S.stt[0])?.id || (SR ? 'browser' : 'native');
   }
   saveSettings();
@@ -5710,10 +5693,10 @@ function playTick(f){
 }
 /* Profil de réactivité : FSM BOT « Instantané » = reco + voix de l'appareil, modèle rapide */
 const botFast = () => curAgent()?.id === 'instant';
-const FAST_STT_FALLBACK = 'openai/gpt-4o-mini-transcribe';
 function fastStt(){
-  const m = [/gpt-[\w.-]*mini-transcribe/, /voxtral-mini[\w.-]*transcribe/, /gpt-[\w.-]*transcribe/, /whisper/, /transcribe/].map(re => S.stt.find(x => re.test(x.id))).find(Boolean);
-  return m ? m.id : FAST_STT_FALLBACK;
+  const pref = (S.roles && S.roles.fast_stt) || [];
+  const m = pref.map(id => S.stt.find(x => x.id === id)).find(Boolean);
+  return m ? m.id : ((S.roles && S.roles.stt_fallback) || (S.stt[0] && S.stt[0].id) || '');
 }
 function effStt(){
   const ag = curAgent(); if (ag) return ag.stt;
@@ -5726,9 +5709,14 @@ function effStt(){
 const effTts = () => { const ag = curAgent(); return ag ? ag.tts : S.set.voiceTts; };
 const effVoice = () => { const ag = curAgent(); return ag ? ag.voice : S.set.voiceName; };
 function pickFastTools(){
-  const prefs = [/^anthropic\/claude-haiku/, /^openai\/gpt-\d[\w.-]*luna(?!-pro)/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/, /^openai\/gpt-[\w.-]*mini/];
-  for (const re of prefs){ const m = S.models.filter(x => re.test(x.id) && !x.id.includes(':') && hasParam(x, 'tools') && textOnlyOut(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0]; if (m) return m.id; }
-  return S.models.length ? botModel() : 'anthropic/claude-haiku-5.5';
+  const prefs = [...roleIds('corser_haiku'), ...tierPref('generic', 'eco')];
+  const seen = new Set();
+  for (const id of prefs){
+    if (seen.has(id)) continue; seen.add(id);
+    const m = S.models.find(x => x.id === id && !x.variant && hasParam(x, 'tools') && textOnlyOut(x));
+    if (m) return m.id;
+  }
+  return S.models.length ? botModel() : ((S.roles && S.roles.brain_fallback && S.roles.brain_fallback.nova) || '');
 }
 const handsFree = () => VC.on && !VC.muted && (VC.bot || S.set.voiceAuto !== false);
 function idleOrRelisten(msg){
@@ -5738,7 +5726,7 @@ function idleOrRelisten(msg){
 function voiceBrain(){
   const ag = curAgent(); if (ag) return ag.brain;
   if (VC.bot) return botModel();
-  if (S.set.voiceBrain === 'current' && !isXai(S.set.model) && modeFor(S.set.model) === 'chat') return S.set.model;
+  if (S.set.voiceBrain === 'current' && !isDirect(S.set.model) && modeFor(S.set.model) === 'chat') return S.set.model;
   return pickFastTools();
 }
 function updateVcModel(){ try{ updateVcPipe(); }catch(e){} const ag = curAgent(); $('#vcModelName').textContent = (ag ? ag.name + ' · ' : '') + bare(shortName(voiceBrain())); }
@@ -5749,9 +5737,9 @@ try{ if (S.bot?.voiceOn){ S.bot.voiceOn = false; saveBot(); } }catch(e){}
 async function openVoice(){
   if (VOICE_DISABLED){ toast('Le mode vocal revient bientôt.'); return; }
   ensureVoiceDefaults();
-  const needOR = !isXai(S.set.model) || !['browser'].includes(S.set.voiceStt) || S.set.voiceTts !== 'device';
+  const needOR = !isDirect(S.set.model) || !['browser'].includes(S.set.voiceStt) || S.set.voiceTts !== 'device';
   if (needOR && !S.key){ openSettings(true); toast('Ajoute ta clé API FSM AI pour utiliser le mode vocal.'); return; }
-  if (isXai(S.set.model) && !S.xaiKey){ openSettings(true, 'xai'); toast('Ajoute ta clé API directe dans les réglages.'); return; }
+  if (isDirect(S.set.model) && !S.directKey){ openSettings(true, 'direct'); toast('Ajoute ta clé API directe dans les réglages.'); return; }
   if (S.busy) return toast('Attends la fin de la réponse en cours.');
   ensureVoiceDefaults();
   if (!modeFor(S.set.model).startsWith('chat')){ const p = topPick(catById('chat')); if (p){ S.set.model = p.id; applyPreset(catById('chat')); refreshModelUI(); } }
@@ -6098,49 +6086,41 @@ function updateVcPipe(){
 
 /* ----- Agents vocaux : cerveau + voix + écoute, choisis pour bien parler ----- */
 const VOICE_AGENTS = [
-  { id:'nova', name:'Nova', tag:'Naturelle et rapide', desc:"Répond vite avec une voix très naturelle. Le meilleur équilibre au quotidien.",
-    brain:[/^anthropic\/claude-haiku/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/, /^openai\/gpt-\d[\w.-]*luna(?!-pro)/],
-    tts:[[/google\/gemini[\w.-]*tts/, 'Kore'], [/openai\/gpt-[\w.-]*tts/, 'nova'], [/voxtral[\w.-]*tts/, '']],
-    stt:[/gpt-[\w.-]*mini-transcribe/, /voxtral-mini[\w.-]*transcribe/, /gpt-[\w.-]*transcribe/, /whisper/] },
-  { id:'atlas', name:'Atlas', tag:'Expert', desc:"Le plus intelligent : raisonnements, conseils précis, tâches complexes. Un peu plus lent.",
-    brain:[/^anthropic\/claude-sonnet/, /^openai\/gpt-\d(?![\w.-]*(mini|nano|luna|codex|image|audio|oss))/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/],
-    tts:[[/voxtral[\w.-]*tts/, ''], [/google\/gemini[\w.-]*tts/, 'Charon'], [/openai\/gpt-[\w.-]*tts/, 'onyx']],
-    stt:[/gpt-4o-transcribe/, /gpt-[\w.-]*transcribe(?![\w.-]*mini)/, /voxtral-small[\w.-]*transcribe/, /whisper/] },
-  { id:'echo', name:'Echo', tag:'Expressive', desc:"Voix expressive et chaleureuse, idéale pour discuter, raconter ou s'entraîner à l'oral.",
-    brain:[/^openai\/gpt-\d[\w.-]*(luna|sol)(?!-pro)/, /^anthropic\/claude-haiku/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/],
-    tts:[[/openai\/gpt-[\w.-]*tts/, 'coral'], [/google\/gemini[\w.-]*tts/, 'Aoede']],
-    stt:[/gpt-4o-transcribe/, /gpt-[\w.-]*transcribe/, /whisper/] },
-  { id:'iris', name:'Iris', tag:'Multilingue', desc:"Parfaite pour passer d'une langue à l'autre ou traduire à voix haute.",
-    brain:[/^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/],
-    tts:[[/google\/gemini[\w.-]*tts/, 'Puck'], [/openai\/gpt-[\w.-]*tts/, 'shimmer']],
-    stt:[/chirp/, /gpt-4o-transcribe/, /gpt-[\w.-]*transcribe/, /whisper/] },
-  { id:'instant', name:'Flash', tag:'Instantané', desc:"Zéro attente : voix de l'iPhone et modèle rapide. La voix est moins naturelle.",
-    brain:[/^anthropic\/claude-haiku/, /^openai\/gpt-\d[\w.-]*luna(?!-pro)/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/],
-    tts:'device', stt:[/gpt-[\w.-]*mini-transcribe/, /voxtral-mini[\w.-]*transcribe/, /gpt-[\w.-]*transcribe/, /whisper/] }
+  { id:'nova', name:'Nova', tag:'Naturelle et rapide', desc:"Répond vite avec une voix très naturelle. Le meilleur équilibre au quotidien." },
+  { id:'atlas', name:'Atlas', tag:'Expert', desc:"Le plus intelligent : raisonnements, conseils précis, tâches complexes. Un peu plus lent." },
+  { id:'echo', name:'Echo', tag:'Expressive', desc:"Voix expressive et chaleureuse, idéale pour discuter, raconter ou s'entraîner à l'oral." },
+  { id:'iris', name:'Iris', tag:'Multilingue', desc:"Parfaite pour passer d'une langue à l'autre ou traduire à voix haute." },
+  { id:'instant', name:'Flash', tag:'Instantané', desc:"Zéro attente : voix de l'appareil et modèle rapide. La voix est moins naturelle." }
 ];
 const AUTO_ORDER = ['nova', 'atlas', 'echo', 'iris', 'instant'];
-const BRAIN_FALLBACK = { nova:'anthropic/claude-haiku-5.5', atlas:'anthropic/claude-sonnet-5.5', echo:'openai/gpt-6-luna', iris:'google/gemini-3.8-flash', instant:'anthropic/claude-haiku-5.5' };
 function resolveAgent(id){
   const a = VOICE_AGENTS.find(x => x.id === id); if (!a) return null;
+  const spec = (S.roles && S.roles.voice && S.roles.voice[id]) || {};
   let brain = null;
-  for (const re of a.brain){ const m = S.models.filter(x => re.test(x.id) && !x.id.includes(':') && hasParam(x, 'tools') && textOnlyOut(x)).sort((p, q) => (q.created || 0) - (p.created || 0))[0]; if (m){ brain = m.id; break; } }
-  if (!brain && !S.models.length) brain = BRAIN_FALLBACK[id];
+  for (const bid of (spec.brain || [])){
+    const m = S.models.find(x => x.id === bid && !x.variant && hasParam(x, 'tools') && textOnlyOut(x));
+    if (m){ brain = m.id; break; }
+  }
+  if (!brain && !S.models.length && S.roles && S.roles.brain_fallback) brain = S.roles.brain_fallback[id];
   if (!brain) return null;
   let tts = 'device', voice = '';
-  if (a.tts !== 'device'){
+  if (spec.tts !== 'device'){
     let found = false;
-    for (const [re, v] of a.tts){
-      const m = S.tts.filter(x => re.test(x.id)).sort((p, q) => (q.created || 0) - (p.created || 0))[0]; if (!m) continue;
+    for (const row of (spec.tts || [])){
+      const ids = row && row.ids ? row.ids : [];
+      const v = row && row.voice != null ? row.voice : '';
+      const m = S.tts.filter(x => ids.includes(x.id)).sort((p, q) => (q.created || 0) - (p.created || 0))[0];
+      if (!m) continue;
       const vs = voicesFor(m.id); const vv = v && (!vs.length || vs.includes(v)) ? v : (vs[0] || '');
-      if (!vv && !/voxtral/.test(m.id)) continue;
-      if (!vv && /voxtral/.test(m.id) && !vs.length) continue;
+      if (!vv && !m.ttsOpen) continue;
+      if (!vv && m.ttsOpen && !vs.length) continue;
       tts = m.id; voice = vv; found = true; break;
     }
     if (!found) return null;
   }
   let stt = null;
-  for (const re of a.stt){ const m = S.stt.find(x => re.test(x.id)); if (m){ stt = m.id; break; } }
-  if (!stt) stt = FAST_STT_FALLBACK;
+  for (const sid of (spec.stt || [])){ const m = S.stt.find(x => x.id === sid); if (m){ stt = m.id; break; } }
+  if (!stt) stt = fastStt();
   return { ...a, brain, tts, voice, stt };
 }
 function curAgent(){
@@ -6216,41 +6196,27 @@ $('#btnVoiceSettings').addEventListener('click', () => { closeSheets(); openVoic
 if ('speechSynthesis' in window) try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; }catch(e){}
 
 
-/* ================= API xAI directe (modèles Grok) ================= */
-const XAI = 'https://api.x.ai/v1';
-const isXai = id => String(id || '').startsWith('xai:');
-const xid = id => String(id).slice(4);
-const xhdr = () => ({ 'Authorization': 'Bearer ' + S.xaiKey, 'Content-Type': 'application/json' });
-const XAI_MODELS = [
-  ...[['grok-4.7','Grok 4.7',500000,2,6],['grok-4.6','Grok 4.6',500000,2,6],['grok-4.5','Grok 4.5',500000,2,6],['grok-4.3','Grok 4.3',1000000,1.25,2.5],
-      ['grok-4.20-0309-reasoning','Grok 4.20 Reasoning',1000000,1.25,2.5],['grok-4.20-0309-non-reasoning','Grok 4.20',1000000,1.25,2.5],
-      ['grok-4.20-multi-agent-0309','Grok 4.20 Multi-Agent',1000000,1.25,2.5],['grok-build-0.1','Grok Build 0.1',256000,1,2]]
-    .map(([id, n, ctx, pi, po], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i, context_length: ctx,
-      pricing:{ prompt: String(pi / 1e6), completion: String(po / 1e6) }, architecture:{ input_modalities:['text','image'], output_modalities:['text'] }, supported_parameters:['tools','web_search_options'] })),
-  ...[['grok-imagine-image-2.0','Grok Imagine Image 2.0',0.04],['grok-imagine-image','Grok Imagine Image',0.02]]
-    .map(([id, n, p], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i,
-      pricing:{ prompt:'0', completion:'0', image: String(p) }, architecture:{ input_modalities:['text'], output_modalities:['image'] }, supported_parameters:[] })),
-  ...[['grok-imagine-video-1.5','Grok Imagine Video 1.5',0.08],['grok-imagine-video','Grok Imagine Video',0.05],['grok-imagine-video-1.5-lite','Grok Imagine Video 1.5 Lite',0.02]]
-    .map(([id, n, p], i) => ({ id:'xai:' + id, name:'xAI : ' + n + ' · direct', provider:'xai', created: 2e9 - i,
-      pricing:{ prompt:'0', completion:'0', per_second: String(p) }, architecture:{ input_modalities:['text','image'], output_modalities:['video'] }, supported_parameters:[] }))
-];
-/* grok-imagine-image-quality retiré de l'API xAI le 2 novembre 2026.
-   La doc officielle le sert désormais comme grok-imagine-image-2.0 avec quality « low » (0,04 $ l'image 1K, 0,01 $ de moins que l'ancien tarif). */
-const XAI_RETIRED = Object.freeze({ 'grok-imagine-image-quality': 'grok-imagine-image-2.0' });
-function xaiCanonical(id){ const next = XAI_RETIRED[xid(id)]; return next ? 'xai:' + next : id; }
-/* Ne réécrit que le modèle choisi. L'historique et les autres réglages restent en place. */
-function migrateXaiModelSetting(){
-  if (!isXai(S.set.model) || !XAI_RETIRED[xid(S.set.model)]) return false;
-  const next = xaiCanonical(S.set.model);
+/* ================= API directe ================= */
+const isDirect = id => { if (!id) return false; const m = (typeof modelInfo === 'function' && modelInfo(id)) || (S.directModels || []).find(x => x.id === id); if (m) return !!m.direct; return false; };
+const xid = id => id;
+const dHdr = () => ({ 'Authorization': 'Bearer ' + S.directKey, 'Content-Type': 'application/json' });
+function directCanonical(id){
+  const ret = S.roles && S.roles.retired;
+  if (ret && id && ret[id]) return ret[id];
+  return id;
+}
+function migrateDirectSetting(){
+  if (!isDirect(S.set.model)) return false;
+  const next = directCanonical(S.set.model);
   if (next === S.set.model) return false;
   S.set.model = next;
   saveSettings();
   return true;
 }
-function mergeXai(){
-  S.models = S.models.filter(m => !isXai(m.id)).concat(S.xaiKey && !srvLocked() ? XAI_MODELS : []);
+function mergeDirect(){
+  S.models = S.models.filter(m => !isDirect(m.id) && !m.direct).concat(S.directKey && !srvLocked() ? (S.directModels || []) : []);
 }
-async function xfetch(url, opts){
+async function dFetch(url, opts){
   try{ return await fetch(url, opts); }
   catch(e){
     if (e?.name === 'AbortError') throw e;
@@ -6263,33 +6229,33 @@ function estTokens(id, u){
   const c = pin * (+p.prompt || 0) + pout * (+p.completion || 0);
   return c > 0 ? c : null;
 }
-function xaiParts(parts){
+function directParts(parts){
   const out = [], skipped = [];
   for (const p of parts){
     if (p.type === 'text') out.push(p);
     else if (p.type === 'image_url' && /^data:image\/(png|jpe?g)/i.test(p.image_url.url)) out.push(p);
     else skipped.push(p.type === 'file' ? p.file.filename : p.type === 'video_url' ? 'vidéo' : p.type === 'input_audio' ? 'audio' : 'image (JPG ou PNG uniquement)');
   }
-  if (skipped.length) out.push({ type:'text', text:"[Pièces jointes non transmises, non prises en charge par l'API xAI : " + skipped.join(', ') + ']' });
+  if (skipped.length) out.push({ type:'text', text:"[Pièces jointes non transmises, non prises en charge par l'API directe : " + skipped.join(', ') + ']' });
   return out;
 }
-function xaiHistory(asst){
+function directHistory(asst){
   const msgs = [], sys = buildSystem(asst._conv || S.conv, asst.cat);
   if (sys) msgs.push({ role:'system', content: sys });
   for (const m of (asst._conv || S.conv).messages){
     if (m === asst) break;
-    if (m.role === 'user') msgs.push({ role:'user', content: xaiParts(userParts(m)) });
+    if (m.role === 'user') msgs.push({ role:'user', content: directParts(userParts(m)) });
     else if (!m.error && (m.text || m.images?.length || m.videos?.length)) msgs.push({ role:'assistant', content: assistantHistText(m) });
   }
   return msgs;
 }
-async function runXaiChat(asst, signal){
-  const msgs = xaiHistory(asst);
-  if (S.set.web || asst.web) return runXaiSearch(asst, msgs, signal);
-  const body = { model: xid(asst.model), messages: msgs, stream: true, stream_options:{ include_usage: true } };
-  const res = await xfetch(XAI + '/chat/completions', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
+async function runDirectChat(asst, signal){
+  const msgs = directHistory(asst);
+  if (S.set.web || asst.web) return runDirectSearch(asst, msgs, signal);
+  const body = { model: dId(asst.model), messages: msgs, stream: true, stream_options:{ include_usage: true } };
+  const res = await dFetch(DIRECT + '/chat/completions', { method:'POST', headers: dHdr(), body: JSON.stringify(body), signal });
   if (!res.ok) throw await apiError(res);
-  asst.status = 'Grok répond…'; paint(asst);
+  asst.status = 'Le modèle répond…'; paint(asst);
   const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '';
   for (;;){
     const { done, value } = await reader.read(); if (done) break;
@@ -6311,12 +6277,12 @@ async function runXaiChat(asst, signal){
   }
   { const tail = flushVisible(asst); if (tail) asst.text += tail; }
 }
-async function runXaiSearch(asst, msgs, signal){
+async function runDirectSearch(asst, msgs, signal){
   asst.status = 'Recherche sur le web et sur X…'; paint(asst);
   const input = msgs.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content
     : m.content.map(p => p.type === 'text' ? { type:'input_text', text:p.text } : { type:'input_image', image_url: p.image_url.url }) }));
-  const body = { model: xid(asst.model), input, tools:[{ type:'web_search' }, { type:'x_search' }] };
-  const res = await xfetch(XAI + '/responses', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
+  const body = { model: dId(asst.model), input, tools:[{ type:'web_search' }, { type:'x_search' }] };
+  const res = await dFetch(DIRECT + '/responses', { method:'POST', headers: dHdr(), body: JSON.stringify(body), signal });
   if (!res.ok) throw await apiError(res);
   const j = await res.json();
   let text = '';
@@ -6330,27 +6296,27 @@ async function runXaiSearch(asst, msgs, signal){
   addSources(asst, (j.citations || []).map(u => typeof u === 'string' ? { url:u, title:u } : u));
   const c = estTokens(asst.model, j.usage); if (c){ asst.cost = c; asst.estimated = true; }
 }
-async function runXaiImage(asst, user, signal){
+async function runDirectImage(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
-  const retired = !!XAI_RETIRED[xid(asst.model)];
-  if (retired) asst.model = xaiCanonical(asst.model);
+  const retired = !!(S.roles && S.roles.retired && S.roles.retired[asst.model]);
+  if (retired) asst.model = directCanonical(asst.model);
   const m = modelInfo(asst.model);
-  const body = { model: xid(asst.model), prompt: user.apiText || user.text || 'Une image', n: 1, response_format:'b64_json' };
+  const body = { model: dId(asst.model), prompt: user.apiText || user.text || 'Une image', n: 1, response_format:'b64_json' };
   if (retired) body.quality = 'low';
   if (S.set.imgAspect && S.set.imgAspect !== 'auto') body.aspect_ratio = S.set.imgAspect;
-  if ((user.atts || []).some(a => kindOf(a) === 'image')) asst.text = "La retouche de photo n'est pas disponible ici avec l'API xAI : l'image jointe a été ignorée.";
+  if ((user.atts || []).some(a => kindOf(a) === 'image')) asst.text = "La retouche de photo n'est pas disponible ici avec l'API directe : l'image jointe a été ignorée.";
   asst.status = 'Réflexion en cours…'; paint(asst);
-  const res = await xfetch(XAI + '/images/generations', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
+  const res = await dFetch(DIRECT + '/images/generations', { method:'POST', headers: dHdr(), body: JSON.stringify(body), signal });
   if (!res.ok) throw await apiError(res);
   const j = await res.json();
   for (const d of j.data || []){ const u = d.b64_json ? 'data:image/jpeg;base64,' + d.b64_json : d.url; if (u) asst.images.push({ url:u }); }
-  if (!asst.images.length) throw new Error("Grok n'a renvoyé aucune image.");
+  if (!asst.images.length) throw new Error("Aucune image n'a été renvoyée.");
   const price = +m?.pricing?.image || 0; if (price){ asst.cost = price * asst.images.length; asst.estimated = true; }
 }
-async function runXaiVideo(asst, user, signal){
+async function runDirectVideo(asst, user, signal){
   if (catById(S.set.category).adult && (user.atts || []).some(a => kindOf(a) === 'image' || kindOf(a) === 'video')) throw new Error("En catégorie Adulte, la création d'images ou de vidéos à partir de photos est désactivée, pour protéger les personnes réelles. Décris la scène uniquement en texte.");
   const m = modelInfo(asst.model);
-  const body = { model: xid(asst.model), prompt: user.apiText || user.text || 'Une courte vidéo' };
+  const body = { model: dId(asst.model), prompt: user.apiText || user.text || 'Une courte vidéo' };
   if (S.set.vidDuration) body.duration = parseInt(S.set.vidDuration, 10);
   if (asst.vidAspect || S.set.vidAspect) body.aspect_ratio = asst.vidAspect || S.set.vidAspect;
   if (S.set.vidRes) body.resolution = S.set.vidRes;
@@ -6358,17 +6324,17 @@ async function runXaiVideo(asst, user, signal){
   if (img) body.image = { url: img.data };
   let request_id, t0, job = { status:'pending' }, polled = true;
   /* reprise : on interroge d'abord l'état de la vidéo avant d'appliquer la limite de 30 minutes */
-  if (asst._job?.xai){ request_id = asst._job.xai; t0 = asst._job.t0 || Date.now(); polled = false; }
+  if (asst._job?.direct){ request_id = asst._job.direct; t0 = asst._job.t0 || Date.now(); polled = false; }
   else {
-    asst.status = 'Envoi de la demande à Grok…'; paint(asst);
-    const res = await xfetch(XAI + '/videos/generations', { method:'POST', headers: xhdr(), body: JSON.stringify(body), signal });
+    asst.status = 'Envoi de la demande…'; paint(asst);
+    const res = await dFetch(DIRECT + '/videos/generations', { method:'POST', headers: dHdr(), body: JSON.stringify(body), signal });
     if (!res.ok) throw await apiError(res);
     ({ request_id } = await res.json());
-    if (!request_id) throw new Error("xAI n'a pas renvoyé d'identifiant de génération.");
+    if (!request_id) throw new Error("Aucun identifiant de génération n'a été renvoyé.");
     t0 = Date.now();
     /* identifiant gardé : après une coupure ou une fermeture, on reprend le suivi de la même vidéo (pas de nouvelle demande payante) */
-    Object.defineProperty(asst, '_job', { value: { xai: request_id, t0 }, writable: true, enumerable: false, configurable: true });
-    asst.job = { xai: request_id, t0 }; { const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
+    Object.defineProperty(asst, '_job', { value: { direct: request_id, t0 }, writable: true, enumerable: false, configurable: true });
+    asst.job = { direct: request_id, t0 }; { const cv = asst._conv || S.conv; if (cv) saveConv(cv); }
   }
   while (job.status !== 'done'){
     if (job.status === 'failed') throw new Error('La génération a échoué' + (job.error?.message ? ' : ' + job.error.message : '.'));
@@ -6377,7 +6343,7 @@ async function runXaiVideo(asst, user, signal){
     asst.status = `Génération en cours · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
     if (polled) await sleep(5000, signal);
     polled = true;
-    const r = await xfetch(XAI + '/videos/' + request_id, { headers: xhdr(), signal });
+    const r = await dFetch(DIRECT + '/videos/' + request_id, { headers: dHdr(), signal });
     if (!r.ok && r.status !== 202) throw await apiError(r);
     job = await r.json();
     if (r.status === 202 && !job.status) job.status = 'pending';
@@ -6412,9 +6378,9 @@ function addSpend(usd, prov, est){
   try{ sessionStorage.setItem('fsm.spend', JSON.stringify(S.spend)); }catch(e){}
   renderSpend();
 }
-function accountOpenRouter(usd, cat){
+function accountSpend(usd, cat){
   usd = +usd; if (!(usd > 0)) return;
-  addSpend(usd, 'openrouter', false);
+  addSpend(usd, 'fsm', false);
   usageAdd(usd, cat || 'chat');
   const ki = S.keyInfo;
   if (ki){
@@ -6427,9 +6393,9 @@ function accountOpenRouter(usd, cat){
 function renderSpend(){
   $('#spendAmt').textContent = (S.spend.est ? '≈ ' : '') + budgetPct(S.spend.total);
   $('#spendTotal').textContent = (S.spend.est ? '≈ ' : '') + budgetPct(S.spend.total);
-  const by = S.spend.by, label = { openrouter:'FSM AI', xai:'FSM Direct', voice:'Voix' };
+  const by = S.spend.by, label = { fsm:'FSM AI', direct:'FSM Direct', voice:'Voix' };
   $('#spendRows').innerHTML = Object.keys(by).length
-    ? Object.entries(by).map(([k, v]) => `<div class="sp-row"><span>${esc(label[k] || k)}</span><b>${budgetPct(v)}</b></div>`).join('')
+    ? Object.entries(by).map(([k, v]) => `<div class="sp-row"><span>${esc(label[k] || 'FSM AI')}</span><b>${budgetPct(v)}</b></div>`).join('')
     : '<div class="sp-row"><span>Aucune dépense pour le moment</span></div>';
   { const bd = +S.set.budgetDay, bm = +S.set.budgetMonth;
     $('#spendBudget').innerHTML = `<div class="sp-row"><span>Aujourd'hui</span><b>${budgetPct(spentDay())}${bd > 0 ? ' / ' + budgetPct(bd) : ''}</b></div>${bd > 0 ? budgetBar(spentDay(), bd) : ''}<div class="sp-row"><span>Ce mois-ci</span><b>${budgetPct(spentMonth())}${bm > 0 ? ' / ' + budgetPct(bm) : ''}</b></div>${bm > 0 ? budgetBar(spentMonth(), bm) : ''}`;
@@ -6442,7 +6408,7 @@ $('#btnBudget').addEventListener('click', () => { $('#spendPop').hidden = true; 
 document.addEventListener('click', e => { if (!$('#spendPop').hidden && !e.target.closest('#spendPop')) $('#spendPop').hidden = true; });
 $('#btnSpendReset').addEventListener('click', () => { S.spend = { total:0, n:0, by:{}, est:false }; try{ sessionStorage.removeItem('fsm.spend'); }catch(e){} renderSpend(); $('#spendPop').hidden = true; });
 
-/* ================= Grok Bot ================= */
+/* ================= Bot externe ================= */
 function updateBotLinks(){
   const t = $('#botTask').value.trim();
   $('#botX').href = 'https://x.com/intent/post?text=' + encodeURIComponent('@bot ' + t);
@@ -6455,7 +6421,7 @@ $('#botCopy').addEventListener('click', async () => {
   if (await copyText(t)) toast('Tâche copiée. Colle-la dans le bot.'); else selectNode($('#botTask'));
 });
 $('#botX').addEventListener('click', e => { if (!$('#botTask').value.trim()){ e.preventDefault(); toast("Décris d'abord la tâche."); } });
-$('#botGrokApi').addEventListener('click', () => { closeSheets(); if (srvLocked()) return; if (!S.xaiKey) openSettings(true, 'xai'); else openModelSheet('xai'); });
+$('#botDirectApi').addEventListener('click', () => { closeSheets(); if (srvLocked()) return; if (!S.directKey) openSettings(true, 'direct'); else openModelSheet('direct'); });
 
 
 /* ================= Connecteurs (Gmail, Agenda, Drive, GitHub) ================= */
@@ -6745,9 +6711,14 @@ function nextRunOf(w, from){
   return isFinite(d.getTime()) ? d.getTime() : now + 864e5;
 }
 function pickCheapModel(){
-  const prefs = [/^openai\/gpt-\d[\w.-]*(luna|mini)(?![\w.-]*pro)/, /^anthropic\/claude-haiku/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts))/, /^deepseek\/deepseek-v[\d.]+-flash/];
-  for (const re of prefs){ const m = S.models.filter(x => re.test(x.id) && !x.id.includes(':') && textOnlyOut(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0]; if (m) return m.id; }
-  return isXai(S.set.model) ? (topPick(catById('chat'))?.id || 'openrouter/auto') : S.set.model;
+  const prefs = [...tierPref('generic', 'eco'), ...roleIds('corser_haiku'), ...roleIds('corser_flash')];
+  const seen = new Set();
+  for (const id of prefs){
+    if (seen.has(id)) continue; seen.add(id);
+    const m = S.models.find(x => x.id === id && !x.variant && textOnlyOut(x));
+    if (m) return m.id;
+  }
+  return isDirect(S.set.model) ? (topPick(catById('chat'))?.id || 'fsm_auto') : S.set.model;
 }
 function createWatch({ title, prompt, freq, time }){
   const w = { id: uid(), title: (title || prompt || 'Veille').slice(0, 60), prompt, freq: FREQ[freq] ? freq : 'daily', time: time || '08:00', created: Date.now(), active: true, model: pickCheapModel(), results: [] };
@@ -6764,7 +6735,7 @@ async function runWatch(w){
   const prev = w.results?.[0] && !w.results[0].nothing ? w.results[0].text : (w.results?.find(r => !r.nothing)?.text || '');
   const body = { model: w.model || pickCheapModel(), plugins:[{ id:'web' }], usage:{ include:true }, temperature: 0.2,
     messages:[
-      { role:'system', content:`Tu es FSM BOT et tu réalises une veille automatique. ${IDENT_HINT} Date : ${new Date().toLocaleString('fr-FR', { dateStyle:'full', timeStyle:'short' })}. Réponds en français, 6 lignes maximum, faits concrets et datés, avec les sources. Si rien de vraiment nouveau par rapport au résultat précédent, réponds uniquement : RAS` },
+      { role:'system', content:`Tu es FSM BOT et tu réalises une veille automatique. Date : ${new Date().toLocaleString('fr-FR', { dateStyle:'full', timeStyle:'short' })}. Réponds en français, 6 lignes maximum, faits concrets et datés, avec les sources. Si rien de vraiment nouveau par rapport au résultat précédent, réponds uniquement : RAS` },
       { role:'user', content:`Sujet de la veille : ${w.prompt}\n\nRésultat précédent :\n${prev || '(première exécution)'}` }
     ] };
   try{
@@ -6944,12 +6915,12 @@ function botModel(){
   const p = topPick(catById('agents'));
   if (p && hasParam(p, 'tools')) return p.id;
   const cur = modelInfo(S.set.model);
-  return cur && hasParam(cur, 'tools') && !isXai(cur.id) ? cur.id : 'anthropic/claude-sonnet-5.5';
+  return cur && hasParam(cur, 'tools') && !isDirect(cur.id) ? cur.id : ((S.roles && S.roles.agents_fallback) || '');
 }
 function renderBotModel(){
   const sel = $('#fbModel'); if (!sel) return;
   const auto = topPick(catById('agents'));
-  const list = ranked(catById('agents')).filter(x => !isXai(x.m.id));
+  const list = ranked(catById('agents')).filter(x => !isDirect(x.m.id));
   sel.innerHTML = `<option value="auto">Automatique${auto ? ' · ' + esc(bare(auto.name || auto.id)) + ' · ' + esc(shortPrice(auto, 'agents')) : ''}</option>` + list.map(x => `<option value="${esc(x.m.id)}">${esc(bare(x.m.name || x.m.id))} · ${esc(shortPrice(x.m, 'agents'))}${x.rec ? ' ★' : ''}</option>`).join('');
   sel.value = S.bot.model && list.some(x => x.m.id === S.bot.model) ? S.bot.model : 'auto';
   const ag = curAgent();
@@ -6969,7 +6940,7 @@ function botWelcomeHtml(){
   return `<div class="welcome"><div class="greet"><span class="logo txt">BOT</span><h1>FSM BOT</h1><p class="note" style="margin:0;max-width:44ch">Veilles automatiques, tâches, mémoire et commandes préparées. Dis-moi ce dont tu as besoin.</p></div><div class="exs">${ex.map(x => `<button class="ex" data-act="ex" data-text="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`;
 }
 $('#fbChat').addEventListener('click', startBot);
-$('#fbGrok').addEventListener('click', () => { closeSheets(); updateBotLinks(); $('#botSheet').hidden = false; });
+$('#fbExternal').addEventListener('click', () => { closeSheets(); updateBotLinks(); $('#botSheet').hidden = false; });
 setTimeout(checkWatches, 4000);
 
 $('#btnBot').addEventListener('click', openBot);
@@ -7231,23 +7202,9 @@ async function runVideoEdit(asst, user, signal, conv){
    ===================================================================== */
 const ROUTER_CATS = ['chat', 'reason', 'code', 'search', 'vision', 'videoin', 'audio', 'agents'];
 const TIER_FR = { eco:'éco', standard:'standard', max:'max' };
-const TIER_PREF = {
-  generic: {
-    eco:[/^anthropic\/claude-haiku/, /^openai\/gpt-\d[\w.-]*luna(?!-pro)/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/, /^deepseek\/deepseek-v[\d.]+-flash/, /^openai\/gpt-[\w.-]*mini(?![\w.-]*(tts|transcribe|audio|image))/],
-    standard:[/^anthropic\/claude-sonnet/, /^openai\/gpt-\d[\w.-]*sol(?!-pro)/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^openai\/gpt-\d(?![\w.-]*(mini|nano|luna|codex|image|audio|oss|pro|tts|transcribe))/, /^x-ai\/grok-\d(?![\w.-]*(code|mini))/],
-    max:[/^anthropic\/claude-opus/, /^openai\/gpt-\d[\w.-]*-pro(?![\w.-]*(tts|transcribe))/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/, /^anthropic\/claude-sonnet/]
-  },
-  code: {
-    eco:[/^qwen\/qwen\d?[\w.-]*coder/, /^deepseek\/deepseek-v[\d.]+-flash/, /^mistralai\/(devstral|codestral)/, /^anthropic\/claude-haiku/],
-    standard:[/^anthropic\/claude-sonnet/, /^openai\/gpt-[\w.-]*codex(?![\w.-]*mini)/, /^openai\/gpt-\d[\w.-]*sol(?!-pro)/],
-    max:[/^anthropic\/claude-opus/, /^openai\/gpt-[\w.-]*codex[\w.-]*max/, /^openai\/gpt-\d[\w.-]*-pro/, /^anthropic\/claude-sonnet/]
-  },
-  search: {
-    eco:[/^perplexity\/sonar$/, /^anthropic\/claude-haiku/, /^google\/gemini-[\d.]+-flash(?![\w.-]*(image|tts|lite))/],
-    standard:[/^perplexity\/sonar-pro(?!-search)/, /^anthropic\/claude-sonnet/, /^google\/gemini-[\d.]+-pro(?![\w.-]*image)/],
-    max:[/^perplexity\/sonar-reasoning-pro/, /^perplexity\/sonar-deep-research/, /^anthropic\/claude-opus/]
-  }
-};
+function tierPref(kind, level){ return (S.roles && S.roles.tier && S.roles.tier[kind] && S.roles.tier[kind][level]) || []; }
+function roleIds(role){ const v = S.roles && S.roles[role]; return Array.isArray(v) ? v : []; }
+function mMajor(m){ return !!(m && m.major); }
 const routerOn = cat => S.set.router !== false && ROUTER_CATS.includes(cat);
 const kwRe = k => new RegExp('(?:^|[^\\p{L}])(?:' + k + ')', 'iu');
 const HARD_KW = ['démontr', 'preuve', 'algorithm', 'architectur', 'optimis', 'stratégi', 'business plan', 'analyse (?:approfondie|détaillée|complète|poussée)', 'compare(?:r)? en détail', 'rédige (?:un|une) (?:rapport|article|dossier|mémoire|synthèse|étude)', 'thèse', 'dissertation', 'contrat', 'juridique', 'médical', 'diagnostic', 'fiscal', 'financ', 'investiss', 'audit', 'refactor', 'débogu', 'debug', 'complexe', 'étape par étape', 'raisonne', 'planifie', 'plan détaillé'];
@@ -7279,12 +7236,13 @@ function isSmallAsk(text, atts){
   if (!t) return false;
   return t.length <= 180 && t.split(/\s+/).filter(Boolean).length <= 24;
 }
-const CORSER_FLASH_RE = /^deepseek\/deepseek-v4\.1-flash/;
-const CORSER_HAIKU_RE = /^anthropic\/claude-haiku/;
-const CORSER_SONNET_RE = /^anthropic\/claude-sonnet/;
-function pickNewest(patterns, nd, pok){
-  for (const re of patterns){
-    const list = S.models.filter(x => re.test(x.id) && capable(x, nd) && pok(x));
+const CORSER_FLASH_RE = { test: id => roleIds('corser_flash').includes(id) };
+const CORSER_HAIKU_RE = { test: id => roleIds('corser_haiku').includes(id) };
+const CORSER_SONNET_RE = { test: id => roleIds('corser_sonnet').includes(id) };
+function pickNewest(lists, nd, pok){
+  for (const ids of lists){
+    const set = new Set(Array.isArray(ids) ? ids : []);
+    const list = S.models.filter(x => set.has(x.id) && capable(x, nd) && pok(x));
     list.sort((a, b) => (b.created || 0) - (a.created || 0));
     if (list[0]) return list[0];
   }
@@ -7296,8 +7254,8 @@ function corserVariant(){
   return v && v.fam === 'CORSER' ? v : null;
 }
 /* Gamme CORSER seulement. NEURAL, OMEGA et les médias restent sur le routeur général.
-   Petite demande (code ou texte, les trois niveaux) : Haiku le plus récent, DeepSeek V4.1 Flash seulement en repli.
-   5.0 : le code normal et complexe reste sur le DeepSeek V4.1 Flash le plus récent, puis les autres modèles éco de code.
+   Petite demande (code ou texte, les trois niveaux) : le modèle léger le plus récent, puis le modèle éco en repli.
+   5.0 : le code normal et complexe reste sur le modèle éco le plus récent, puis les autres modèles éco de code.
    PRO et MAX : le code qui n'est pas une petite demande s'arrête à Sonnet. MAX ne prend pas Opus pour le code.
    Texte hors code en MAX : le routeur actuel, Opus compris sur une demande exigeante. */
 function corserRoute(text, atts, conv, cat, d, forceTier){
@@ -7308,19 +7266,19 @@ function corserRoute(text, atts, conv, cat, d, forceTier){
   const small = !forceTier && isSmallAsk(text, atts);
   const note = s => (d.why ? d.why + ' · ' : '') + s;
   if (small){
-    const prefs = cat === 'code' ? TIER_PREF.code.eco : TIER_PREF.generic.eco;
-    const m = pickNewest([CORSER_HAIKU_RE, CORSER_FLASH_RE, ...prefs], nd, pok);
+    const prefs = cat === 'code' ? tierPref('code', 'eco') : tierPref('generic', 'eco');
+    const m = pickNewest([roleIds('corser_haiku'), roleIds('corser_flash'), prefs], nd, pok);
     if (!m) return null;
     return { model: m.id, tier: 'eco', why: note('CORSER · petite demande') };
   }
   if (cat === 'code' && v.id === 'corser50'){
-    const m = pickNewest([CORSER_FLASH_RE, ...TIER_PREF.code.eco], nd, pok);
+    const m = pickNewest([roleIds('corser_flash'), tierPref('code', 'eco')], nd, pok);
     if (!m) return null;
     return { model: m.id, tier: 'eco', why: note('CORSER 5.0 · code') };
   }
   if (cat === 'code'){
-    const std = TIER_PREF.code.standard.filter(re => !/opus/i.test(String(re)));
-    const m = pickNewest([CORSER_SONNET_RE, ...std, ...TIER_PREF.code.eco], nd, pok);
+    const std = (tierPref('code', 'standard') || []).filter(id => !(roleIds('omega_opus') || []).includes(id));
+    const m = pickNewest([roleIds('corser_sonnet'), std, tierPref('code', 'eco')], nd, pok);
     if (!m) return null;
     return { model: m.id, tier: 'standard', why: note(v.id === 'corser60' ? 'CORSER MAX · code plafonné à Sonnet' : 'CORSER PRO · code') };
   }
@@ -7332,17 +7290,17 @@ function needsOf(atts, conv){
     tools: !!conv?.bot || (S.conn.on && TOOLS.some(t => !['bot', 'mem', 'py'].includes(t.svc) && svcReady(t.svc, conv))) };
 }
 function capable(m, nd){
-  return m && textOnlyOut(m) && !m.id.includes(':') && !isXai(m.id) && !(m.pricing && +m.pricing.prompt < 0)
+  return m && textOnlyOut(m) && !m.variant && !isDirect(m.id) && !(m.pricing && +m.pricing.prompt < 0)
     && (!nd.image || ins(m, 'image')) && (!nd.video || ins(m, 'video')) && (!nd.audio || ins(m, 'audio'))
     && (!nd.file || ins(m, 'file') || ins(m, 'image')) && (!nd.tools || hasParam(m, 'tools'));
 }
-/* OMEGA MAX 9.0 : le modèle le plus cher (GPT-5.5 Pro) reste réservé aux demandes vraiment exigeantes.
+/* OMEGA MAX 9.0 : le modèle le plus puissant reste réservé aux demandes vraiment exigeantes.
    Une question simple de discussion part sur l'Opus le plus récent, s'il coûte moins cher.
    Au moindre doute (longueur, mot-clé exigeant, code, calcul, pièce jointe, plusieurs étapes, longue discussion,
    suite d'une réponse du modèle le plus puissant, demande explicite du max) : le modèle le plus puissant, comme avant.
-   En reprise après échec (altModel), pas de raccourci Opus : le repli va au modèle le plus puissant. */
-const OMEGA_OPUS_RE = /^anthropic\/claude-opus-\d/;
-const OMEGA_MAX_ASK_RE = /(?:^|[^\p{L}])(?:max(?:imum|imal|imale)?|le plus puissant|plus puissant|meilleur modèle|gpt[\s-]*5(?:\.\d)?[\s-]*pro|à fond|en profondeur|approfondi[e]?s?|raisonnement (?:poussé|avancé|complet)|réfléchis(?:-y)? (?:bien|longuement)|prends ton temps|précision maximale|sans erreur)(?![\p{L}])/iu;
+   En reprise après échec (altModel), pas de raccourci : le repli va au modèle le plus puissant. */
+const OMEGA_OPUS_RE = { test: id => roleIds('omega_opus').includes(id) };
+const OMEGA_MAX_ASK_RE = /(?:^|[^\p{L}])(?:max(?:imum|imal|imale)?|le plus puissant|plus puissant|meilleur modèle|à fond|en profondeur|approfondi[e]?s?|raisonnement (?:poussé|avancé|complet)|réfléchis(?:-y)? (?:bien|longuement)|prends ton temps|précision maximale|sans erreur)(?![\p{L}])/iu;
 const OMEGA_STEPS_RE = /(?:^|[^\p{L}])(?:étapes?|d'abord|ensuite|puis(?!-)|enfin|premièrement|deuxièmement|plusieurs|compar(?:e|er|aison)|avantages et inconvénients|pour et contre|plan|liste détaillée|en détail|détaillée?s?|explique pourquoi|justifie)(?![\p{L}])/iu;
 let routeRetry = false;
 function omegaMaxSimple(text, atts, conv, cat, d0, topId){
@@ -7371,23 +7329,24 @@ function routeModel(text, atts, conv, cat, forceTier){
   const pok = m => forceTier || priceOkForPlan(m);
   const cr = corserRoute(text, atts, conv, cat, d, forceTier);
   if (cr) return cr;
-  const prefs = TIER_PREF[cat === 'code' ? 'code' : cat === 'search' ? 'search' : 'generic'];
+  const kind = cat === 'code' ? 'code' : cat === 'search' ? 'search' : 'generic';
+  const prefs = { eco: tierPref(kind, 'eco'), standard: tierPref(kind, 'standard'), max: tierPref(kind, 'max') };
   const order = d.tier === 'eco' ? ['eco', 'standard', 'max'] : d.tier === 'standard' ? ['standard', 'max', 'eco'] : ['max', 'standard', 'eco'];
   if (d.tier === 'max' && !forceTier && typeof planPolicy === 'function' && planPolicy().top){
-    const all = prefs.max.flatMap(re => S.models.filter(x => re.test(x.id) && capable(x, nd) && pok(x)));
+    const all = (prefs.max || []).flatMap(id => S.models.filter(x => x.id === id && capable(x, nd) && pok(x)));
     const best = all.sort((a, b) => priceScore(b, 'chat') - priceScore(a, 'chat'))[0];
     if (best && !routeRetry && omegaMaxSimple(text, atts, conv, cat, d0, best.id)){
-      const opus = S.models.filter(x => OMEGA_OPUS_RE.test(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+      const opus = S.models.filter(x => roleIds('omega_opus').includes(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
       if (opus && opus.id !== best.id && priceScore(opus, 'chat') > 0 && priceScore(opus, 'chat') < priceScore(best, 'chat'))
         return { model: opus.id, tier: 'max', why: (d.why ? d.why + ' · ' : '') + 'OMEGA MAX · question simple' };
     }
     if (best) return { model: best.id, tier: 'max', why: d.why, omegaTop: true };
   }
-  for (const tier of order) for (const re of prefs[tier]){
-    const m = S.models.filter(x => re.test(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+  for (const tier of order) for (const id of (prefs[tier] || [])){
+    const m = S.models.filter(x => x.id === id && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
     if (m) return { model: m.id, tier, why: d.why };
   }
-  const pool = S.models.filter(x => capable(x, nd) && MAJOR.test(x.id) && pok(x)).sort((a, b) => priceScore(a, 'chat') - priceScore(b, 'chat'));
+  const pool = S.models.filter(x => capable(x, nd) && mMajor(x) && pok(x)).sort((a, b) => priceScore(a, 'chat') - priceScore(b, 'chat'));
   if (!pool.length) return null;
   const m = d.tier === 'eco' ? pool[0] : d.tier === 'max' ? pool[pool.length - 1] : pool[Math.floor(pool.length / 2)];
   return { model: m.id, tier: d.tier, why: d.why };
@@ -7930,6 +7889,9 @@ async function exportBackup(){
       conn: { ...S.conn, githubToken: '' },
       keys: null, onboard: srvLocked() ? 'serveur' : '' };
     stripSecrets(data.settings); stripSecrets(data.conn);
+    const found = []; collectModelIds(data, found);
+    const amap = await fetchAliases(found);
+    applyAliasMap(data, amap);
     const blob = new Blob([JSON.stringify(data)], { type:'application/json' });
     await saveBlob(blob, `fsm-ai-hub-sauvegarde-${dayKey()}.json`);
     LS.set('fsm.lastBackup', Date.now()); renderBackupInfo();
@@ -7940,10 +7902,10 @@ async function exportBackup(){
 /* Restauration et marqueur « nouvel utilisateur » (règle la plus sûre) :
    - le marqueur de l'appareil n'est jamais retiré, et une sauvegarde ne contient jamais de clé : une ancienne sauvegarde
      en mode direct ne peut donc pas rétablir le mode direct chez un utilisateur marqué ;
-   - une sauvegarde marquée n'impose le marqueur que si l'appareil n'a aucune clé OpenRouter ni xAI : un utilisateur
+   - une sauvegarde marquée n'impose le marqueur que si l'appareil n'a aucune clé API tierce : un utilisateur
      existant en mode direct avec sa clé n'est jamais bloqué ni privé de sa clé par une restauration. */
 function srvAdoptMarker(data){
-  if (data?.onboard !== 'serveur' || srvLocked() || S.key || S.xaiKey || LS.get('relais.key', '') || LS.get('relais.xaikey', '')) return false;
+  if (data?.onboard !== 'serveur' || srvLocked() || S.key || S.directKey || LS.get('relais.key', '') || LS.get('relais.xaikey', '')) return false;
   LS.set('fsm.onboard', 'serveur'); srvSetConf({ on: true }); srvKeySwitch(); srvRenderUI(); return true;
 }
 async function importBackup(file){
@@ -7951,6 +7913,7 @@ async function importBackup(file){
   try{ data = JSON.parse(await file.text()); }catch(e){ return toast('Fichier illisible : ce n’est pas une sauvegarde FSM AI.'); }
   if (!data || typeof data !== 'object' || data.app !== 'FSM AI' || !Array.isArray(data.convs)) return toast('Ce fichier n’est pas une sauvegarde FSM AI.');
   try{ data = cleanBackup(data); }catch(e){ return toast('Sauvegarde invalide : elle n’a pas pu être vérifiée.'); }
+  try{ const found = []; collectModelIds(data, found); const amap = await fetchAliases(found); applyAliasMap(data, amap); }catch(e){}
   const exp = new Date(data.exported); const expTxt = isNaN(exp) ? 'date inconnue' : exp.toLocaleString('fr-FR', { dateStyle:'long', timeStyle:'short' });
   const mode = await ask({ title:'Restaurer la sauvegarde', body:`<p>Sauvegarde du ${esc(expTxt)} : <b>${data.convs.length}</b> conversation${data.convs.length > 1 ? 's' : ''}, ${data.bot?.facts?.length || 0} souvenir${(data.bot?.facts?.length || 0) > 1 ? 's' : ''}, ${data.projects?.length || 0} projet${(data.projects?.length || 0) > 1 ? 's' : ''}.</p><p class="note">« Fusionner » ajoute ce qui manque sans rien effacer. « Remplacer » efface les données actuelles de cet appareil.</p>`,
     buttons:[{ label:'Fusionner', value:'merge' }, { label:'Tout remplacer', value:'replace', ghost:true, danger:true }, { label:'Annuler', value:null, ghost:true }] });
@@ -7974,7 +7937,7 @@ async function importBackup(file){
   if (data.conn?.googleClientId && !S.conn.googleClientId){ S.conn.googleClientId = data.conn.googleClientId; saveConn(); }
   LS.set('relais.index', S.index); saveSettings(); saveBot(); saveProjects(); LS.set('fsm.ledger', S.ledger);
   srvAdoptMarker(data);
-  mergeXai(); srvLockSanitize(); renderProjects(); refreshModelUI(); newConv(); closeSheets();
+  mergeDirect(); srvLockSanitize(); renderProjects(); refreshModelUI(); newConv(); closeSheets();
   try{ if (S.key) fetchKeyInfo(true); }catch(e){}
   toast(`Sauvegarde restaurée : ${added} conversation${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''}.`);
 }
@@ -8069,36 +8032,25 @@ function planTier(tier, sc, simple){
   return TIERS[i];
 }
 function priceOkForPlan(m){ const pol = planPolicy(); if (pol.free) return true; const out = +(m.pricing?.completion || 0) * 1e6; return !(out > pol.maxOut); }
-var STRONG_IMAGE = [/gemini-2\.5-flash-image|nano-banana(?!-pro)/i, /gemini[\w.-]*image/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*(pro|max)/i, /seedream/i];
-var TOP_IMAGE = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /^openai\/gpt-[\w.-]*image/i];
-var STRONG_VIDEO = [/^google\/veo-3[\w.-]*fast/i, /^bytedance[\w-]*\/seedance-2\.5(?!-mini)/i, /kling[\w.-]*(pro|master)/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2(?!(\.\d)?-mini)/i, /kling/i];
-/* Abonnement Entreprise (CORSER 5.0, PRO, MAX) : Grok Imagine Video 1.5 par défaut pour toutes les vidéos, la version Lite en secours */
-var GROK_VIDEO = [/^x-ai\/grok-imagine-video-1\.5(?![\w.-]*lite)/i, /^x-ai\/grok-imagine-video(?![\w.-]*lite)/i];
-var GROK_IMAGE = [/^x-ai\/grok-imagine-image(?![\w.-]*lite)/i];
-var GROK_LITE = [/^x-ai\/grok-imagine-video[\w.-]*lite/i];
-var ANIM_VIDEO = [/^google\/veo-3\.1[\w.-]*fast/i, /kling[\w.-]*(master|pro)/i, /^google\/veo-3[\w.-]*fast/i, /^google\/veo/i, /^openai\/sora/i, /^bytedance[\w-]*\/seedance-2\.5(?![\w.-]*(mini|lite))/i, /^bytedance[\w-]*\/seedance-2\.2(?![\w.-]*(mini|lite))/i];
-var TOP_VIDEO = [/^google\/veo-3\.1(?![\w.-]*fast)/i, /^openai\/sora-2-pro/i, /^google\/veo-3(?![\w.-]*fast)/i, /^openai\/sora/i, /kling[\w.-]*master/i];
-var STRONG_EDIT = [/gemini-3[\w.-]*pro[\w.-]*image|nano-banana-pro/i, /gemini[\w.-]*image|nano-banana/i, /^openai\/gpt-[\w.-]*image/i, /flux[\w.-]*kontext[\w.-]*(max|pro)/i, /seedream/i];
+function mediaPref(k){ return (S.roles && S.roles.media && S.roles.media[k]) || []; }
 function planPick(catId, opt){
   const cat = catById(catId);
   const list = prefOrder(cat, S.models.filter(cat.filter)).filter(x => x.s < 99 && !isVariant(x.m, cat)).map(x => x.m);
   if (!list.length) return topPick(cat);
   /* Images, retouches et vidéos : des modèles solides et fiables dès l'abonnement Entreprise (jamais de version « mini » ou expérimentale) ;
      les abonnements supérieurs passent aux modèles haut de gamme */
-  /* vidéo : Grok Imagine Video 1.5 par défaut en Entreprise (création et animation), Veo 3.1 Fast / Kling en secours pour les animations ;
-     Compétence et Élite : Veo 3.1 */
   const anim = catId === 'video' && opt?.img;
-  const MEDIA_ORDER = { photoedit: [STRONG_EDIT, STRONG_EDIT], image: [[...GROK_IMAGE, ...STRONG_IMAGE], TOP_IMAGE], video: anim ? [[...GROK_VIDEO, ...ANIM_VIDEO], TOP_VIDEO] : [[...GROK_VIDEO, ...STRONG_VIDEO, ...GROK_LITE], TOP_VIDEO] }[catId];
+  const MEDIA_ORDER = { photoedit: [mediaPref('strong_edit'), mediaPref('strong_edit')], image: [[...mediaPref('direct_image'), ...mediaPref('strong_image')], mediaPref('top_image')], video: anim ? [[...mediaPref('direct_video'), ...mediaPref('anim_video')], mediaPref('top_video')] : [[...mediaPref('direct_video'), ...mediaPref('strong_video'), ...mediaPref('direct_lite')], mediaPref('top_video')] }[catId];
   if (MEDIA_ORDER){
     const top = planPolicy().media === 'best';
-    for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id) && !/(^|[-_.:])(mini|lite|nano|flash-lite)([-_.:]|$)/i.test((x.id.split('/')[1] || '').replace(/^nano-banana/, 'nb'))); if (m) return m; }
-    for (const re of [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]]){ const m = list.find(x => re.test(x.id)); if (m) return m; }
+    const ids = [...(top ? MEDIA_ORDER[1] : []), ...MEDIA_ORDER[0]];
+    for (const id of ids){ const m = list.find(x => x.id === id); if (m) return m; }
     return list[0];
   }
   if (!['image', 'photoedit', 'video'].includes(catId)){ const ok = list.find(priceOkForPlan); if (ok) return ok; }
   return list[0];
 }
-function universalOn(){ return S.set.category === 'chat' && routerOn('chat') && !isXai(S.set.model) && !S.conv?.bot && !S.voiceActive; }
+function universalOn(){ return S.set.category === 'chat' && routerOn('chat') && !isDirect(S.set.model) && !S.conv?.bot && !S.voiceActive; }
 var GEN_V = "(?:génère|génèr|genere|générer|generer|généré|crée|cree|créer|creer|créé|cria|dessine|dessiner|fais|fait|faire|fabrique|réalise|realise|réaliser|produis|produire|imagine|imaginer|illustre|conçois|concevoir|compose|generate|create|draw|make|paint|peins|render|montre[- ]moi|j'aimerais|j aimerais|je veux|je voudrais|il me faut|donne[- ]moi|dibuja|dibujar|disegna|zeichne|desenha|genera|generar|crea|crear|haz|mach|quiero|quero)";
 var IMG_N = "(?:images?|photos?|illustrations?|dessins?|logos?|affiches?|posters?|visuels?|fonds? d'écran|wallpapers?|icônes?|icones?|pictures?|artworks?|avatars?|stickers?|peintures?|tableaux?|portraits?|bannières?|miniatures?|thumbnails?|flyers?|croquis|esquisses?|caricatures?|mangas? style|pochettes?|couvertures?|mockups?|maquettes? visuelles?|imagen(?:es)?|foto|fotos|dibujo|dibujos|bild|bilder|imagem|imagens)";
 var VID_N = "(?:vidéos?|videos?|clips?|animations?|courts?[- ]métrages?|séquences? vidéo|films? court|spots?|teasers?|bandes?[- ]annonces?|trailers?|reels?|gifs? animés?|vídeos?|peliculas? cortas?|video)";
@@ -8235,7 +8187,7 @@ function universalRoute(text, atts, conv, forceCat){
   if (r && !['image', 'video', 'photoedit', 'videoedit'].includes(cat) && !SMALLTALK_RE.test(text || '') && String(text || '').length < 260){
     const prev = [...(conv?.messages || [])].reverse().find(x => x.role === 'assistant' && !x.error && x.mode === 'chat' && x.text);
     const pt = prev?.route?.tier, pm = prev && modelInfo(prev.model);
-    if (pt && pm && !isXai(prev.model) && TIERS.indexOf(pt) > TIERS.indexOf(r.tier) && capable(pm, needsOf(atts, conv)) && priceOkForPlan(pm) && ['chat', 'reason', 'code', 'search', 'vision'].includes(prev.route.cat || prev.cat)){
+    if (pt && pm && !isDirect(prev.model) && TIERS.indexOf(pt) > TIERS.indexOf(r.tier) && capable(pm, needsOf(atts, conv)) && priceOkForPlan(pm) && ['chat', 'reason', 'code', 'search', 'vision'].includes(prev.route.cat || prev.cat)){
       r.model = prev.model; r.tier = pt; r.why = (r.why ? r.why + ' · ' : '') + 'continuité de la discussion'; model = r.model;
     }
   }
@@ -8277,7 +8229,7 @@ function outputCue(text, atts){
 function isFreePlan(){ return S.set.plan === 'free'; }
 var FREE_NO_VIDEO = "La génération de vidéos n'est pas incluse dans l'abonnement FSM AI Free. Passe à Entreprise, Compétence ou Élite pour créer des vidéos.";
 function freeImageModel(needInput){
-  const pool = S.models.filter(m => outs(m, 'image') && !outs(m, 'video') && !isXai(m.id) && !(catById('adult').filter(m) && !textOnlyOut(m)) && priceScore(m, 'image') >= 0);
+  const pool = S.models.filter(m => outs(m, 'image') && !outs(m, 'video') && !isDirect(m.id) && !(catById('adult').filter(m) && !textOnlyOut(m)) && priceScore(m, 'image') >= 0);
   const cost = m => /:free$/.test(m.id) ? 0 : (priceScore(m, 'image') || 999);
   const one = pool.sort((a, b) => cost(a) - cost(b) || (b.created || 0) - (a.created || 0))[0] || null;
   if (needInput && one && !ins(one, 'image')) return null;
@@ -8286,15 +8238,14 @@ function freeImageModel(needInput){
 var sizeB = id => { const m = String(id).match(/(\d+(?:\.\d+)?)b(?![a-z])/i); return m ? +m[1] : 0; };
 function freeTextModel(cat, atts, conv, tier){
   const nd = needsOf(atts || [], conv);
-  const ok = m => isFree(m) && textOnlyOut(m) && !isXai(m.id) && !ADULT_RE.test(m.id)
+  const ok = m => isFree(m) && textOnlyOut(m) && !isDirect(m.id) && !m.adult
     && (!nd.image || ins(m, 'image')) && (!nd.video || ins(m, 'video')) && (!nd.audio || ins(m, 'audio')) && (!nd.file || ins(m, 'file') || ins(m, 'image')) && (!nd.tools || hasParam(m, 'tools'));
   let pool = S.models.filter(ok);
-  if (!pool.length && nd.tools) pool = S.models.filter(m => isFree(m) && textOnlyOut(m) && !isXai(m.id) && !ADULT_RE.test(m.id) && (!nd.image || ins(m, 'image')));
+  if (!pool.length && nd.tools) pool = S.models.filter(m => isFree(m) && textOnlyOut(m) && !isDirect(m.id) && !m.adult && (!nd.image || ins(m, 'image')));
   if (!pool.length) return null;
-  const SPEC = { code:/coder|devstral|codestral|qwen3|deepseek|kimi|glm/i, reason:/r1|think|qwq|reason|deepseek|magistral|o\d/i, agents:/kimi|glm|deepseek|qwen3|llama-4|gpt-oss/i, vision:/vl|vision|gemini|gemma-3|llama-4|mistral-small|pixtral/i, videoin:/gemini|vl|omni/i, audio:/gemini|voxtral|omni/i, videoedit:/gemini|vl|omni/i };
   const now = Date.now() / 1000;
-  const score = m => (MAJOR.test(m.id) ? 120 : 0) + (SPEC[cat] && SPEC[cat].test(m.id) ? 220 : 0) + Math.max(0, 120 - (now - (m.created || 0)) / 86400 / 6)
-    + (tier === 'max' ? Math.min(160, sizeB(m.id) / 3) + Math.min(60, (m.context_length || 0) / 4000) : tier === 'eco' ? -Math.min(80, sizeB(m.id) / 6) : Math.min(60, sizeB(m.id) / 8));
+  const score = m => (mMajor(m) ? 120 : 0) + ((m.cats && m.cats[cat]) ? Math.max(0, 200 - (m.cats[cat].pref ?? 99) * 8) : 0) + Math.max(0, 120 - (now - (m.created || 0)) / 86400 / 6)
+    + (tier === 'max' ? Math.min(60, (m.context_length || 0) / 4000) : 0);
   return pool.sort((a, b) => score(b) - score(a))[0];
 }
 function freeRoute(text, atts, conv, cat, forceTier){
@@ -8332,7 +8283,7 @@ function planLater(){ try{ return sessionStorage.getItem('fsm.planLater') === '1
 
 
 /* =====================================================================
-   7. CLÉ FSM AI : plafond, consommation réelle et abonnement détectés via OpenRouter
+   7. CLÉ FSM AI : plafond, consommation réelle et abonnement détectés via l'API
    ===================================================================== */
 S.keyInfo = LS.get('fsm.keyinfo', null);
 if (S.keyInfo && S.keyInfo.k !== keyTag(S.key)) S.keyInfo = null;
@@ -8404,7 +8355,7 @@ function renderKeyStat(){
 }
 function keyExhausted(){ const sl = srvLim(); if (sl) return !!sl.keyExhausted; const ki = S.keyInfo; return !!(ki && ki.limit != null && ki.limit > 0 && ki.remaining != null && ki.remaining <= 0.005); }
 /* Limite hebdomadaire : 30 % du crédit de l'abonnement par semaine (UTC, du lundi au lundi), pour ne pas épuiser le mois en quelques jours.
-   Le plafond mensuel reste imposé par OpenRouter sur la clé. */
+   Le plafond mensuel reste celui de la clé API. */
 const WEEK_SHARE = 0.30;
 function weekQuota(){ const sl = srvLim(); if (sl) return sl.weekQuotaSet ? 1 : 0; const ki = S.keyInfo; return ki && ki.limit > 0 && ['entreprise', 'competence', 'elite'].includes(S.set.plan) ? ki.limit * WEEK_SHARE : 0; }
 function weekRatio(){ const sl = srvLim(); if (sl) return sl.weekRatio == null ? null : +sl.weekRatio; const q = weekQuota(); return q ? effectiveWeekly() / q : null; }
@@ -8535,7 +8486,7 @@ document.addEventListener('click', e => { if (!$('#balPop').hidden && !e.target.
 
 
 /* =====================================================================
-   8. CLÉ DE GESTION OPENROUTER : supprimée de l'app.
+   8. CLÉ DE GESTION : supprimée de l'app.
       L'app ne demande, ne garde et n'envoie jamais de clé de gestion (Management key).
       La gestion des clés clients se fait uniquement côté serveur FSM AI.
       Nettoyage des anciennes versions : on efface toute trace éventuelle dans ce navigateur.
@@ -8639,7 +8590,7 @@ function goTarget(text){
 var MEDIA_CLAIM_RE = /(j'ai (?:bien )?(?:généré|genere|créé|cree|retouché|modifié|ajouté|dessiné|réalisé|produit|transformé)|(?:image|photo|illustration|version|visuel)s? (?:générée?|créée?|retouchée?|modifiée?)|générée? à partir de|si l'image ne s'affiche pas|voici (?:le|la|l'|ton|ta|votre|une|un|les|tes|vos) [^.\n]{0,40}(?:avec|portant|qui porte|coiffé|habillé|en train|sur fond|version)|je ne (?:peux|suis) pas (?:en mesure de )?(?:générer|créer|produire|modifier|retoucher|dessiner)[^.\n]{0,20}(?:image|photo|visuel|dessin|illustration)|(?:pas|aucun) d'outil|je n'ai pas (?:accès|la possibilité|la capacité|les moyens)[^.\n]{0,40}(?:image|photo|retouche|générer|modifier)|ne dispose pas[^.\n]{0,40}(?:image|photo|retouche|outil)|consigne que (?:vous pouvez|tu peux) (?:renvoyer|copier|utiliser)|affirmé avoir (?:modifié|généré|créé|retouché))/i;
 var DESCRIBE_RE = /(décri|decri|analyse|que vois|qu'est-ce qu|que représente|explique|lis |résume|traduis|identifie|reconnais|c'est quoi|qui est)/i;
 async function mediaFix(user, conv, asst){
-  if (S.voiceActive || conv.bot || isXai(asst.model)) return null;
+  if (S.voiceActive || conv.bot || isDirect(asst.model)) return null;
   if (mediaCapped()) return null;
   if (!MEDIA_CLAIM_RE.test(asst.text || '')) return null;
   /* jeu ou page codée : « j'ai créé le jeu » n'est pas une image manquante */
@@ -8906,7 +8857,7 @@ function enforceClientMode(){
     let ch = false;
     if (S.set.router === false || S.set.routerOff){ S.set.router = true; S.set.routerOff = false; ch = true; }
     if (!S.conv?.bot && S.set.category !== 'chat'){ applyPreset(catById('chat')); ch = true; }
-    if (isXai(S.set.model) || modeFor(S.set.model) !== 'chat'){ S.set.model = DEFAULTS.model; ch = true; }
+    if (isDirect(S.set.model) || modeFor(S.set.model) !== 'chat'){ S.set.model = DEFAULTS.model; ch = true; }
     if (ch){ saveSettings(); try{ refreshModelUI(); }catch(e){} }
   }
 }
@@ -8924,7 +8875,7 @@ function canFallback(e, asst, attempt){
   if (attempt >= 2 || !e || e.name === 'AbortError' || e.limit) return false;
   if (e.status === 401 || e.status === 402) return false;
   if (e instanceof TypeError && /fetch|network|load/i.test(e.message)) return false;
-  if (isXai(asst.model) || asst.cat === 'videoedit' || S.voiceActive) return false;
+  if (isDirect(asst.model) || asst.cat === 'videoedit' || S.voiceActive) return false;
   return !!(asst.route?.universal || routerOn(asst.cat || '') || !isOwner());
 }
 function altModel(asst, user, conv, exclude){
@@ -9243,11 +9194,10 @@ function applyUnlock(){
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-unlock]')){ e.preventDefault(); confirmUnlock(); } });
 /* Classement court des demandes floues (9 novembre 2026).
-   Payant : google/gemini-2.5-flash est toujours au catalogue OpenRouter, et moins cher que les Flash plus récents : inchangé.
-   Free : google/gemini-2.5-flash:free répond 404. Remplacement à prix nul, sans date de retrait, avec response_format : google/gemma-4-26b-a4b-it:free.
+   Payant : le modèle classifieur habituel. Free : le modèle gratuit du catalogue.
    Ce dépôt ne contient pas le worker. FREE_CHAT_MODEL n'y est pas défini. */
-const PLAN_MODEL = 'google/gemini-2.5-flash';
-const PLAN_MODEL_FREE = 'google/gemma-4-26b-a4b-it:free';
+function planModelId(){ return (S.roles && S.roles.plan) || ''; }
+function planModelFreeId(){ return (S.roles && S.roles.plan_free) || ''; }
 const PLAN_SYS = 'Tu classes une demande. Réponds uniquement par un JSON compact {"kind":"direct"|"explore","format":"texte"|"code"|"image"|"video","ask":false,"summary":"","options":[],"questions":[]}. direct = action claire. explore = idée floue, projet, jeu à concevoir, vidéo de marque ou demande en plusieurs étapes. format = modalité : code pour jeu, schéma, mermaid, graphique, tableau, SVG ou interface ; image ou video seulement si la demande le dit explicitement ; sinon texte. ask = true seulement en cas de vrai doute sur la modalité, l\'objectif ou un paramètre indispensable : une seule question, 2 ou 3 options, dans questions. Une demande claire a ask false. Pas de montant.';
 function planKind(text){
   const n = normIntent(text); if (!n) return null;
@@ -9298,7 +9248,7 @@ function planExecText(text, plan){ return planAskText(text, plan) + '\n\nL\'util
 async function classifyRemote(text){
   if (!S.key) return null;
   const free = typeof freeOnly === 'function' && freeOnly();
-  const model = free ? PLAN_MODEL_FREE : PLAN_MODEL;
+  const model = free ? planModelFreeId() : planModelId();
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 3000);
   try{
     const body = { model, temperature:0, max_tokens:350, messages:[{ role:'system', content: PLAN_SYS }, { role:'user', content: String(text || '').slice(0, 2000) }] };
@@ -9309,7 +9259,7 @@ async function classifyRemote(text){
     if (j && j.model && j.model !== model) return null;
     let usd = j.usage && j.usage.cost != null ? +j.usage.cost : 0;
     if (!(usd > 0)){ const est = estTokens(model, j.usage); if (est) usd = est; }
-    if (usd > 0) accountOpenRouter(usd, 'chat');
+    if (usd > 0) accountSpend(usd, 'chat');
     return parsePlanJson((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '');
   }catch(e){ return null; }
   finally{ clearTimeout(timer); }
@@ -9364,6 +9314,7 @@ function visibleMoneyHits(){
   }
   return bad;
 }
+/* === FSM_SELFTEST_START === */
 const TEST_LS_KEYS = ['fsm.unlock', 'fsm.weekbase'];
 function lsSnapshot(keys){ const o = {}; for (const k of keys){ try{ o[k] = localStorage.getItem(k); }catch(e){ o[k] = null; } } return o; }
 function lsRestore(snap){ for (const k of Object.keys(snap)){ try{ if (snap[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, snap[k]); }catch(e){} } }
@@ -9371,9 +9322,9 @@ function lsRestore(snap){ for (const k of Object.keys(snap)){ try{ if (snap[k] =
 async function withLsGuard(keys, fn){ const snap = lsSnapshot(keys); try{ return await fn(); } finally{ lsRestore(snap); } }
 /* les suites testent aussi le mode direct : le marqueur de l'appareil est retiré pendant les tests puis remis */
 async function testsUnlocked(fn){
-  const m = localStorage.getItem('fsm.onboard'); const k = { key: S.key, xaiKey: S.xaiKey };
+  const m = localStorage.getItem('fsm.onboard'); const k = { key: S.key, xaiKey: S.directKey };
   try{ localStorage.removeItem('fsm.onboard'); document.documentElement.classList.remove('srv-lock'); return await fn(); }
-  finally{ if (m != null) localStorage.setItem('fsm.onboard', m); if (srvLocked()){ S.key = k.key; S.xaiKey = k.xaiKey; srvLockSanitize(); } srvRenderUI(); }
+  finally{ if (m != null) localStorage.setItem('fsm.onboard', m); if (srvLocked()){ S.key = k.key; S.directKey = k.xaiKey; srvLockSanitize(); } srvRenderUI(); }
 }
 async function runProductTests(){ return testsUnlocked(runProductTests0); }
 async function runSecurityTests(){ return testsUnlocked(runSecurityTests0); }
@@ -9672,7 +9623,7 @@ async function productTestsBody(){
   const top = document.querySelector('#settingsSheet .field')?.innerText || '';
   ok('réglages du haut intacts', /Clé API FSM AI/.test(top) && !!$('#apiKey') && $('#btnShowKey')?.textContent === 'Afficher' && /Une clé API FSM AI est nécessaire/.test(top) && /Limites d'utilisation/.test($('#btnUsage')?.innerText || ''));
   ok('curseur température retiré', !$('#temp') && !$('#tempVal') && !/Température/.test($('#settingsSheet')?.innerText || '') && !('temperature' in DEFAULTS));
-  ok('chat sans température forcée', !/S\.set\.temperature/.test(Function.prototype.toString.call(runChat) + Function.prototype.toString.call(runXaiChat) + Function.prototype.toString.call(runXaiSearch)));
+  ok('chat sans température forcée', !/S\.set\.temperature/.test(Function.prototype.toString.call(runChat) + Function.prototype.toString.call(runDirectChat) + Function.prototype.toString.call(runDirectSearch)));
   ok('températures internes conservées', /temperature:\s*0\.2/.test(Function.prototype.toString.call(runWatch)) && /temperature:\s*0\.2/.test(Function.prototype.toString.call(runVideoEdit)) && /temperature:\s*0[,}]/.test(Function.prototype.toString.call(classifyRemote)));
   {
     const bag = { temperature: 1.4, web: true, system: 'garde' };
@@ -10088,7 +10039,7 @@ async function productTestsBody(){
   const vidCard = genCardHtml({ status: 'Génération de la vidéo', vidAspect: '16:9' }, 'video');
   const devCard = devCardHtml('canvas', 'html');
   ok('image sans compteur', imgCard.includes('class="gc-mark"') && !imgCard.includes('gc-time') && imgCard.includes('gc-bar') && !/\d+:\d{2}/.test(imgCard));
-  ok('image : réflexion en cours', /<span class="gc-title">Réflexion en cours<\/span>/.test(imgCard) && !/Création de l'image/.test(imgCard) && !/Réflexion en cours · /.test(imgCard) && /aria-label="Réflexion en cours"/.test(imgCard) && !/en cours en cours/.test(imgCard) && !/Création de l'image/.test(genCardHtml({ status: "Création de l'image avec Grok…" }, 'image')) && !/ · /.test(genCardHtml({ status: "Création de l'image avec Grok…" }, 'image').split('gc-msg')[1] || ''));
+  ok('image : réflexion en cours', /<span class="gc-title">Réflexion en cours<\/span>/.test(imgCard) && !/Création de l'image/.test(imgCard) && !/Réflexion en cours · /.test(imgCard) && /aria-label="Réflexion en cours"/.test(imgCard) && !/en cours en cours/.test(imgCard) && !/Création de l'image/.test(genCardHtml({ status: "Création de l'image…" }, 'image')) && !/ · /.test(genCardHtml({ status: "Création de l'image…" }, 'image').split('gc-msg')[1] || ''));
   { const srvImg = genCardHtml({ status: srvStepMsg({}, 'image'), imgAspect: '1:1' }, 'image'), oldSrv = genCardHtml({ status: "Création de l'image sur le serveur FSM AI…" }, 'image');
     const sub = c => (c.match(/<div class="gc-sub">([\s\S]*?)<\/div>/) || [])[1] || '';
     const txt = c => sub(c).replace(/<[^>]+>/g, '');
@@ -10108,7 +10059,7 @@ async function productTestsBody(){
   ok('mouvement réduit', /prefers-reduced-motion:\s*reduce/.test(css) && /gc-mark::before\{animation:none!important\}/.test(css) && /\.gc-bar i\{/.test(css));
   /* ===== Fenêtre fermée, étape 1 : sauvegarde en direct, vidéo Grok, file d'attente, écran allumé, interruption ===== */
   {
-    const keepIdx = S.index.slice(), keepLS = localStorage.getItem('relais.index'), keepXf = xfetch, keepConv = S.conv;
+    const keepIdx = S.index.slice(), keepLS = localStorage.getItem('relais.index'), keepXf = dFetch, keepConv = S.conv;
     const tid = 'test-fc-' + uid(), wait = ms => new Promise(r => setTimeout(r, ms));
     try{
       const cv = { id: tid, title: 'Test fenêtre fermée', messages: [{ id: uid(), role:'user', text:'bonjour', atts: [] }], t: Date.now() };
@@ -10139,7 +10090,7 @@ async function productTestsBody(){
       await wait(60);
       /* file d'attente gardée, restaurée sans envoi automatique */
       const qconv = { id: tid, title: cv.title, messages: cv.messages.slice(0, 1), t: Date.now() };
-      qconv._queue = [{ id:'q1', text:'message en attente', atts:[{ id:'a1', name:'x.png', type:'image/png', data:'data:image/png;base64,AAAA', _framesP: Promise.resolve([]) }], model:'openrouter/auto', cat:'chat', _tmp: () => 1 }];
+      qconv._queue = [{ id:'q1', text:'message en attente', atts:[{ id:'a1', name:'x.png', type:'image/png', data:'data:image/png;base64,AAAA', _framesP: Promise.resolve([]) }], model:'fsm_auto', cat:'chat', _tmp: () => 1 }];
       await saveConv(qconv, true);
       const qs = await DB.get('conv:' + tid);
       ok('file en attente enregistrée', qs?.queue?.length === 1 && qs.queue[0].text === 'message en attente' && !!qs.queue[0].atts[0].data && !('_framesP' in qs.queue[0].atts[0]) && !('_tmp' in qs.queue[0]) && !('_queue' in qs), JSON.stringify(qs?.queue || null).slice(0, 160));
@@ -10153,7 +10104,7 @@ async function productTestsBody(){
       ok('file vidée = rien à garder', queueToStore([]).length === 0 && queueToStore(null).length === 0 && queueToStore([{ id:'z', text:'t', atts:[], el: document.createElement('div') }]).length === 0);
       /* vidéo Grok : identifiant gardé, reprise du suivi sans nouvelle demande payante */
       const calls = [];
-      xfetch = async (url, o) => {
+      dFetch = async (url, o) => {
         calls.push((o?.method || 'GET') + ' ' + String(url).replace(XAI, ''));
         if (/\/videos\/generations$/.test(url)) return new Response(JSON.stringify({ request_id:'req-test' }), { status:200 });
         return new Response(JSON.stringify({ status:'done', video:{ url:'data:video/mp4;base64,AAAA', duration: 1 } }), { status:200 });
@@ -10162,16 +10113,16 @@ async function productTestsBody(){
       const mk = () => ({ id: uid(), role:'assistant', text:'', images:[], videos:[], sources:[], model:'grok-imagine-video', mode:'video', status:'' });
       const xa = mk(); Object.defineProperty(xa, '_conv', { value: xc }); xc.messages.push(xa);
       const xb = mk(); Object.defineProperty(xb, '_job', { value: { xai:'req-old', t0: Date.now() - 60000 }, writable:true, configurable:true });
-      const p1 = runXaiVideo(xa, xc.messages[0], new AbortController().signal);
+      const p1 = runDirectVideo(xa, xc.messages[0], new AbortController().signal);
       await wait(80);
       const xs = await DB.get('conv:' + xc.id);
-      const p2 = runXaiVideo(xb, { atts: [] }, new AbortController().signal);
+      const p2 = runDirectVideo(xb, { atts: [] }, new AbortController().signal);
       await Promise.all([p1, p2]);
-      xfetch = keepXf;
+      dFetch = keepXf;
       ok('identifiant vidéo Grok enregistré', xs?.messages?.[1]?.job?.xai === 'req-test' && !xa.job && xa.videos.length === 1, JSON.stringify(xs?.messages?.[1]?.job || null));
       ok('vidéo Grok reprise sans nouvelle demande', calls.filter(c => /^POST \/videos\/generations/.test(c)).length === 1 && calls.includes('GET /videos/req-test') && calls.includes('GET /videos/req-old') && xb.videos.length === 1, calls.join(' ; '));
       const rjSrc = Function.prototype.toString.call(resumeJob);
-      ok('reprise au démarrage pour Grok', /m\.job\.xai \? runXaiVideo : runVideo/.test(rjSrc) && /xai: m\.job\.xai/.test(rjSrc) && /asst\._job\?\.url/.test(Function.prototype.toString.call(runVideo)));
+      ok('reprise au démarrage pour Grok', /m\.job\.xai \? runDirectVideo : runVideo/.test(rjSrc) && /xai: m\.job\.xai/.test(rjSrc) && /asst\._job\?\.url/.test(Function.prototype.toString.call(runVideo)));
       /* écran allumé : Wake Lock si possible, aucune erreur sinon */
       const wl = { req: 0, rel: 0 }, n0w = WAKE.n, own = Object.getOwnPropertyDescriptor(navigator, 'wakeLock');
       let held = false, threw = false;
@@ -10187,7 +10138,7 @@ async function productTestsBody(){
       ok('écran maintenu allumé (Wake Lock)', (document.visibilityState !== 'visible' || held) && wl.rel === wl.req && !threw && WAKE.n === n0w && (n0w || !WAKE.lock), JSON.stringify({ held, wl, n: WAKE.n }));
     }catch(e){ ok('fenêtre fermée : exception', false, e?.message || e); }
     finally{
-      xfetch = keepXf; S.conv = keepConv;
+      dFetch = keepXf; S.conv = keepConv;
       await wait(60);
       await DB.del('conv:' + tid); await DB.del('conv:' + tid + 'x');
       S.index = keepIdx; if (keepLS == null) localStorage.removeItem('relais.index'); else localStorage.setItem('relais.index', keepLS);
@@ -10196,7 +10147,7 @@ async function productTestsBody(){
   }
   /* ===== Revue PR #15 : vidéo arrêtée, reprise après 30 min, second onglet ===== */
   {
-    const keepXf = xfetch, keepF = window.fetch, wait = ms => new Promise(r => setTimeout(r, ms));
+    const keepXf = dFetch, keepF = window.fetch, wait = ms => new Promise(r => setTimeout(r, ms));
     const tid = 'test-r15-' + uid();
     try{
       /* 1. une vidéo arrêtée par l'utilisateur n'est jamais reprise */
@@ -10207,12 +10158,12 @@ async function productTestsBody(){
       ok('vidéo arrêtée jamais reprise', !svm._resuming && !svm.job && !svm.error && /AbortError'\)\{ asst\.stopped = true; if \(asst\._job\) asst\._job = null; delete asst\.job; \}/.test(runSrc), JSON.stringify(svm));
       /* 2. reprise d'une vidéo lancée il y a plus de 30 minutes : un état est demandé avant d'abandonner */
       const calls = [];
-      xfetch = async (url, o) => { calls.push((o?.method || 'GET') + ' ' + String(url).replace(XAI, '')); return new Response(JSON.stringify({ status:'done', video:{ url:'data:video/mp4;base64,AAAA', duration: 1 } }), { status:200 }); };
+      dFetch = async (url, o) => { calls.push((o?.method || 'GET') + ' ' + String(url).replace(XAI, '')); return new Response(JSON.stringify({ status:'done', video:{ url:'data:video/mp4;base64,AAAA', duration: 1 } }), { status:200 }); };
       const xo = { id: uid(), role:'assistant', text:'', images:[], videos:[], sources:[], model:'grok-imagine-video', mode:'video', status:'' };
       Object.defineProperty(xo, '_job', { value: { xai:'req-31', t0: Date.now() - 31 * 60000 }, writable:true, configurable:true });
       const tA = Date.now(); let xe = null;
-      try{ await runXaiVideo(xo, { atts: [] }, new AbortController().signal); }catch(e){ xe = e.message; }
-      xfetch = keepXf;
+      try{ await runDirectVideo(xo, { atts: [] }, new AbortController().signal); }catch(e){ xe = e.message; }
+      dFetch = keepXf;
       ok('reprise Grok après 30 min : état vérifié d\'abord', !xe && xo.videos.length === 1 && calls.length === 1 && calls[0] === 'GET /videos/req-31' && Date.now() - tA < 4000, (xe || '') + ' ' + calls.join(';'));
       const oc = [];
       window.fetch = async (url, o) => { oc.push(String(url)); if (/\/videos\/old-job$/.test(url)) return new Response(JSON.stringify({ status:'completed', unsigned_urls:['https://example.invalid/v.mp4'] }), { status:200 }); return new Response(new Blob([new Uint8Array([0,0,0,24])], { type:'video/mp4' }), { status:200 }); };
@@ -10245,7 +10196,7 @@ async function productTestsBody(){
       ok('sans Web Locks : comportement inchangé', fb && locksOk() === ('locks' in navigator && !!navigator.locks));
     }catch(e){ ok('revue PR #15 : exception', false, e?.message || e); }
     finally{
-      xfetch = keepXf; window.fetch = keepF;
+      dFetch = keepXf; window.fetch = keepF;
       await wait(60);
       for (const k of ['', 's']) await DB.del('conv:' + tid + k);
     }
@@ -10266,7 +10217,7 @@ async function productTestsBody(){
   {
     const appKeys = () => { const a = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i) || ''; if (/^(relais|fsm)\./.test(k)) a.push(k); } return a; };
     const before = lsSnapshot(appKeys());
-    const keep = { key: S.key, keyInfo: S.keyInfo, keyState: S.keyState, conv: S.conv, lim: S.srvLimits, xaiKey: S.xaiKey, model: S.set.model, cat: S.set.category, botModel: S.bot.model, sheetCat: S.sheetCat };
+    const keep = { key: S.key, keyInfo: S.keyInfo, keyState: S.keyState, conv: S.conv, lim: S.srvLimits, xaiKey: S.directKey, model: S.set.model, cat: S.set.category, botModel: S.bot.model, sheetCat: S.sheetCat };
     const clearApp = () => { for (const k of appKeys()) localStorage.removeItem(k); };
     const KEY = 'sk-or-v1-existinguserkey0000000000000000';
     try{
@@ -10294,7 +10245,7 @@ async function productTestsBody(){
       /* envoi sans code : on guide vers le code, jamais vers le mode direct */
       clearApp(); srvBootDefault(); S.key = ''; S.conv = null; renderThread();
       const m0 = S.set.model, in0 = $('#input').value;
-      if (isXai(S.set.model)) S.set.model = 'openai/gpt-4o-mini';
+      if (isDirect(S.set.model)) S.set.model = 'openai/gpt-4o-mini';
       $('#input').value = 'Bonjour'; await send();
       const tt = $('#toast').textContent; closeSheets(); $('#input').value = in0; S.set.model = m0;
       ok('envoi sans code : aide vers le code FSM AI uniquement, mode serveur gardé', /code FSM AI/.test(tt) && !/propre clé|OpenRouter|mode direct/i.test(tt) && srvConf().on === true && srvNeedCode(), tt);
@@ -10315,35 +10266,35 @@ async function productTestsBody(){
       ok('utilisateur existant en mode direct choisi : il le garde', srvBootDefault() === false && srvConf().on === false);
       /* ----- utilisateur marqué (nouvel utilisateur) : mode direct masqué et inaccessible ----- */
       const hid = el => !!el && getComputedStyle(el.closest('.lock-hide') || el).display === 'none';
-      clearApp(); S.key = ''; S.xaiKey = ''; srvBootDefault();
+      clearApp(); S.key = ''; S.directKey = ''; srvBootDefault();
       ok('nouvel utilisateur : marqueur permanent posé', LS.get('fsm.onboard', '') === 'serveur' && srvLocked());
       srvSetConf({ on: false }); saveSettings(); saveBot(); LS.set('fsm.srv', Object.assign(LS.get('fsm.srv', {}), { base: SRV_DEFAULT }));
       const b5 = srvBootDefault();
       ok('marqueur conservé après enregistrement des réglages et redémarrage, mode serveur imposé', b5 === false && srvLocked() && srvConf().on === true && LS.get('fsm.srv', {}).on === true);
       srvRenderUI(); openSettings(false);
-      const vis = { toggle: hid($('#srvOn')), key: hid($('#apiKey')), plan: hid($('#planSel')), xai: hid($('#xaiKey')), grok: hid($('#botGrokApi')), code: $('#srvCode').offsetParent !== null };
+      const vis = { toggle: hid($('#srvOn')), key: hid($('#apiKey')), plan: hid($('#planSel')), xai: hid($('#directKey')), grok: hid($('#botDirectApi')), code: $('#srvCode').offsetParent !== null };
       ok('utilisateur marqué : ni case « Mode serveur », ni champ de clé OpenRouter/xAI, ni abonnement ; le code reste visible', vis.toggle && vis.key && vis.plan && vis.xai && vis.grok && vis.code && document.documentElement.classList.contains('srv-lock'), JSON.stringify(vis));
       $('#apiKey').value = KEY; $('#apiKey').dispatchEvent(new Event('input'));
-      $('#xaiKey').value = 'xai-tapee00000000000'; $('#xaiKey').dispatchEvent(new Event('input'));
+      $('#directKey').value = 'xai-tapee00000000000'; $('#directKey').dispatchEvent(new Event('input'));
       $('#srvOn').checked = false; $('#srvOn').dispatchEvent(new Event('change'));
-      ok('utilisateur marqué : clé saisie ignorée, case ignorée, mode serveur gardé', localStorage.getItem('relais.key') === null && localStorage.getItem('relais.xaikey') === null && S.key === '' && S.xaiKey === '' && $('#apiKey').value === '' && $('#srvOn').checked === true && srvConf().on === true);
+      ok('utilisateur marqué : clé saisie ignorée, case ignorée, mode serveur gardé', localStorage.getItem('relais.key') === null && localStorage.getItem('relais.xaikey') === null && S.key === '' && S.directKey === '' && $('#apiKey').value === '' && $('#srvOn').checked === true && srvConf().on === true);
       closeSheets();
-      S.set.model = 'xai:grok-4.7'; S.set.category = 'xai'; S.xaiKey = 'xai-force0000000000'; S.sheetCat = 'xai';
-      srvLockSanitize(); mergeXai(); renderCats();
-      ok('utilisateur marqué : aucun modèle xAI direct (liste, catégorie, modèle choisi)', !S.models.some(m => isXai(m.id)) && !isXai(S.set.model) && S.set.category !== 'xai' && S.xaiKey === '' && !$('#cats [data-cat="xai"]') && S.sheetCat !== 'xai');
+      S.set.model = 'xai:grok-4.7'; S.set.category = 'direct'; S.directKey = 'xai-force0000000000'; S.sheetCat = 'direct';
+      srvLockSanitize(); mergeDirect(); renderCats();
+      ok('utilisateur marqué : aucun modèle xAI direct (liste, catégorie, modèle choisi)', !S.models.some(m => isDirect(m.id)) && !isDirect(S.set.model) && S.set.category !== 'xai' && S.directKey === '' && !$('#cats [data-cat="xai"]') && S.sheetCat !== 'xai');
       ok('sauvegarde : le marqueur est exporté et relu, jamais retiré par une restauration', cleanBackup({ app: 'FSM AI', convs: [], onboard: 'serveur' }).onboard === 'serveur' && cleanBackup({ app: 'FSM AI', convs: [] }).onboard === '' && /onboard: srvLocked\(\) \? 'serveur'/.test(Function.prototype.toString.call(exportBackup)) && !/removeItem\('fsm\.onboard'/.test(Function.prototype.toString.call(importBackup)) && /srvLockSanitize\(\)/.test(Function.prototype.toString.call(importBackup)) && /srvAdoptMarker\(data\)/.test(Function.prototype.toString.call(importBackup)));
       /* ----- utilisateur existant non marqué : tout reste visible, clés intactes ----- */
       clearApp(); LS.set('relais.key', KEY); LS.set('relais.xaikey', 'xai-existing00000000');
-      const b6 = srvBootDefault(); S.key = LS.get('relais.key', ''); S.xaiKey = LS.get('relais.xaikey', ''); S.sheetCat = 'chat';
-      srvRenderUI(); openSettings(false); mergeXai(); renderCats();
-      const vis2 = { toggle: hid($('#srvOn')), key: hid($('#apiKey')), plan: hid($('#planSel')), xai: hid($('#xaiKey')) };
-      ok('utilisateur existant non marqué : case, clés, abonnement et modèles xAI visibles, clés intactes', b6 === false && !srvLocked() && !document.documentElement.classList.contains('srv-lock') && !vis2.toggle && !vis2.key && !vis2.plan && !vis2.xai && $('#apiKey').value === KEY && $('#xaiKey').value === 'xai-existing00000000' && LS.get('relais.key', '') === KEY && S.models.some(m => isXai(m.id)) && !!$('#cats [data-cat="xai"]'), JSON.stringify(vis2));
+      const b6 = srvBootDefault(); S.key = LS.get('relais.key', ''); S.directKey = LS.get('relais.xaikey', ''); S.sheetCat = 'chat';
+      srvRenderUI(); openSettings(false); mergeDirect(); renderCats();
+      const vis2 = { toggle: hid($('#srvOn')), key: hid($('#apiKey')), plan: hid($('#planSel')), xai: hid($('#directKey')) };
+      ok('utilisateur existant non marqué : case, clés, abonnement et modèles xAI visibles, clés intactes', b6 === false && !srvLocked() && !document.documentElement.classList.contains('srv-lock') && !vis2.toggle && !vis2.key && !vis2.plan && !vis2.xai && $('#apiKey').value === KEY && $('#directKey').value === 'xai-existing00000000' && LS.get('relais.key', '') === KEY && S.models.some(m => isDirect(m.id)) && !!$('#cats [data-cat="xai"]'), JSON.stringify(vis2));
       closeSheets();
     }catch(e){ ok('mode serveur par défaut : exception', false, e?.message || e); }
     finally{
       clearApp(); lsRestore(before);
       S.key = keep.key; S.keyInfo = keep.keyInfo; S.keyState = keep.keyState; S.conv = keep.conv; S.srvLimits = keep.lim;
-      S.xaiKey = keep.xaiKey; S.set.model = keep.model; S.set.category = keep.cat; S.bot.model = keep.botModel; S.sheetCat = keep.sheetCat; saveSettings(); saveBot(); mergeXai();
+      S.directKey = keep.xaiKey; S.set.model = keep.model; S.set.category = keep.cat; S.bot.model = keep.botModel; S.sheetCat = keep.sheetCat; saveSettings(); saveBot(); mergeDirect();
       try{ closeSheets(); srvRenderUI(); $('#apiKey').value = S.key; renderThread(); }catch(e){}
     }
   }
@@ -10660,12 +10611,12 @@ async function productTestsBody(){
       const FC2 = 'code-faux-1111111111111';
       const marked = mem({ 'fsm.onboard': J('serveur'), 'fsm.srv': J({ on: true, auto: true }), 'fsm.srvcode': J(FC2), 'relais.key': J(FK), 'relais.xaikey': J(FX), 'relais.index': J([{ id: 'm1', t: 3 }]) }, { 'conv:m1': conv('m1', 3) });
       const p = await M.buildPayload(marked);
-      ok('déménagement : marqué → marqueur et code transmis, aucune clé', p.ls['fsm.onboard'] === J('serveur') && p.secrets.srvCode === FC2 && !p.secrets.orKey && !p.secrets.xaiKey);
+      ok('déménagement : marqué → marqueur et code transmis, aucune clé', p.ls['fsm.onboard'] === J('serveur') && p.secrets.srvCode === FC2 && !p.secrets.orKey && !p.secrets.directKey);
       const dst = mem(); const { s } = await run(marked, dst);
       ok('déménagement : marqué → nouvelle adresse marquée, code reçu, sans clé', s.res === 'done' && JSON.parse(dst.lsGet('fsm.onboard')) === 'serveur' && JSON.parse(dst.lsGet('fsm.srvcode')) === FC2 && JSON.parse(dst.lsGet('fsm.srv')).on === true && !dst.lsGet('relais.key') && !dst.lsGet('relais.xaikey') && dst.K.has('conv:m1'));
       const forged = M.validate({ fsmMove: 'data', v: 1, ls: { 'fsm.onboard': J('serveur') }, kv: [], secrets: { orKey: FK, xaiKey: FX } });
       const odd = M.validate({ fsmMove: 'data', v: 1, ls: { 'fsm.onboard': J('autre') }, kv: [], secrets: {} });
-      ok('déménagement : paquet marqué → clés refusées', !forged.secrets.orKey && !forged.secrets.xaiKey && !('fsm.onboard' in odd.ls));
+      ok('déménagement : paquet marqué → clés refusées', !forged.secrets.orKey && !forged.secrets.directKey && !('fsm.onboard' in odd.ls));
       const tgt = mem({ 'fsm.onboard': J('serveur'), 'fsm.srv': J({ on: true, auto: true }), 'relais.index': J([{ id: 'q', t: 1 }]) }, { 'conv:q': conv('q', 1) });
       await M.merge(tgt, M.validate(await M.buildPayload(mem({ 'relais.key': J(FK), 'relais.xaikey': J(FX), 'fsm.srv': J({ on: false }) }))));
       ok('déménagement : nouvelle adresse déjà marquée → marqueur gardé, aucune clé écrite', JSON.parse(tgt.lsGet('fsm.onboard')) === 'serveur' && !tgt.lsGet('relais.key') && !tgt.lsGet('relais.xaikey'));
@@ -10698,13 +10649,13 @@ async function productTestsBody(){
         return new Response(JSON.stringify({ model: freeBody.model, choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
       };
       const got = await classifyRemote(ask);
-      ok('classifieur Free : requête modèle et response_format', !!freeBody && freeBody.model === PLAN_MODEL_FREE && freeBody.response_format && freeBody.response_format.type === 'json_object' && freeBody.temperature === 0 && !/gemini-2\.5-flash:free/.test(JSON.stringify(freeBody)));
+      ok('classifieur Free : requête modèle et response_format', !!freeBody && freeBody.model === planModelFreeId() && freeBody.response_format && freeBody.response_format.type === 'json_object' && freeBody.temperature === 0 && !/gemini-2\.5-flash:free/.test(JSON.stringify(freeBody)));
       ok('classifieur Free : JSON parsé', !!got && got.kind === 'explore' && got.format === 'texte' && got.summary === 'application' && got.options[0] === 'iOS' && got.ask === false);
       window.fetch = async () => new Response(JSON.stringify({ error:{ message:'introuvable' } }), { status: 404, headers:{ 'Content-Type':'application/json' } });
       ok('classifieur Free : erreur HTTP sans classement', (await classifyRemote(ask)) === null);
       window.fetch = async () => new Response('<<<', { status: 200, headers:{ 'Content-Type':'application/json' } });
       ok('classifieur Free : corps illisible sans classement', (await classifyRemote(ask)) === null);
-      window.fetch = async () => new Response(JSON.stringify({ model:'openrouter/auto', choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
+      window.fetch = async () => new Response(JSON.stringify({ model:'fsm_auto', choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
       ok('classifieur Free : autre modèle résolu refusé', (await classifyRemote(ask)) === null);
       S.set.plan = 'entreprise';
       S.keyInfo = { limit: 18, used: 1, remaining: 17, weekly: 0.1, monthly: 1, t: Date.now() };
@@ -10714,7 +10665,7 @@ async function productTestsBody(){
         return new Response(JSON.stringify({ model: paidBody.model, choices:[{ message:{ content: jsonPlan } }] }), { status: 200, headers:{ 'Content-Type':'application/json' } });
       };
       const paid = await classifyRemote(ask);
-      ok('classifieur payant : Gemini 2.5 Flash inchangé', !!paidBody && paidBody.model === PLAN_MODEL && !paidBody.response_format && paid && paid.kind === 'explore');
+      ok('classifieur payant : Gemini 2.5 Flash inchangé', !!paidBody && paidBody.model === planModelId() && !paidBody.response_format && paid && paid.kind === 'explore');
     }finally{
       window.fetch = prevFetch; S.key = keep.key; S.set.plan = keep.plan; S.keyInfo = keep.keyInfo; S.set.category = keep.cat; S.set.imgAspect = keep.aspect;
     }
@@ -10731,29 +10682,29 @@ async function productTestsBody(){
     try{
       S.set.category = 'image'; S.set.imgAspect = 'auto';
       const inherited = { id:'imgq', model:'xai:grok-imagine-image-quality', images:[], text:'' };
-      await runXaiImage(inherited, { text:'un phare', atts:[] }, new AbortController().signal);
+      await runDirectImage(inherited, { text:'un phare', atts:[] }, new AbortController().signal);
       const b0 = calls[0] && calls[0].body;
       ok('image héritée : modèle canonique et quality low', !!b0 && /\/images\/generations$/.test(calls[0].url) && b0.model === 'grok-imagine-image-2.0' && b0.quality === 'low' && inherited.model === 'xai:grok-imagine-image-2.0');
       calls.length = 0;
       const current = { id:'img2', model:'xai:grok-imagine-image-2.0', images:[], text:'' };
-      await runXaiImage(current, { text:'un phare', atts:[] }, new AbortController().signal);
+      await runDirectImage(current, { text:'un phare', atts:[] }, new AbortController().signal);
       ok('choix Imagine 2.0 non modifié', calls[0] && calls[0].body.model === 'grok-imagine-image-2.0' && !('quality' in calls[0].body) && current.model === 'xai:grok-imagine-image-2.0');
       calls.length = 0;
       const v1 = { id:'img1', model:'xai:grok-imagine-image', images:[], text:'' };
-      await runXaiImage(v1, { text:'un phare', atts:[] }, new AbortController().signal);
+      await runDirectImage(v1, { text:'un phare', atts:[] }, new AbortController().signal);
       ok('choix Imagine 1.0 non modifié', calls[0] && calls[0].body.model === 'grok-imagine-image' && !('quality' in calls[0].body) && v1.model === 'xai:grok-imagine-image');
       const hist = [{ id:'h1', title:'Discussion gardée', t: 9 }];
       const settings = { model:'xai:grok-imagine-image-quality', system:'garde-moi', web:true, variant:'corser55', category:'chat', fileHints:true, reasoning:false };
       LS.set('relais.index', hist);
       S.index = hist.slice();
       S.set = Object.assign({}, S.set, settings);
-      ok('migration réglages : seul le modèle change', migrateXaiModelSetting() === true);
+      ok('migration réglages : seul le modèle change', migrateDirectSetting() === true);
       const saved = LS.get('relais.settings', {});
       ok('migration : autres réglages et historique intacts', saved.model === 'xai:grok-imagine-image-2.0' && saved.system === 'garde-moi' && saved.web === true && saved.variant === 'corser55' && saved.category === 'chat' && saved.fileHints === true && saved.reasoning === false && JSON.stringify(LS.get('relais.index', [])) === JSON.stringify(hist) && JSON.stringify(S.index) === JSON.stringify(hist));
       S.set.model = 'xai:grok-imagine-image-2.0'; S.set.system = 'encore';
-      ok('migration : choix actuel laissé tel quel', migrateXaiModelSetting() === false && S.set.model === 'xai:grok-imagine-image-2.0' && S.set.system === 'encore');
+      ok('migration : choix actuel laissé tel quel', migrateDirectSetting() === false && S.set.model === 'xai:grok-imagine-image-2.0' && S.set.system === 'encore');
       S.set.model = 'xai:grok-4.7';
-      ok('migration : modèle texte non concerné', migrateXaiModelSetting() === false && S.set.model === 'xai:grok-4.7');
+      ok('migration : modèle texte non concerné', migrateDirectSetting() === false && S.set.model === 'xai:grok-4.7');
     }finally{
       window.fetch = prevFetch;
       keep.set.category = keep.cat; keep.set.imgAspect = keep.aspect;
@@ -10766,11 +10717,14 @@ async function productTestsBody(){
 }
 window.runSecurityTests = runSecurityTests;
 window.runProductTests = runProductTests;
+/* === FSM_SELFTEST_END === */
 (function init(){
   if (FSMMove.receiving) return; /* page de réception du déménagement : l'app ne démarre pas, la fusion s'en charge */
   try{ const d = localStorage.getItem('relais.draft'); if (d) $('#input').value = d; }catch(e){}
-  mergeXai();
-  migrateXaiModelSetting();
+  mergeDirect();
+  migrateDirectSetting();
+  if (S.set.category === 'xai'){ S.set.category = 'direct'; saveSettings(); }
+  if ((S.models || []).some(m => needsTranslate(m && m.id))){ S.models = []; }
   srvLockSanitize(); renderSpend();
   autosize(); renderPending(); refreshModelUI(); renderThread();
   loadModels(false);
