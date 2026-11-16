@@ -985,12 +985,12 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
     <div class="sheet-h"><h2 id="msTitle">Modèles</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="cats" id="cats"></div>
     <div class="catdesc" id="catDesc"></div>
-    <input class="search" id="mSearch" type="search" placeholder="Rechercher un modèle" aria-label="Rechercher un modèle">
+    <input class="search" id="mSearch" type="search" placeholder="Rechercher un modèle FSM" aria-label="Rechercher un modèle FSM">
     <div class="sheet-b">
       <div class="mlist" id="mList"></div>
       <div class="field">
         <label for="customId">Identifiant personnalisé</label>
-        <div class="custom"><input id="customId" placeholder="ex. anthropic/claude-sonnet-5.5" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn" id="btnCustom">Utiliser</button></div>
+        <div class="custom" hidden style="display:none"><input id="customId" placeholder="Identifiant FSM" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn" id="btnCustom">Utiliser</button></div>
         <small>Pour un modèle absent de la liste. Il prend la catégorie sélectionnée.</small>
       </div>
     </div>
@@ -1030,9 +1030,9 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
         <div class="plan-info" id="planInfo" hidden></div>
       </div>
       <div class="field lock-hide">
-        <label for="xaiKey">Clé API xAI (modèles Grok en direct)</label>
-        <input id="xaiKey" type="password" placeholder="xai-…" autocomplete="off" spellcheck="false">
-        <small>Facultative. Crée-la sur console.x.ai. Ajoute la catégorie « Grok · xAI » avec recherche web et X intégrée. Envoyée uniquement à api.x.ai.</small>
+        <label for="xaiKey">Clé API directe (modèles en direct)</label>
+        <input id="xaiKey" type="password" placeholder="Clé API directe" autocomplete="off" spellcheck="false">
+        <small>Facultative. Ajoute la catégorie « FSM Direct » avec recherche web et X intégrée. Envoyée uniquement au service direct.</small>
       </div>
       <div class="field">
         <label for="sysPrompt">Instructions permanentes</label>
@@ -1070,7 +1070,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
           <div class="row"><button class="btn ghost danger-txt" id="btnSrvErase" type="button">Effacer mes données du serveur</button></div>
         </div>
         <small class="lock-show">Les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée.</small>
-        <small class="lock-hide">Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API OpenRouter est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change. Ton choix est gardé sur cet appareil.</small>
+        <small class="lock-hide">Activé, les réponses, images et vidéos sont créées par le serveur FSM AI : elles continuent même si l'application est fermée. La clé API directe est alors effacée de cet appareil et n'est jamais lue ni envoyée : pour revenir au mode direct, il faudra la ressaisir. Désactivé, rien ne change. Ton choix est gardé sur cet appareil.</small>
       </div>
       <div class="danger-zone">
         <button class="btn ghost" id="btnReload">Recharger le catalogue</button>
@@ -1093,7 +1093,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
       <div class="field"><label for="fbAgent">Agent vocal</label><select class="sel" id="fbAgent"></select><small>Le cerveau, la voix et l'écoute du mode vocal. « Automatique » choisit le plus performant disponible.</small></div>
       <div class="seg" id="fbTabs" role="tablist"><button data-tab="watch" role="tab">Veilles</button><button data-tab="tasks" role="tab">Tâches</button><button data-tab="mem" role="tab">Mémoire</button><button data-tab="svc" role="tab">Services</button></div>
       <div id="fbPane"></div>
-      <button class="btn ghost" id="fbGrok" type="button">Grok Bot (xAI)</button>
+      <button class="btn ghost" id="fbGrok" type="button">Bot externe</button>
     </div>
   </div>
 </div>
@@ -1101,17 +1101,17 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
 <!-- Grok Bot -->
 <div class="scrim" id="botSheet" hidden>
   <div class="sheet fit" role="dialog" aria-modal="true" aria-labelledby="botTitle">
-    <div class="sheet-h"><h2 id="botTitle">Grok Bot</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="sheet-h"><h2 id="botTitle">Bot externe</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
-      <div class="bothead"><span class="botic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg></span><p>Un coéquipier IA de xAI avec son propre ordinateur dans le cloud (navigateur, terminal, fichiers). Il réalise des tâches en plusieurs étapes sur tes sites et applications, et revient vers toi pour valider.</p></div>
+      <div class="bothead"><span class="botic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M10 4h4M9 13.5v1M15 13.5v1M2 13v3M22 13v3"/></svg></span><p>Un coéquipier IA externe avec son propre ordinateur dans le cloud (navigateur, terminal, fichiers). Il réalise des tâches en plusieurs étapes sur tes sites et applications, et revient vers toi pour valider.</p></div>
       <div class="field"><label for="botTask">Tâche à confier</label><textarea id="botTask" placeholder="ex. Compare les prix de 3 hôtels à Lisbonne pour le 12 novembre et prépare un tableau."></textarea></div>
       <div class="botacts">
         <a class="btn" id="botX" href="https://x.com/intent/post" target="_blank" rel="noopener">Envoyer à @bot sur X</a>
         <button class="btn ghost" id="botCopy" type="button">Copier la tâche</button>
-        <a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir Grok Bot</a>
+        <a class="btn ghost" href="https://x.ai/bot" target="_blank" rel="noopener">Ouvrir le bot</a>
       </div>
-      <p class="note">Grok Bot n'a pas d'API publique : les tâches passent par son application (iPhone, Mac, Windows) ou par une mention @bot sur X (compte X relié à Grok, pas encore disponible partout). Il faut un abonnement SuperGrok ou Cursor.</p>
-      <button class="btn ghost lock-hide" id="botGrokApi" type="button">Utiliser les modèles Grok via l'API xAI</button>
+      <p class="note">Ce bot n'a pas d'API publique : les tâches passent par son application (iPhone, Mac, Windows) ou par une mention @bot sur X (compte X relié, pas encore disponible partout). Un abonnement est nécessaire.</p>
+      <button class="btn ghost lock-hide" id="botGrokApi" type="button">Utiliser les modèles directs via l'API directe</button>
     </div>
   </div>
 </div>
@@ -1121,7 +1121,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cnTitle">
     <div class="sheet-h"><h2 id="cnTitle">Connecteurs</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
-      <p class="note" style="margin:0">Les modèles compatibles (Claude, GPT, Gemini, Grok via OpenRouter…) peuvent lire et agir sur tes services. Chaque envoi d'e-mail, création d'évènement ou d'issue te sera montré pour confirmation.</p>
+      <p class="note" style="margin:0">Les modèles FSM AI compatibles peuvent lire et agir sur tes services. Chaque envoi d'e-mail, création d'évènement ou d'issue te sera montré pour confirmation.</p>
       <div class="cn-card">
         <div class="cn-h"><b>Google</b><span class="cn-st" id="cnGStatus"></span></div>
         <div class="cn-svcs">
@@ -1758,15 +1758,15 @@ const CATS = [
   { id:'video', short:'Vidéos', label:'Vidéos', hue:'#FF6B8E', desc:"Générer des clips vidéo. Joins une image pour l'animer.",
     filter: m => outs(m, 'video'),
     prefer:[/^bytedance[\w-]*\/seedance-2\.5-mini/, /^bytedance[\w-]*\/seedance-2(\.\d)?-mini/, /^bytedance[\w-]*\/seedance-2\.5/, /^google\/veo/, /^openai\/sora/, /kling/, /^bytedance[\w-]*\/seedance/, /^alibaba\/wan/, /^minimax\/(hailuo|video)/, /^x-ai\/grok-imagine-video/] },
-  { id:'adult', short:'Adulte 18+', label:'Adulte · Non censuré', hue:'#FF5C7A', adult:true, desc:"Modèles sans filtre de contenu (texte, et image ou vidéo dès qu'OpenRouter en propose), pour adultes uniquement. Création à partir de photos désactivée pour protéger les personnes réelles.",
+  { id:'adult', short:'Adulte 18+', label:'Adulte · Non censuré', hue:'#FF5C7A', adult:true, desc:"Modèles sans filtre de contenu (texte, et image ou vidéo dès que FSM AI en propose), pour adultes uniquement. Création à partir de photos désactivée pour protéger les personnes réelles.",
     filter: m => (textOnlyOut(m) && ADULT_RE.test(m.id)) || ((outs(m, 'image') || outs(m, 'video')) && /uncensored|nsfw|venice|lustify|pony|unstable|hidream-uncensored/i.test(m.id + ' ' + (m.name || ''))),
     prefer:[/^venice\/uncensored/, /dolphin/, /^nousresearch\/hermes/, /^thedrummer\//, /^sao10k\//, /^anthracite-org\/magnum/],
     preset:{ web:false, reasoning:false, fileHints:false } },
-  { id:'xai', short:'Grok', label:'Grok · xAI direct', hue:'#9AA3B2', notile:true, desc:"Modèles Grok appelés directement sur l'API xAI avec ta clé xAI : texte, images, vidéos. Avec « Web », Grok cherche sur le web et sur X.",
+  { id:'xai', short:'Direct', label:'FSM Direct', hue:'#9AA3B2', notile:true, desc:"Modèles appelés directement avec ta clé API directe : texte, images, vidéos. Avec « Web », la recherche couvre le web et X.",
     filter: m => m.provider === 'xai', prefer:[/grok-4\.7/, /imagine-image-2/, /imagine-video-1\.5$/] },
   { id:'free', short:'Gratuits', label:'Gratuits', hue:'#6EE7A8', desc:"Modèles sans coût par token, avec des limites de débit plus strictes.",
     filter: m => isFree(m), prefer:[/:free$/] },
-  { id:'all', short:'Tous', label:'Tous', hue:'#9AA3B2', desc:"Le catalogue complet d'OpenRouter.", filter: () => true, prefer:[] }
+  { id:'all', short:'Tous', label:'Tous', hue:'#9AA3B2', desc:"Le catalogue complet FSM AI.", filter: () => true, prefer:[] }
 ];
 const catById = id => CATS.find(c => c.id === id) || CATS[0];
 
@@ -1808,7 +1808,7 @@ function catPool(cat){
 }
 function ranked(cat, q){
   let list = catPool(cat);
-  if (q){ const t = q.toLowerCase(); list = S.models.filter(cat.filter).filter(m => m.id.toLowerCase().includes(t) || (m.name || '').toLowerCase().includes(t)); }
+  if (q){ const t = q.toLowerCase(); list = S.models.filter(cat.filter).filter(m => modelAlias(m).toLowerCase().includes(t)); }
   list = list.map(m => ({ m, r: relevance(m, cat) })).sort((a, b) => b.r - a.r).slice(0, q ? 60 : TOP_N).map(x => x.m);
   const seen = new Set(), recIds = new Set();
   for (const { m, s } of prefOrder(cat, list)){
@@ -1937,9 +1937,47 @@ function modTags(m){
   return `<span class="tags">${i}</span>→<span class="tags">${o}</span>`;
 }
 
+/* ---------- Anonymat des modèles (16/11/2026, demande du chef) ----------
+   Aucun nom de modèle, de fournisseur ou d'identifiant de catalogue n'est affiché à l'utilisateur.
+   Les identifiants restent en mémoire pour le routage ; l'écran n'en montre que des noms FSM. */
+const FSM_VENDORS = 'openai|anthropic|google|x-ai|xai|meta-llama|meta|mistralai|mistral|deepseek|qwen|moonshotai|moonshot|z-ai|minimax|perplexity|cohere|nvidia|amazon|microsoft|bytedance[\\w-]*|black-forest-labs|alibaba|stepfun|xiaomi|tencent|baidu|kwaivgi|kling[\\w-]*|runway[\\w-]*|ideogram[\\w-]*|recraft[\\w-]*|venice|nousresearch|thedrummer|sao10k|anthracite-org|openrouter|deepgram|inception|liquid|ai21|cognitivecomputations|arcee-ai|inflection|writer|switchpoint|tngtech|morph|elevenlabs|sourceful|openai-compatible';
+const FSM_SLUG_RE = new RegExp('\\b(?:' + FSM_VENDORS + ')\\/[\\w.:~-]+', 'gi');
+const FSM_WORD_RE = /open\s?router|anthropic|claude|chat\s?gpt|openai|\bgpt[-\s]?(?:[a-z]+[-\s]?)?\d[\w.-]*|\bgpt[-\s]oss\b|gemini|gemma|google\s+ai\s+studio|vertex(?:\s+ai)?|\bx-?ai\b|\bgrok\b|mistral(?:ai)?|deepseek|\bqwen[\w.-]*|\bllama[\w.-]*|moonshot(?:ai)?|\bkimi\b|minimax|perplexity|\bcohere\b|nvidia|bedrock|fireworks|together\s?ai|deepinfra|seedance|seedream|\bsora\b|\bveo[\w.-]*|\bkling\b|nano.?banana|voxtral|hailuo|\bflux[.-]?\d[\w.-]*/gi;
+/* texte venant d'un fournisseur (message d'erreur, étape, notification) : plus aucun nom de modèle ni de fournisseur */
+function fsmClean(t){
+  const s0 = String(t == null ? '' : t); if (!s0) return s0;
+  /* marqueur \u0001 : le nom, puis les mots de version qui le suivent (« Claude Opus 5.5 », « Gemini 3 Pro ») partent ensemble */
+  return s0.replace(FSM_SLUG_RE, '\u0001').replace(FSM_WORD_RE, '\u0001')
+    .replace(/\u0001(?:[\s.:\/-]+(?:[\w.-]*\d[\w.-]*|pro|flash|ultra|max|mini|nano|lite|opus|sonnet|haiku|fable|preview|image|thinking|instant|omni|turbo|free)(?![\w]))+/gi, '\u0001')
+    .replace(/\u0001(?:\s*[:·,\/-]?\s*\u0001)*/g, 'FSM AI');
+}
+/* message technique d'un fournisseur : gardé seulement s'il est propre et court, sinon remplacé par la phrase de repli */
+const FSM_UPSTREAM_RE = /upstream|rate.?limit|provider|your own key|byok|openrouter|integration|quota|credits?\b|api key|model[_ ]?(?:id|not)|endpoint|\bpayload\b|stack|\{|\[\{/i;
+function fsmErrText(t, fallback){
+  const s0 = String(t == null ? '' : t).trim();
+  if (!s0) return fallback || '';
+  if (fsmClean(s0) !== s0 || FSM_UPSTREAM_RE.test(s0) || s0.length > 220) return fallback || '';
+  return s0;
+}
+const FSM_ERR_GENERIC = "Le service de génération a rencontré un problème temporaire. Réessaie dans quelques instants.";
+/* nom d'affichage FSM d'un modèle (objet, identifiant ou nom du catalogue) : stable, jamais le vrai nom */
+const FSM_ALIAS_RE = /^Modèle FSM [0-9A-Z]{4}$/;
+function fsmTag(k){ let h = 2166136261; const t = String(k); for (let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0).toString(36).toUpperCase() + '0000').replace(/[^0-9A-Z]/g, '0').slice(0, 4); }
+function modelAlias(x){
+  if (x && typeof x === 'object') x = x.id || x.name;
+  const k = String(x == null ? '' : x); if (!k || k === 'Aucun modèle') return 'Aucun modèle';
+  if (FSM_ALIAS_RE.test(k)) return k;
+  let id = k;
+  try{
+    const f = a => Array.isArray(a) && a.find(m => m && (m.id === k || m.name === k));
+    const m = f(S.models) || f(S.stt) || f(S.tts); if (m) id = m.id;
+  }catch(e){}
+  return 'Modèle FSM ' + fsmTag(id);
+}
+
 /* ---------- Interface : modèle, options ---------- */
-function shortName(id){ const m = modelInfo(id); return m?.name || id || 'Aucun modèle'; }
-const bare = n => String(n).replace(/^[^:]{1,40}:\s+/, '');
+function shortName(id){ return id ? modelAlias(id) : 'Aucun modèle'; }
+const bare = n => modelAlias(n);
 function refreshModelUI(){
   { const auto = routerOn(S.set.category) && !isXai(S.set.model), h = $('#hdrModel');
     if (auto){ const b = brand(); h.innerHTML = `<span class="brand"><b>${esc(b.top)}</b><small>${esc(b.sub)}</small></span>`; h.setAttribute('aria-label', b.name); }
@@ -2044,20 +2082,19 @@ function renderModelList(){
   const c = catById(S.sheetCat), q = $('#mSearch').value.trim();
   const items = ranked(c, q);
   if (c.id === 'xai' && (!S.xaiKey || srvLocked())){
-    $('#mList').innerHTML = `<div class="gate"><b>Clé xAI requise</b><p>Ajoute ta clé API xAI dans les réglages pour utiliser les modèles Grok en direct. Sans clé, les modèles Grok restent disponibles via OpenRouter.</p><button class="btn" data-xai-key>Ajouter ma clé xAI</button></div>`;
+    $('#mList').innerHTML = `<div class="gate"><b>Clé xAI requise</b><p>Ajoute ta clé API directe dans les réglages pour utiliser ces modèles en direct. Sans clé, ils restent disponibles via les autres catégories.</p><button class="btn" data-xai-key>Ajouter ma clé directe</button></div>`;
     return;
   }
   if (c.adult && !S.adultOk){
-    $('#mList').innerHTML = `<div class="gate"><b>Contenu réservé aux adultes</b><p>Cette catégorie liste des modèles sans filtre de contenu. Ils peuvent produire des textes explicites ou choquants. Les règles d'utilisation d'OpenRouter et des fournisseurs s'appliquent toujours.</p><button class="btn" data-adult-ok>J'ai 18 ans ou plus</button></div>`;
+    $('#mList').innerHTML = `<div class="gate"><b>Contenu réservé aux adultes</b><p>Cette catégorie liste des modèles sans filtre de contenu. Ils peuvent produire des textes explicites ou choquants. Les règles d'utilisation des fournisseurs d'IA s'appliquent toujours.</p><button class="btn" data-adult-ok>J'ai 18 ans ou plus</button></div>`;
     return;
   }
-  if (!S.models.length){ $('#mList').innerHTML = `<div class="empty">Le catalogue n'a pas pu être chargé. Saisis un identifiant ci-dessous.</div>`; return; }
+  if (!S.models.length){ $('#mList').innerHTML = `<div class="empty">Le catalogue n'a pas pu être chargé. Vérifie ta connexion et réessaie.</div>`; return; }
   if (!items.length){ $('#mList').innerHTML = `<div class="empty">Aucun modèle${q ? ' pour « ' + esc(q) + ' »' : ''} dans cette catégorie.</div>`; return; }
   const autoRow = ROUTER_CATS.includes(c.id) && !q ? (() => { return `<button class="mrow auto${routerOn(c.id) && S.set.category === c.id ? ' on' : ''}" data-auto="1"><span class="l1"><span class="mn">${esc(brand().name)}</span><span class="rec">Recommandé</span></span><span class="mid auto-d">${esc(brand().desc)}</span></button>`; })() : '';
   $('#mList').innerHTML = autoRow + items.map(({ m, rec }) => `
     <button class="mrow${m.id === S.set.model ? ' on' : ''}" data-model="${esc(m.id)}">
-      <span class="l1"><span class="mn">${esc(m.name || m.id)}</span>${rec ? '<span class="rec">Recommandé</span>' : ''}</span>
-      <span class="mid">${esc(m.id)}</span>
+      <span class="l1"><span class="mn">${esc(modelAlias(m))}</span>${rec ? '<span class="rec">Recommandé</span>' : ''}</span>
       <span class="l3"><span class="price">${esc(fmtPrice(m, c.id))}</span>${modTags(m)}${m.context_length ? `<span>${fmtCtx(m.context_length)} contexte</span>` : ''}</span>
     </button>`).join('') + (q ? '' : `<div class="empty">Les autres modèles du catalogue restent accessibles par la recherche.</div>`);
 }
@@ -2069,7 +2106,7 @@ $('#mList').addEventListener('click', e => {
   if (e.target.closest('[data-adult-ok]')){ S.adultOk = true; LS.set('relais.adult18', true); renderModelList(); return; }
   const b = e.target.closest('[data-model]'); if (b) chooseModel(b.dataset.model);
 });
-$('#btnCustom').addEventListener('click', () => { const v = $('#customId').value.trim(); if (!v) return; if (catById(S.sheetCat).adult && !S.adultOk) return toast("Confirme d'abord ton âge."); chooseModel(v); });
+$('#btnCustom').addEventListener('click', () => { if (!isOwner()) return; const v = $('#customId').value.trim(); if (!v) return; if (catById(S.sheetCat).adult && !S.adultOk) return toast("Confirme d'abord ton âge."); chooseModel(v); });
 $('#customId').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnCustom').click(); } });
 
 /* ---------- Réglages ---------- */
@@ -2299,7 +2336,7 @@ async function resumeJob(m, c){
   m.mode = 'video'; m.status = 'Reprise de la génération…'; m.videos = m.videos || [];
   paint(m); wakeHold(); const unlock = genLock(c.id);
   try{ await (m.job.xai ? runXaiVideo : runVideo)(m, user, new AbortController().signal); }
-  catch(e){ m.error = e?.message || String(e); }
+  catch(e){ m.error = fsmClean(e?.message || String(e)); }
   finally{
     wakeRelease(); unlock();
     m.status = ''; m._live = false; m._resuming = false; delete m.job; delete m.inflight;
@@ -2554,7 +2591,7 @@ async function resumeSrv(m, c){
   catch(e){
     if (e?.name === 'AbortError') m.stopped = true;
     else if (isNetErr(e)){ keep = true; m.error = 'Connexion au serveur FSM AI impossible pour le moment : la réponse sera reprise à la prochaine ouverture.'; }
-    else m.error = e?.message || String(e);
+    else m.error = fsmClean(e?.message || String(e));
   }
   finally{
     unlock();
@@ -3314,7 +3351,7 @@ function coreSystem(conv){
   const date = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const time = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const n = (conv?.messages || []).filter(m => m.role === 'user').length;
-  return `Tu es ${name}, l'assistant IA de l'application FSM AI${plan ? ' (abonnement ' + plan + ')' : ''}. Nous sommes le ${date}, il est ${time}.${n > 1 ? ` La conversation en est à son ${n}e message de l'utilisateur.` : ''}
+  return `Tu es ${name}, l'assistant IA de l'application FSM AI${plan ? ' (abonnement ' + plan + ')' : ''}. ${IDENT_HINT} Nous sommes le ${date}, il est ${time}.${n > 1 ? ` La conversation en est à son ${n}e message de l'utilisateur.` : ''}
 
 INTENTION
 - Réponds dans la langue de l'utilisateur, de façon brève et claire.
@@ -3418,6 +3455,7 @@ function assistantHistText(m){
   if (v) t += `${t ? '\n\n' : ''}[FSM AI a bien créé et affiché ici ${v > 1 ? v + ' vidéos' : 'une vidéo'} pour l'utilisateur${m.cat === 'videoedit' ? ' (le montage demandé)' : ''}.]`;
   return t || '(réponse)';
 }
+const IDENT_HINT = "IDENTITÉ : tu es uniquement FSM AI. Ne cite jamais le nom du modèle ni de l'entreprise qui te fait fonctionner (ni Claude, GPT, Gemini, Grok, Anthropic, OpenAI, Google, xAI, OpenRouter, ni aucun autre nom de modèle ou de fournisseur). Si on te demande qui ou quoi tu es, réponds simplement que tu es FSM AI, l'assistant de l'application, sans détail technique.";
 const EDIT_HINT = "FSM AI (l'application) retouche automatiquement les photos, crée des images et des vidéos, monte et prolonge les vidéos : il suffit que l'utilisateur le demande dans la discussion, l'application choisit seule le bon outil. Ne lui dis jamais d'utiliser une catégorie, un menu ou un autre modèle. Les images et vidéos indiquées dans l'historique comme produites par FSM AI ont réellement été créées et affichées à l'utilisateur : ne dis jamais le contraire, ne t'excuse pas pour elles et ne prétends pas ne pas les avoir produites. Quand l'utilisateur te remercie ou te complimente, réponds simplement et chaleureusement en une ou deux phrases, sans image.";
 const ILLUS_HINT = "IMAGES DANS TES RÉPONSES (activé par défaut) : l'application affiche de vraies images à partir d'un simple marqueur. Dès que ta réponse parle d'un sujet concret et identifiable (personne réelle, personnage de fiction, jeu vidéo, film, série, manga, œuvre d'art, livre, lieu, ville, monument, pays, animal, plante, objet, produit, véhicule, plat, marque, événement historique), illustre-la SYSTÉMATIQUEMENT avec 2 à 5 images, comme un article illustré. Pour chaque image écris, seule sur sa ligne : [[image: nom exact du sujet | légende courte]]. Place la première juste sous le titre principal (ou après la première phrase), puis une en tête de chaque grande section qui parle d'un autre sujet identifiable. La requête est le nom propre précis, avec le contexte entre parenthèses si le nom est ambigu : [[image: Llednar Twem (Final Fantasy Tactics Advance) | Llednar, le chevalier noir]], [[image: Tour Eiffel | La tour Eiffel vue du Trocadéro]], [[image: Panthera tigris | Un tigre du Bengale]]. Pour un personnage ou un univers de fiction (jeu, manga, animé, série, film), ajoute en 3e champ le wiki Fandom de la franchise, que tu connais : [[image: Llednar Twem | Llednar | finalfantasy.fandom.com]]. Si la recherche web t'a donné l'URL directe d'une vraie image (.jpg, .png, .webp), tu peux la mettre à la place du nom. N'invente jamais d'URL, n'utilise pas la syntaxe ![]() et n'écris pas « voici une image » : le marqueur suffit. N'ajoute pas d'image pour du code, des calculs, une traduction ou une simple conversation. HISTOIRES ET FICTION : pour une histoire, un conte, un poème ou un récit inventé, n'utilise jamais de photo actuelle d'un lieu ou d'une personne réelle (une photo moderne de Paris n'a rien à faire dans une histoire de chevalier en l'an 300). Choisis uniquement de vraies images d'archives fidèles à l'époque et à l'univers du récit : œuvres d'art, enluminures, mosaïques, gravures, objets ou reconstitutions historiques (ex. [[image: mosaïque cavalier romain IVe siècle | Un cavalier de l'Antiquité tardive]], [[image: Lutèce gallo-romaine maquette | Lutèce vers l'an 300]]). Si rien ne correspond vraiment, ne mets aucune image. Tu ne crées jamais d'image toi-même pour illustrer une réponse. COHÉRENCE : chaque image réelle doit correspondre exactement au contexte de la demande (sujet, époque, lieu). Pour un sujet historique, choisis une œuvre ou un document de l'époque plutôt qu'une photo actuelle (ex. [[image: Lutèce | Lutèce à l'époque gallo-romaine]] plutôt que [[image: Paris]] pour Paris au IVe siècle). Si aucune vraie image ne correspond parfaitement, n'en mets pas. SYNTHÈSE EN CHIFFRES : quand la demande porte sur un sujet chiffrable (faits, histoire, science, économie, sport, voyage, technologie, comparaison, budget, statistiques), place juste sous le titre, avant les images, une synthèse de 2 à 4 chiffres clés sur une ligne seule : [[chiffres: 330 m | Hauteur ; 1889 | Inauguration ; 7 M | Visiteurs par an]]. Valeur courte (nombre et unité), libellé de 1 à 4 mots. Uniquement des chiffres exacts et vérifiés, jamais inventés. Pas de chiffres pour une histoire inventée, du code ou une simple conversation. BANQUES D'IMAGES : les images viennent de grandes banques d'images publiques. Tu peux indiquer la banque la plus adaptée en 3e champ : « met » ou « aic » (musées : œuvres d'art, objets et scènes historiques, Antiquité, Moyen Âge), « nasa » (espace, astronomie), « commons » (Wikimedia Commons, tous sujets réels), « openverse » (photos sous licence libre), « unsplash » ou « pexels » (belles photos : paysages, nourriture, ambiances), ou le wiki Fandom d'une franchise. Pour les musées et la NASA, écris la requête en anglais. Exemples : [[image: medieval knight armor | Armure de chevalier du XVe siècle | met]], [[image: Saturn rings | Les anneaux de Saturne | nasa]], [[image: lavender field Provence | Champs de lavande en Provence | unsplash]]. N'ajoute jamais d'image ni de chiffres à un remerciement, un compliment, une remarque sur l'application ou une réponse sur tes propres résultats.";
 const hdr = () => ({ 'Authorization': 'Bearer ' + S.key, 'Content-Type': 'application/json' });
@@ -3425,14 +3463,16 @@ async function apiError(res){
   let msg = '';
   try{ const j = await res.json(); msg = j.error?.message || j.message || ''; const raw = j.error?.metadata?.raw; if (raw) msg += '\n' + String(typeof raw === 'string' ? raw : JSON.stringify(raw)).slice(0, 300); }
   catch(e){ try{ msg = (await res.text()).slice(0, 300); }catch(_){} }
-  const map = { 400:'Requête refusée par le modèle.', 401:'Clé API refusée. Vérifie-la dans les réglages.', 402:'Crédits OpenRouter insuffisants pour ce modèle.', 403:'Accès refusé (modération ou modèle restreint).', 404:'Modèle ou service introuvable. Vérifie que ce modèle gère ce type de demande.', 408:'Délai dépassé.', 413:'Fichier trop lourd pour ce modèle.', 429:'Trop de requêtes : patiente un peu ou change de modèle.', 502:'Le fournisseur du modèle ne répond pas. Réessaie ou change de modèle.', 503:'Aucun fournisseur disponible pour ce modèle avec ces fichiers.' };
+  const map = { 400:'Requête refusée par le modèle.', 401:'Clé API refusée. Vérifie-la dans les réglages.', 402:'Crédits insuffisants pour ce service.', 403:'Accès refusé (modération ou modèle restreint).', 404:'Modèle ou service introuvable. Vérifie que ce modèle gère ce type de demande.', 408:'Délai dépassé.', 413:'Fichier trop lourd pour ce modèle.', 429:'Trop de requêtes : patiente un peu ou change de modèle.', 502:'Le fournisseur du modèle ne répond pas. Réessaie ou change de modèle.', 503:'Aucun fournisseur disponible pour ce modèle avec ces fichiers.' };
     if (/openrouter\.ai/.test(res.url || '') && (res.status === 403 || res.status === 402) && /key limit|limit exceeded|budget|spend limit|credit limit/i.test(msg)){
     if (S.keyInfo){ S.keyInfo.remaining = 0; S.keyInfo.used = S.keyInfo.limit || S.keyInfo.used; }
     fetchKeyInfo(true);
     const le = new Error(limitMsg(true) + ' Renvoie ton message pour continuer.');
     le.status = res.status; le.limit = true; return le;
   }
-  const e = new Error((map[res.status] || ('Erreur ' + res.status)) + (msg ? '\n' + msg : ''));
+  /* le détail renvoyé par le fournisseur n'est jamais montré tel quel (noms de modèles, de fournisseurs, conseils techniques) */
+  const det = res.status === 400 ? fsmErrText(String(msg).split('\n')[0], '') : '';
+  const e = new Error((map[res.status] || ('Erreur ' + res.status)) + (det ? '\n' + det : ''));
   e.status = res.status; return e;
 }
 const sleep = (ms, signal) => new Promise((res, rej) => {
@@ -3468,7 +3508,7 @@ async function runChat(asst, signal, conv){
   const mode = asst.mode, msgs = [];
   const info = modelInfo(asst.model);
   const tools = (mode === 'chat' && (!info || hasParam(info, 'tools'))) ? activeTools(conv) : [];
-  const sys = [conv?.bot ? botSystem() + (S.voiceActive ? '\n\n' + VOICE_SYS_FN() : illusOn('agents') ? '\n\n' + ILLUS_HINT : '') : buildSystem(conv, asst.cat), tools.length ? connSystem(tools) : '', tools.some(t => t.name === 'run_python') ? PY_HINT : '', tools.some(t => t.name === 'run_js') ? JS_HINT : '', tools.some(t => t.name === 'run_sql') ? SQL_HINT : ''].filter(Boolean).join('\n\n');
+  const sys = [conv?.bot ? IDENT_HINT + '\n\n' + botSystem() + (S.voiceActive ? '\n\n' + VOICE_SYS_FN() : illusOn('agents') ? '\n\n' + ILLUS_HINT : '') : buildSystem(conv, asst.cat), tools.length ? connSystem(tools) : '', tools.some(t => t.name === 'run_python') ? PY_HINT : '', tools.some(t => t.name === 'run_js') ? JS_HINT : '', tools.some(t => t.name === 'run_sql') ? SQL_HINT : ''].filter(Boolean).join('\n\n');
   if (sys) msgs.push({ role:'system', content: sys });
   { const hist = conv.messages.slice(0, Math.max(0, conv.messages.indexOf(asst)));
     const users = hist.filter(m => m.role === 'user');
@@ -3541,7 +3581,7 @@ async function runChat(asst, signal, conv){
         if (!line.startsWith('data:')) continue;
         const data = line.slice(5).trim(); if (!data || data === '[DONE]') continue;
         let j; try{ j = JSON.parse(data); }catch(e){ continue; }
-        if (j.error) throw new Error(j.error.message || 'Erreur du fournisseur');
+        if (j.error) throw new Error(fsmErrText(j.error.message, FSM_ERR_GENERIC));
         const ch = j.choices?.[0]; const d = ch?.delta || ch?.message || {};
         if (typeof d.content === 'string'){ const vis = pushVisible(asst, d.content); if (vis) addText(vis); }
         else if (Array.isArray(d.content)) for (const p of d.content){ if (p.type === 'text'){ const vis = pushVisible(asst, p.text || ''); if (vis) addText(vis); } else if (p.type === 'image_url' && p.image_url?.url && !noImg) asst.images.push({ url:p.image_url.url }); }
@@ -3552,7 +3592,7 @@ async function runChat(asst, signal, conv){
           if (t.id) c.id = t.id; if (t.function?.name) c.name += t.function.name; if (t.function?.arguments) c.args += t.function.arguments;
         }
         addSources(asst, d.annotations); addSources(asst, ch?.message?.annotations);
-        if (ch?.finish_reason === 'error') throw new Error('Le fournisseur a interrompu la réponse.');
+        if (ch?.finish_reason === 'error') throw new Error('Le service a interrompu la réponse.');
         if (j.usage){ if (j.usage.cost != null) reqCost = +j.usage.cost; else { const c = estTokens(asst.model, j.usage); if (c){ reqCost = c; reqEst = true; } } }
         if (asst.text || asst.images.length) asst.status = '';
         schedulePaint(asst);
@@ -3646,7 +3686,7 @@ async function runVideo(asst, user, signal){
   }
   const FR = { pending:"En file d'attente", in_progress:'Génération en cours' };
   while (job.status !== 'completed'){
-    if (['failed', 'cancelled', 'expired'].includes(job.status)) throw new Error('La génération a échoué' + (job.error ? ' : ' + job.error : '.'));
+    if (['failed', 'cancelled', 'expired'].includes(job.status)) throw new Error('La génération a échoué' + (job.error && fsmErrText(String(job.error), '') ? ' : ' + fsmErrText(String(job.error), '') : '.'));
     if (polled && Date.now() - t0 > 30 * 60 * 1000) throw new Error('La vidéo prend plus de 30 minutes. Réessaie plus tard.');
     const s = Math.round((Date.now() - t0) / 1000);
     asst.status = `${FR[job.status] || 'Génération'} · ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; paint(asst);
@@ -3903,7 +3943,7 @@ async function send(){
   if (S.busy && !text && !S.pending.length){ S.abort?.abort(); return; }
   if (!text && !S.pending.length) return;
   if (!isXai(S.set.model) && !S.key && srvNeedCode()){ srvAskCode(); toast('Entre ton code FSM AI pour commencer : il t\u2019a été remis personnellement.'); return; }
-  if (isXai(S.set.model) ? !S.xaiKey : !(S.key || serverOn())){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API xAI dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
+  if (isXai(S.set.model) ? !S.xaiKey : !(S.key || serverOn())){ openSettings(true, isXai(S.set.model) ? 'xai' : ''); toast(isXai(S.set.model) ? 'Ajoute ta clé API directe dans les réglages.' : 'Ajoute ta clé API FSM AI pour commencer.'); return; }
   if (text && !S.pending.length && !S.conv?.bot && !S.voiceActive){
     const pend = pendingPlan(S.conv), pr = planReply(text);
     if (pend && pr === 'ok'){ $('#input').value = ''; autosize(); renderSend(); try{ localStorage.removeItem('relais.draft'); }catch(e){} return acceptPlan(pend); }
@@ -4116,7 +4156,7 @@ async function run(user, conv, model, cat, route){
     /* arrêtée par l'utilisateur : le suivi de vidéo est oublié, elle ne reprendra pas à la réouverture */
     if (e?.name === 'AbortError'){ asst.stopped = true; if (asst._job) asst._job = null; delete asst.job; }
     else if (isNetErr(e)) asst.error = "Connexion internet perdue depuis trop longtemps. Touche Réessayer quand elle sera rétablie.";
-    else asst.error = e?.message || String(e);
+    else asst.error = fsmClean(e?.message || String(e));
   }finally{
     stopAutosave(); wakeRelease(); unlockGen(); delete asst.inflight; if (asst.stopped && asst.srv) srvCancel(asst.srv); delete asst.srv;
     asst.status = ''; conv._abort = null; conv._busy = false;
@@ -5023,7 +5063,7 @@ function msgHtml(m){
   }
   let h = '';
   if (m.reasoning) h += `<details class="think"${m.status ? ' open' : ''}><summary>${m.status ? 'Réflexion en cours' : 'Réflexion'}</summary><div>${esc(m.reasoning)}</div></details>`;
-  if (m.steps?.length) h += `<div class="steps">${m.steps.map(st => `<div class="step ${st.status}"><span class="si">${{ run:'…', ok:'✓', err:'!', no:'×' }[st.status] || ''}</span><span>${esc(st.label)}${st.detail ? ` <em>· ${esc(st.detail)}</em>` : ''}</span></div>`).join('')}</div>`;
+  if (m.steps?.length) h += `<div class="steps">${m.steps.map(st => `<div class="step ${st.status}"><span class="si">${{ run:'…', ok:'✓', err:'!', no:'×' }[st.status] || ''}</span><span>${esc(fsmClean(st.label))}${st.detail ? ` <em>· ${esc(fsmClean(st.detail))}</em>` : ''}</span></div>`).join('')}</div>`;
   if (m.runs?.length) h += m.runs.map(r => `<details class="pyrun"><summary>${r.ok ? 'Code Python exécuté' : 'Erreur Python'}${r.ms ? ' · ' + (r.ms / 1000).toFixed(1).replace('.', ',') + ' s' : ''}</summary><pre class="pycode">${esc(r.code)}</pre>${r.out ? `<pre class="pyout">${esc(r.out)}</pre>` : ''}${r.err ? `<pre class="pyout err-t">${esc(r.err)}</pre>` : ''}</details>`).join('');
   if (m.cards?.length) h += m.cards.map(c => `<div class="svc"><b>${esc(c.title)}</b>${(c.lines || []).map(l => `<div class="note">${esc(l)}</div>`).join('')}<div class="svc-links${c.list ? ' list' : ''}">${c.links.map((l, i) => `<a class="${c.list ? 'chip' : i ? 'btn ghost' : 'btn'}" href="${esc(safeHref(l.url))}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('')}</div></div>`).join('');
   if (m.confirm) h += `<div class="cfm"><b>${esc(m.confirm.title)}</b>${m.confirm.rows.map(r => `<div class="cf-row"><span>${esc(r[0])}</span><div>${esc(r[1])}</div></div>`).join('')}<div class="cf-acts"><button class="btn" data-act="cfm" data-cid="${m.confirm.id}">Confirmer</button><button class="btn ghost" data-act="cfx" data-cid="${m.confirm.id}">Annuler</button></div></div>`;
@@ -5046,7 +5086,7 @@ function msgHtml(m){
   if (m.files?.length && !m.status) h += `<div class="files">${m.files.map((fl, i) => `<div class="file-row">${IC.file}<span class="fname">${esc(fl.name)}</span><span class="fs">${fmtSize(fl.size || 0)}</span><button class="act" data-act="dlfile" data-mid="${m.id}" data-i="${i}" aria-label="Télécharger ${esc(fl.name)}">${IC.dl}</button></div>`).join('')}</div>`;
   if (m.sources?.length) h += `<div class="sources">${m.sources.map((s, i) => { let host = s.url; try{ host = new URL(s.url).hostname.replace(/^www\./, ''); }catch(e){} return `<a href="${esc(safeHref(s.url))}" target="_blank" rel="noopener" title="${esc(s.title)}"><b>${i + 1}</b>${esc(host)}</a>`; }).join('')}</div>`;
   if (m.stopped) h += `<div class="note">Réponse arrêtée.</div>`;
-  if (m.error) h += `<div class="err${m.interrupted ? ' interrupted' : ''}"><span>${esc(m.error)}</span><button class="btn ghost" data-act="retry" data-mid="${m.id}">${m.interrupted ? 'Relancer' : 'Réessayer'}</button></div>`;
+  if (m.error) h += `<div class="err${m.interrupted ? ' interrupted' : ''}"><span>${esc(fsmClean(m.error))}</span><button class="btn ghost" data-act="retry" data-mid="${m.id}">${m.interrupted ? 'Relancer' : 'Réessayer'}</button></div>`;
   if (m.plan && !m.plan.done && !m.status && !m.error) h += `<div class="planbar"><button type="button" class="btn" data-act="planok" data-mid="${esc(m.id)}">Valider</button><button type="button" class="btn ghost" data-act="planedit" data-mid="${esc(m.id)}">Modifier</button></div>`;
   if (!m.status && !m.error){
     h += `<div class="acts">${m.text ? `<button class="act" data-act="copyall" data-mid="${m.id}" aria-label="Copier la réponse">${IC.copy}</button>` : ''}<button class="act" data-act="retry" data-mid="${m.id}" aria-label="Régénérer">${IC.redo}</button>${m.route && nextTier(m.route.tier) ? `<button class="act" data-act="upgrade" data-mid="${m.id}" aria-label="Réessayer avec un modèle plus puissant" title="Plus puissant">${IC.up}</button>` : ''}</div>`;
@@ -5426,7 +5466,7 @@ function enterAnim(el, delay){
 }
 
 function toast(t, act){
-  const el = $('#toast'); el.replaceChildren(document.createTextNode(String(t || '')));
+  const el = $('#toast'); el.replaceChildren(document.createTextNode(fsmClean(String(t || ''))));
   if (act && act.label){ const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-act'; b.textContent = act.label; b.addEventListener('click', () => { el.hidden = true; try{ act.run(); }catch(e){} }); el.append(b); }
   el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, act ? 6500 : 3200);
 }
@@ -5531,7 +5571,7 @@ function openVoiceSettings(){
   $('#vsAuto').checked = !!S.set.voiceAuto;
   { const ag = curAgent(); $('#vsAgents').textContent = 'Agent vocal : ' + (ag ? ((S.set.voiceAgent || 'auto') === 'auto' ? 'Automatique (' + ag.name + ')' : ag.name) : 'Personnalisé') + ' — changer'; }
   $('#vsWeb').checked = S.set.voiceWeb !== false; $('#vsBrain').value = S.set.voiceBrain || 'auto';
-  $('#vsCount').textContent = `${S.stt.length} modèle${S.stt.length > 1 ? 's' : ''} de transcription et ${S.tts.length} modèle${S.tts.length > 1 ? 's' : ''} de voix trouvés sur OpenRouter. Classés du plus cher au moins cher.`;
+  $('#vsCount').textContent = `${S.stt.length} modèle${S.stt.length > 1 ? 's' : ''} de transcription et ${S.tts.length} modèle${S.tts.length > 1 ? 's' : ''} de voix disponibles. Classés du plus cher au moins cher.`;
   renderVoicePicker();
   $('#voiceSheet').hidden = false;
 }
@@ -5600,7 +5640,7 @@ const VC_MSG = { idle:'Touche le cercle pour parler', listening:"Je t'écoute…
 function vcSet(state, msg){
   VC.state = state; $('#voice').dataset.state = state;
   const text = msg || (state === 'idle' && VC.muted ? 'Micro coupé · touche le cercle pour parler' : VC_MSG[state]);
-  $('#vcStatus').textContent = text;
+  $('#vcStatus').textContent = fsmClean(text);
   if (state !== 'listening') VC.lvlTarget = 0;
   const pill = $('#vcPill'); pill.dataset.state = state;
   $('#vcPillTxt').textContent = { idle: VC.muted ? 'FSM BOT · micro coupé' : 'FSM BOT · en pause', listening:"FSM BOT t'écoute", thinking:'FSM BOT réfléchit…', speaking:'FSM BOT parle' }[state] || 'FSM BOT';
@@ -5711,7 +5751,7 @@ async function openVoice(){
   ensureVoiceDefaults();
   const needOR = !isXai(S.set.model) || !['browser'].includes(S.set.voiceStt) || S.set.voiceTts !== 'device';
   if (needOR && !S.key){ openSettings(true); toast('Ajoute ta clé API FSM AI pour utiliser le mode vocal.'); return; }
-  if (isXai(S.set.model) && !S.xaiKey){ openSettings(true, 'xai'); toast('Ajoute ta clé API xAI dans les réglages.'); return; }
+  if (isXai(S.set.model) && !S.xaiKey){ openSettings(true, 'xai'); toast('Ajoute ta clé API directe dans les réglages.'); return; }
   if (S.busy) return toast('Attends la fin de la réponse en cours.');
   ensureVoiceDefaults();
   if (!modeFor(S.set.model).startsWith('chat')){ const p = topPick(catById('chat')); if (p){ S.set.model = p.id; applyPreset(catById('chat')); refreshModelUI(); } }
@@ -6214,7 +6254,7 @@ async function xfetch(url, opts){
   try{ return await fetch(url, opts); }
   catch(e){
     if (e?.name === 'AbortError') throw e;
-    throw new Error("Connexion à l'API xAI impossible depuis ce navigateur (réseau ou blocage CORS). Les mêmes modèles Grok sont disponibles via OpenRouter (catégorie Tous, « x-ai/… »).");
+    throw new Error("Connexion au service direct impossible depuis ce navigateur (réseau ou blocage CORS). Les mêmes modèles restent disponibles dans les autres catégories.");
   }
 }
 function estTokens(id, u){
@@ -6387,7 +6427,7 @@ function accountOpenRouter(usd, cat){
 function renderSpend(){
   $('#spendAmt').textContent = (S.spend.est ? '≈ ' : '') + budgetPct(S.spend.total);
   $('#spendTotal').textContent = (S.spend.est ? '≈ ' : '') + budgetPct(S.spend.total);
-  const by = S.spend.by, label = { openrouter:'OpenRouter', xai:'xAI direct', voice:'Voix (OpenRouter)' };
+  const by = S.spend.by, label = { openrouter:'FSM AI', xai:'FSM Direct', voice:'Voix' };
   $('#spendRows').innerHTML = Object.keys(by).length
     ? Object.entries(by).map(([k, v]) => `<div class="sp-row"><span>${esc(label[k] || k)}</span><b>${budgetPct(v)}</b></div>`).join('')
     : '<div class="sp-row"><span>Aucune dépense pour le moment</span></div>';
@@ -6412,7 +6452,7 @@ $('#botTask').addEventListener('input', () => { updateBotLinks(); try{ localStor
 try{ $('#botTask').value = localStorage.getItem('fsm.bottask') || ''; }catch(e){}
 $('#botCopy').addEventListener('click', async () => {
   const t = $('#botTask').value.trim(); if (!t) return toast("Décris d'abord la tâche.");
-  if (await copyText(t)) toast('Tâche copiée. Colle-la dans Grok Bot.'); else selectNode($('#botTask'));
+  if (await copyText(t)) toast('Tâche copiée. Colle-la dans le bot.'); else selectNode($('#botTask'));
 });
 $('#botX').addEventListener('click', e => { if (!$('#botTask').value.trim()){ e.preventDefault(); toast("Décris d'abord la tâche."); } });
 $('#botGrokApi').addEventListener('click', () => { closeSheets(); if (srvLocked()) return; if (!S.xaiKey) openSettings(true, 'xai'); else openModelSheet('xai'); });
@@ -6724,7 +6764,7 @@ async function runWatch(w){
   const prev = w.results?.[0] && !w.results[0].nothing ? w.results[0].text : (w.results?.find(r => !r.nothing)?.text || '');
   const body = { model: w.model || pickCheapModel(), plugins:[{ id:'web' }], usage:{ include:true }, temperature: 0.2,
     messages:[
-      { role:'system', content:`Tu es FSM BOT et tu réalises une veille automatique. Date : ${new Date().toLocaleString('fr-FR', { dateStyle:'full', timeStyle:'short' })}. Réponds en français, 6 lignes maximum, faits concrets et datés, avec les sources. Si rien de vraiment nouveau par rapport au résultat précédent, réponds uniquement : RAS` },
+      { role:'system', content:`Tu es FSM BOT et tu réalises une veille automatique. ${IDENT_HINT} Date : ${new Date().toLocaleString('fr-FR', { dateStyle:'full', timeStyle:'short' })}. Réponds en français, 6 lignes maximum, faits concrets et datés, avec les sources. Si rien de vraiment nouveau par rapport au résultat précédent, réponds uniquement : RAS` },
       { role:'user', content:`Sujet de la veille : ${w.prompt}\n\nRésultat précédent :\n${prev || '(première exécution)'}` }
     ] };
   try{
@@ -6741,7 +6781,7 @@ async function runWatch(w){
     if (j.usage?.cost) addSpend(j.usage.cost, 'veilles');
     if (!nothing){ w.unread = true; notifyBot(w.title, text); }
     w.error = null;
-  }catch(e){ w.error = String(e.message || e).split('\n')[0]; }
+  }catch(e){ w.error = fsmClean(String(e.message || e).split('\n')[0]); }
   w.running = false; w.lastRun = Date.now(); w.nextRun = nextRunOf(w);
   saveBot(); renderBot();
 }
@@ -6847,7 +6887,7 @@ function renderBot(){
     h += S.bot.watches.length ? S.bot.watches.map(w => {
       const last = w.results[0];
       return `<div class="wcard${w.active ? '' : ' off'}"><div class="wh"><b>${esc(w.title)}</b><span>${esc(FREQ[w.freq])}${/daily|weekly/.test(w.freq) ? ' à ' + esc(w.time) : ''} · ${w.running ? 'en cours…' : w.active ? 'prochaine : ' + fmtDT(w.nextRun) : 'en pause'}</span></div>
-        ${w.error ? `<div class="wr err-t">${esc(w.error)}</div>` : last ? `<div class="wr"><em>${fmtDT(last.t)}</em> ${esc(last.text)}</div>` : '<div class="wr"><em>Pas encore lancée.</em></div>'}
+        ${w.error ? `<div class="wr err-t">${esc(fsmClean(w.error))}</div>` : last ? `<div class="wr"><em>${fmtDT(last.t)}</em> ${esc(last.text)}</div>` : '<div class="wr"><em>Pas encore lancée.</em></div>'}
         ${w.open ? `<div class="whist">${w.results.slice(1, 12).map(r => `<div><em>${fmtDT(r.t)}</em> ${esc(r.text)}</div>`).join('') || '<div><em>Pas d\'historique.</em></div>'}${(last?.sources || []).map(s2 => `<a href="${esc(safeHref(s2.url))}" target="_blank" rel="noopener">${esc(s2.title)}</a>`).join('')}</div>` : ''}
         <div class="wa"><button class="mini" data-fb="wrun" data-id="${w.id}"${w.running ? ' disabled' : ''}>Lancer</button><button class="mini" data-fb="wtog" data-id="${w.id}">${w.active ? 'Pause' : 'Reprendre'}</button><button class="mini" data-fb="wopen" data-id="${w.id}">${w.open ? 'Masquer' : 'Historique'}</button><button class="mini" data-fb="wdel" data-id="${w.id}">Supprimer</button></div></div>`;
     }).join('') : '<div class="empty">Aucune veille. Crée-en une ci-dessous ou demande à FSM BOT.</div>';
@@ -7127,7 +7167,7 @@ async function runVideoEdit(asst, user, signal, conv){
   const meta = await loadEditVideo(blob);
   if (!isFinite(meta.D) || meta.D <= 0) throw new Error('Impossible de lire cette vidéo sur cet appareil. Essaie un fichier MP4 ou MOV.');
   /* 1. Plan de montage par le modèle */
-  const st1 = step('Analyse de la vidéo par ' + bare(shortName(asst.model)), 'run');
+  const st1 = step('Analyse de la vidéo', 'run');
   const info = modelInfo(asst.model);
   const ask = async (content, light) => {
     const body = { model: asst.model, temperature: 0.2, usage:{ include:true },
@@ -9802,6 +9842,56 @@ async function productTestsBody(){
       }
     } finally {
       S.models = saved.models; S.set.plan = saved.plan; S.set.variant = saved.variant; S.keyInfo = saved.keyInfo;
+    }
+  }
+  /* ----- Anonymat des modèles (16/11/2026) : aucune fuite de nom de modèle ni de fournisseur à l'écran (SIMULÉ : catalogue et erreurs factices) ----- */
+  {
+    const saved = { models: S.models, plan: S.set.plan, model: S.set.model, cat: S.set.category, router: S.set.router, key: S.key, fetch: window.fetch, sheet: S.sheetCat };
+    const LK = /open\s?router|anthropic|claude|openai|gpt[-\s]?\d|gemini|gemma|google|x-?ai\b|grok|mistral|deepseek|qwen|upstream|your own key|(?:openai|anthropic|google|x-ai|meta-llama|mistralai|deepseek|qwen)\/[\w.:~-]+/i;
+    const mk = (id, name) => ({ id, name, created: 100, context_length: 200000, pricing:{ prompt:'0.000003', completion:'0.000015' }, architecture:{ input_modalities:['text','image'], output_modalities:['text'] }, supported_parameters:['tools'] });
+    try{
+      S.models = [mk('anthropic/claude-sonnet-5.5', 'Anthropic: Claude Sonnet 5.5'), mk('openai/gpt-5.5-pro', 'OpenAI: GPT-5.5 Pro'), mk('google/gemini-3.1-pro-preview', 'Google: Gemini 3.1 Pro Preview'), mk('x-ai/grok-4.7', 'xAI: Grok 4.7')];
+      const al = modelAlias('anthropic/claude-sonnet-5.5');
+      ok('anonymat : alias FSM stable, sans nom de modèle', /^Modèle FSM [0-9A-Z]{4}$/.test(al) && al === modelAlias('anthropic/claude-sonnet-5.5') && al === modelAlias('Anthropic: Claude Sonnet 5.5') && modelAlias(al) === al && !LK.test(al), al);
+      ok('anonymat : shortName et bare ne rendent jamais le vrai nom', !LK.test(shortName('openai/gpt-5.5-pro')) && !LK.test(bare('Google: Gemini 3.1 Pro Preview')) && shortName('') === 'Aucun modèle');
+      ok('anonymat : fsmClean retire noms de modèles, identifiants et fournisseurs', !LK.test(fsmClean('google/gemma-4-26b-a4b-it:free is rate-limited (Google AI Studio) via OpenRouter, voir Claude Opus 5.5 et GPT-5.5 Pro')) && fsmClean('Bonjour, voici le résultat.') === 'Bonjour, voici le résultat.' && fsmClean('flux de données') === 'flux de données' && fsmClean('FSM AI OMEGA MAX 9.0') === 'FSM AI OMEGA MAX 9.0');
+      ok('anonymat : fsmErrText garde un message propre et remplace un message de fournisseur', fsmErrText('Fichier trop lourd', 'x') === 'Fichier trop lourd' && fsmErrText('openai/gpt-5.5-pro is not a valid model ID', 'repli') === 'repli' && fsmErrText('rate-limited upstream, add your own key', 'repli') === 'repli');
+      /* liste des modèles (propriétaire) et en-tête */
+      S.set.plan = 'unlimited'; S.set.category = 'chat'; S.set.router = false; S.set.model = 'anthropic/claude-sonnet-5.5'; refreshModelUI();
+      const hdr = document.querySelector('#hdrModel').textContent;
+      openModelSheet('chat'); const lst = document.querySelector('#mList').innerText + ' ' + document.querySelector('#cats').innerText + ' ' + document.querySelector('#catDesc').innerText;
+      ok('anonymat : en-tête et liste des modèles du propriétaire sans nom de modèle ni identifiant', !LK.test(hdr) && !LK.test(lst) && /Modèle FSM/.test(lst), hdr + ' | ' + lst.slice(0, 160));
+      const cd = document.querySelector('#customId'); ok('anonymat : champ d\'identifiant manuel caché, sans exemple de modèle', !LK.test(cd.placeholder) && cd.closest('.custom').hidden === true);
+      closeSheets();
+      /* paramètres et textes fixes, pour chaque abonnement */
+      const stat = [];
+      for (const pl of ['unlimited', 'elite', 'free', '']){ S.set.plan = pl; try{ refreshModelUI(); openModelSheet('chat'); openSettings(); }catch(e){} const t = [...document.querySelectorAll('#settingsSheet, #fsmSheet, #botSheet, #connSheet, #modelSheet, #voiceSheet')].map(x => x.textContent).join(' '); const LK2 = new RegExp(LK.source.replace('|google|', '|google\\s+ai|'), 'i'); if (LK2.test(t)) stat.push(pl + ':' + (t.match(LK2) || [''])[0]); closeSheets(); }
+      ok('anonymat : réglages, bot, connecteurs et feuille des modèles sans nom de modèle ni de fournisseur (propriétaire, Élite, Free, sans abonnement)', stat.length === 0, stat.join(' | '));
+      /* erreurs fournisseur simulées (402, 429, 500) : message FSM, jamais le texte du fournisseur */
+      const raw = { 402: 'This request requires more credits. To increase, visit https://openrouter.ai/settings/credits (anthropic/claude-sonnet-5.5)', 429: 'google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. add your own key', 500: 'Provider returned error from OpenAI openai/gpt-5.5-pro', 400: 'anthropic/claude-sonnet-5.5 does not support image input' };
+      const bad = [];
+      for (const st of [402, 429, 500, 400, 404, 503]){
+        const e = await apiError(new Response(JSON.stringify({ error: { message: raw[st] || 'x-ai/grok-4.7 introuvable', metadata: { raw: 'Google AI Studio upstream openai/gpt-5.5-pro' } } }), { status: st, headers: { 'Content-Type':'application/json' } }));
+        if (LK.test(e.message) || !e.message) bad.push(st + ':' + e.message);
+      }
+      ok('anonymat (simulé) : erreurs 400/402/404/429/503/500 sans nom de modèle ni de fournisseur', bad.length === 0, bad.join(' | '));
+      /* erreur dans le flux (simulé) et bulle d'erreur */
+      S.key = 'sk-or-v1-faussecle000000000000';
+      window.fetch = async () => new Response(new ReadableStream({ start(c){ c.enqueue(new TextEncoder().encode('data: ' + JSON.stringify({ error: { message: 'anthropic/claude-sonnet-5.5 overloaded (Anthropic upstream)', code: 529 } }) + '\n\n')); c.close(); } }), { status: 200, headers: { 'Content-Type':'text/event-stream' } });
+      newConv(); const cv = S.conv, us = { id: uid(), role:'user', text:'bonjour', atts:[] }; cv.messages.push(us);
+      try{ await run(us, cv, 'anthropic/claude-sonnet-5.5', 'chat', null); }catch(e){}
+      const as = cv.messages.filter(m => m.role === 'assistant').pop();
+      const errDom = [...document.querySelectorAll('.err')].map(x => x.textContent).join(' ');
+      ok('anonymat (simulé) : erreur dans le flux de réponse → message FSM dans la bulle', !!as?.error && !LK.test(as.error) && !LK.test(errDom), (as?.error || '') + ' | ' + errDom);
+      window.fetch = saved.fetch;
+      toast('Erreur openai/gpt-5.5-pro : OpenRouter indisponible (Anthropic)');
+      ok('anonymat : notification sans nom de modèle ni de fournisseur', !LK.test(document.querySelector('#toast').textContent));
+      vcSet('idle', 'Voix indisponible : google/gemini-3.8-flash-tts introuvable');
+      ok('anonymat : statut vocal sans nom de modèle', !LK.test(document.querySelector('#vcStatus').textContent));
+      ok('anonymat : les modèles reçoivent la consigne d\'identité FSM AI', /IDENTITÉ : tu es uniquement FSM AI/.test(coreSystem(null)) && /IDENTITÉ/.test(IDENT_HINT));
+    } finally {
+      window.fetch = saved.fetch; S.models = saved.models; S.set.plan = saved.plan; S.set.model = saved.model; S.set.category = saved.cat; S.set.router = saved.router; S.key = saved.key; S.sheetCat = saved.sheet;
+      try{ closeSheets(); refreshModelUI(); }catch(e){}
     }
   }
   {
