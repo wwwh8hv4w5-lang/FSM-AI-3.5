@@ -1259,7 +1259,7 @@ figure.gill .gencard.mini .gc-emblem{width:min(22cqw,40cqh,96px)}
   <div class="sheet fit" role="dialog" aria-modal="true" aria-labelledby="vsTitle">
     <div class="sheet-h"><h2 id="vsTitle">Mode vocal</h2><button class="icon-btn" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="sheet-b">
-      <div class="field"><label>Agent vocal</label><button class="btn ghost" id="vsAgents" type="button" style="text-align:left">Choisir un agent vocal…</button><small>Avec un agent (Nova, Atlas, Echo, Iris, Flash ou Automatique), les réglages ci-dessous sont ignorés. Choisis « Personnalisé » pour les utiliser.</small></div>
+      <div class="field"><label>Agent vocal</label><button class="btn ghost" id="vsAgents" type="button" style="text-align:left">Choisir un agent vocal…</button><small>Avec un agent (Nova, Atlas, Echo, Iris, Instant ou Automatique), les réglages ci-dessous sont ignorés. Choisis « Personnalisé » pour les utiliser.</small></div>
       <p class="note" id="vsCount" style="margin:0"></p>
       <div class="field"><label for="vsStt">Écoute (transcription de ta voix)</label><select class="sel" id="vsStt"></select><small>« Audio direct » envoie ta voix telle quelle au modèle de conversation (modèles audio uniquement).</small></div>
       <div class="field"><label for="vsTts">Voix de réponse</label><select class="sel" id="vsTts"></select></div>
@@ -5709,7 +5709,7 @@ function effStt(){
 const effTts = () => { const ag = curAgent(); return ag ? ag.tts : S.set.voiceTts; };
 const effVoice = () => { const ag = curAgent(); return ag ? ag.voice : S.set.voiceName; };
 function pickFastTools(){
-  const prefs = [...roleIds('corser_haiku'), ...tierPref('generic', 'eco')];
+  const prefs = [...roleIds('corser_light'), ...tierPref('generic', 'eco')];
   const seen = new Set();
   for (const id of prefs){
     if (seen.has(id)) continue; seen.add(id);
@@ -6090,7 +6090,7 @@ const VOICE_AGENTS = [
   { id:'atlas', name:'Atlas', tag:'Expert', desc:"Le plus intelligent : raisonnements, conseils précis, tâches complexes. Un peu plus lent." },
   { id:'echo', name:'Echo', tag:'Expressive', desc:"Voix expressive et chaleureuse, idéale pour discuter, raconter ou s'entraîner à l'oral." },
   { id:'iris', name:'Iris', tag:'Multilingue', desc:"Parfaite pour passer d'une langue à l'autre ou traduire à voix haute." },
-  { id:'instant', name:'Flash', tag:'Instantané', desc:"Zéro attente : voix de l'appareil et modèle rapide. La voix est moins naturelle." }
+  { id:'instant', name:'Instant', tag:'Instantané', desc:"Zéro attente : voix de l'appareil et modèle rapide. La voix est moins naturelle." }
 ];
 const AUTO_ORDER = ['nova', 'atlas', 'echo', 'iris', 'instant'];
 function resolveAgent(id){
@@ -6711,7 +6711,7 @@ function nextRunOf(w, from){
   return isFinite(d.getTime()) ? d.getTime() : now + 864e5;
 }
 function pickCheapModel(){
-  const prefs = [...tierPref('generic', 'eco'), ...roleIds('corser_haiku'), ...roleIds('corser_flash')];
+  const prefs = [...tierPref('generic', 'eco'), ...roleIds('corser_light'), ...roleIds('corser_fast')];
   const seen = new Set();
   for (const id of prefs){
     if (seen.has(id)) continue; seen.add(id);
@@ -7236,9 +7236,9 @@ function isSmallAsk(text, atts){
   if (!t) return false;
   return t.length <= 180 && t.split(/\s+/).filter(Boolean).length <= 24;
 }
-const CORSER_FLASH_RE = { test: id => roleIds('corser_flash').includes(id) };
-const CORSER_HAIKU_RE = { test: id => roleIds('corser_haiku').includes(id) };
-const CORSER_SONNET_RE = { test: id => roleIds('corser_sonnet').includes(id) };
+const CORSER_FAST_RE = { test: id => roleIds('corser_fast').includes(id) };
+const CORSER_LIGHT_RE = { test: id => roleIds('corser_light').includes(id) };
+const CORSER_MID_RE = { test: id => roleIds('corser_mid').includes(id) };
 function pickNewest(lists, nd, pok){
   for (const ids of lists){
     const set = new Set(Array.isArray(ids) ? ids : []);
@@ -7256,8 +7256,8 @@ function corserVariant(){
 /* Gamme CORSER seulement. NEURAL, OMEGA et les médias restent sur le routeur général.
    Petite demande (code ou texte, les trois niveaux) : le modèle léger le plus récent, puis le modèle éco en repli.
    5.0 : le code normal et complexe reste sur le modèle éco le plus récent, puis les autres modèles éco de code.
-   PRO et MAX : le code qui n'est pas une petite demande s'arrête à Sonnet. MAX ne prend pas Opus pour le code.
-   Texte hors code en MAX : le routeur actuel, Opus compris sur une demande exigeante. */
+   PRO et MAX : le code qui n'est pas une petite demande s'arrête au modèle intermédiaire. MAX ne prend pas le modèle le plus puissant pour le code.
+   Texte hors code en MAX : le routeur actuel, modèle le plus puissant compris sur une demande exigeante. */
 function corserRoute(text, atts, conv, cat, d, forceTier){
   const v = corserVariant();
   if (!v || (cat !== 'code' && cat !== 'chat')) return null;
@@ -7267,20 +7267,20 @@ function corserRoute(text, atts, conv, cat, d, forceTier){
   const note = s => (d.why ? d.why + ' · ' : '') + s;
   if (small){
     const prefs = cat === 'code' ? tierPref('code', 'eco') : tierPref('generic', 'eco');
-    const m = pickNewest([roleIds('corser_haiku'), roleIds('corser_flash'), prefs], nd, pok);
+    const m = pickNewest([roleIds('corser_light'), roleIds('corser_fast'), prefs], nd, pok);
     if (!m) return null;
     return { model: m.id, tier: 'eco', why: note('CORSER · petite demande') };
   }
   if (cat === 'code' && v.id === 'corser50'){
-    const m = pickNewest([roleIds('corser_flash'), tierPref('code', 'eco')], nd, pok);
+    const m = pickNewest([roleIds('corser_fast'), tierPref('code', 'eco')], nd, pok);
     if (!m) return null;
     return { model: m.id, tier: 'eco', why: note('CORSER 5.0 · code') };
   }
   if (cat === 'code'){
-    const std = (tierPref('code', 'standard') || []).filter(id => !(roleIds('omega_opus') || []).includes(id));
-    const m = pickNewest([roleIds('corser_sonnet'), std, tierPref('code', 'eco')], nd, pok);
+    const std = (tierPref('code', 'standard') || []).filter(id => !(roleIds('omega_top') || []).includes(id));
+    const m = pickNewest([roleIds('corser_mid'), std, tierPref('code', 'eco')], nd, pok);
     if (!m) return null;
-    return { model: m.id, tier: 'standard', why: note(v.id === 'corser60' ? 'CORSER MAX · code plafonné à Sonnet' : 'CORSER PRO · code') };
+    return { model: m.id, tier: 'standard', why: note(v.id === 'corser60' ? 'CORSER MAX · code plafonné' : 'CORSER PRO · code') };
   }
   return null;
 }
@@ -7295,11 +7295,11 @@ function capable(m, nd){
     && (!nd.file || ins(m, 'file') || ins(m, 'image')) && (!nd.tools || hasParam(m, 'tools'));
 }
 /* OMEGA MAX 9.0 : le modèle le plus puissant reste réservé aux demandes vraiment exigeantes.
-   Une question simple de discussion part sur l'Opus le plus récent, s'il coûte moins cher.
+   Une question simple de discussion part sur le modèle haut de gamme le plus récent, s'il coûte moins cher.
    Au moindre doute (longueur, mot-clé exigeant, code, calcul, pièce jointe, plusieurs étapes, longue discussion,
    suite d'une réponse du modèle le plus puissant, demande explicite du max) : le modèle le plus puissant, comme avant.
    En reprise après échec (altModel), pas de raccourci : le repli va au modèle le plus puissant. */
-const OMEGA_OPUS_RE = { test: id => roleIds('omega_opus').includes(id) };
+const OMEGA_TOP_RE = { test: id => roleIds('omega_top').includes(id) };
 const OMEGA_MAX_ASK_RE = /(?:^|[^\p{L}])(?:max(?:imum|imal|imale)?|le plus puissant|plus puissant|meilleur modèle|à fond|en profondeur|approfondi[e]?s?|raisonnement (?:poussé|avancé|complet)|réfléchis(?:-y)? (?:bien|longuement)|prends ton temps|précision maximale|sans erreur)(?![\p{L}])/iu;
 const OMEGA_STEPS_RE = /(?:^|[^\p{L}])(?:étapes?|d'abord|ensuite|puis(?!-)|enfin|premièrement|deuxièmement|plusieurs|compar(?:e|er|aison)|avantages et inconvénients|pour et contre|plan|liste détaillée|en détail|détaillée?s?|explique pourquoi|justifie)(?![\p{L}])/iu;
 let routeRetry = false;
@@ -7336,9 +7336,9 @@ function routeModel(text, atts, conv, cat, forceTier){
     const all = (prefs.max || []).flatMap(id => S.models.filter(x => x.id === id && capable(x, nd) && pok(x)));
     const best = all.sort((a, b) => priceScore(b, 'chat') - priceScore(a, 'chat'))[0];
     if (best && !routeRetry && omegaMaxSimple(text, atts, conv, cat, d0, best.id)){
-      const opus = S.models.filter(x => roleIds('omega_opus').includes(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
-      if (opus && opus.id !== best.id && priceScore(opus, 'chat') > 0 && priceScore(opus, 'chat') < priceScore(best, 'chat'))
-        return { model: opus.id, tier: 'max', why: (d.why ? d.why + ' · ' : '') + 'OMEGA MAX · question simple' };
+      const simpler = S.models.filter(x => roleIds('omega_top').includes(x.id) && capable(x, nd) && pok(x)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+      if (simpler && simpler.id !== best.id && priceScore(simpler, 'chat') > 0 && priceScore(simpler, 'chat') < priceScore(best, 'chat'))
+        return { model: simpler.id, tier: 'max', why: (d.why ? d.why + ' · ' : '') + 'OMEGA MAX · question simple' };
     }
     if (best) return { model: best.id, tier: 'max', why: d.why, omegaTop: true };
   }
@@ -9692,7 +9692,7 @@ async function productTestsBody(){
       const oldHaiku = row('anthropic/claude-haiku-4', 100, 0.000001);
       S.models = catalog.concat([oldHaiku]);
       ok('petite demande : Haiku le plus récent', go('bonjour').model === HAIKU && go('écris une fonction qui additionne deux nombres').model === HAIKU);
-      S.models = catalog.filter(m => !CORSER_HAIKU_RE.test(m.id));
+      S.models = catalog.filter(m => !CORSER_LIGHT_RE.test(m.id));
       S.set.variant = 'corser55';
       ok('petite demande sans Haiku : Flash', go('bonjour').model === FLASH && go('écris une fonction qui additionne deux nombres').model === FLASH);
       S.models = catalog; S.set.variant = 'corser50';
@@ -9702,7 +9702,7 @@ async function productTestsBody(){
       S.set.variant = 'corser50';
       const joint50 = routeModel('écris une fonction qui additionne deux nombres', [{ name:'a.py', type:'text/plain' }], { messages:[] }, 'code');
       ok('pièce jointe pas petite', joint && joint.model === SONNET && joint50 && joint50.model === FLASH);
-      S.models = catalog.filter(m => !CORSER_FLASH_RE.test(m.id));
+      S.models = catalog.filter(m => !CORSER_FAST_RE.test(m.id));
       ok('repli sans V4.1 Flash', go(codeNormal).model === 'qwen/qwen3-coder' && go('bonjour').model === HAIKU && !/sonnet|opus/.test(go(complexe).model || ''));
       S.models = catalog; S.set.variant = 'corser60';
       const capped = routeModel(complexe, [], { messages:[] }, 'code', 'max');
@@ -9741,7 +9741,7 @@ async function productTestsBody(){
         const alt = altModel({ cat:'chat', model:OPUS55 }, { text:'quelle heure est-il ?', atts:[] }, { messages:[] }, [OPUS55]);
         ok('OMEGA MAX : échec d\'Opus → repli GPT-5.5 Pro', alt === GPTPRO && routeRetry === false, alt);
         ok('OMEGA MAX : après le repli, routage normal rétabli', om('quelle heure est-il ?') === OPUS55);
-        S.models = omCat.filter(m => !OMEGA_OPUS_RE.test(m.id));
+        S.models = omCat.filter(m => !OMEGA_TOP_RE.test(m.id));
         ok('OMEGA MAX : sans Opus → GPT-5.5 Pro', om('quelle heure est-il ?') === GPTPRO);
         S.models = omCat.filter(m => m.id !== OPUS55 && m.id !== OPUS5).concat([priced('anthropic/claude-opus-9', 250, 0.00004, 0.0002)]);
         ok('OMEGA MAX : Opus plus cher que le top → pas de raccourci', om('quelle heure est-il ?') === 'anthropic/claude-opus-9' && routeModel('quelle heure est-il ?', [], { messages:[] }, 'chat').omegaTop === true);
