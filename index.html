@@ -8832,13 +8832,13 @@ function upgradeCardsHtml(){
       </div>`;
     }).join('') + `<p class="tiers-n">${esc(UPSELL)}</p></div>`;
 }
-const FSM_MAIL = 'direction@fsmai.app', FSM_MAIL_CC = 'direction@fsmai.app';
+const FSM_MAIL = 'direction@fsmai.app', FSM_MAIL_CC = '';
 function tierRequest(k){
   const t = TIER_CARDS[k]; if (!t) return;
   const cur = PLANS[S.set.plan];
   const subject = `Demande d'accès : abonnement FSM AI ${t.plan}`;
   const body = `Bonjour FSM AI,\n\nJe souhaite passer à l'abonnement FSM AI ${t.plan} (${t.model} et sa gamme, ${t.price} TTC par mois)${cur ? ', à la place de mon abonnement actuel ' + cur.key : ''}.\n\nPouvez-vous m'envoyer une clé API ${t.plan} ?\n\nMerci !`;
-  const href = `mailto:${FSM_MAIL}?cc=${encodeURIComponent(FSM_MAIL_CC)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const href = `mailto:${FSM_MAIL}?${FSM_MAIL_CC && FSM_MAIL_CC !== FSM_MAIL ? 'cc=' + encodeURIComponent(FSM_MAIL_CC) + '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const a = document.createElement('a'); a.href = href; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
   toast('Ton application e-mail s\'ouvre avec la demande prête à envoyer.');
 }
